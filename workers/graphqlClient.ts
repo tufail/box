@@ -1,73 +1,83 @@
 import gql from "gql.tada";
 import type { TadaDocumentNode } from "gql.tada";
+import { print } from "graphql";
 
-export const DEFAULT_VENDURE_SHOP_API = "https://readonlydemo.vendure.io/shop-api";
+export const DEFAULT_VENDURE_SHOP_API = "http://localhost:3000/shop-api";
 
-function queryToString(query: any): string {
-    if (typeof query === "string") return query;
-    if (query && typeof query === "object") {
-        if (query.loc && query.loc.source && typeof query.loc.source.body === "string") {
-            return query.loc.source.body;
-        }
-        if (typeof query.toString === "function") return query.toString();
-    }
-    return String(query);
+const CHANNEL_HEADER = "vendure-token";
+const AUTH_HEADER = "vendure-auth-token";
+
+interface VendureEnv {
+  VENDURE_SHOP_API?: string;
+  VENDURE_CHANNEL_TOKEN?: string;
 }
 
-export async function graphqlRequest<TData = any, TVariables = Record<string, any>>(
-    query: string | TadaDocumentNode<TData, TVariables> | { toString(): string },
-    variables?: TVariables,
-    cf?: any
-): Promise<TData> {
-    const bodyQuery = queryToString(query);
+interface GraphQLRequestOptions {
+  request?: Request;
+  channelToken?: string;
+  authToken?: string | null;
+  cf?: Record<string, unknown>;
+}
 
-    const api = (typeof (globalThis as any)?.ENV?.VENDURE_SHOP_API === "string")
-        ? (globalThis as any).ENV.VENDURE_SHOP_API
-        : DEFAULT_VENDURE_SHOP_API;
+function queryToString(query: string | TadaDocumentNode<unknown, unknown>): string {
+  if (typeof query === "string") return query;
+  return print(query);
+}
 
-    const fetchOptions: any = {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: bodyQuery, variables }),
-    };
-    if (cf) fetchOptions.cf = cf;
+function getAuthTokenFromCookie(request?: Request): string | null {
+  if (!request) return null;
+  const cookie = request.headers.get("cookie") ?? "";
+  return cookie.match(/vendure-auth-token=([^;]+)/)?.[1] ?? null;
+}
 
-    const res = await fetch(api, fetchOptions);
+export async function graphqlRequest<
+  TData = unknown,
+  TVariables = Record<string, unknown>
+>(
+  env: VendureEnv,
+  query: string | TadaDocumentNode<TData, TVariables>,
+  variables?: TVariables,
+  options?: GraphQLRequestOptions
+): Promise<{ data: TData; token?: string }> {
+  const api =
+    typeof env?.VENDURE_SHOP_API === "string"
+      ? env.VENDURE_SHOP_API
+      : DEFAULT_VENDURE_SHOP_API;
 
-    const json = await res.json() as any;
-    if (!res.ok || json.errors) {
-        const err = json.errors ?? { status: res.status, statusText: res.statusText };
-        throw new Error(JSON.stringify(err));
-    }
+  const bodyQuery = queryToString(query as TadaDocumentNode<unknown, unknown>);
+  const authToken = options?.authToken ?? getAuthTokenFromCookie(options?.request);
 
-    return json.data as TData;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    [CHANNEL_HEADER]:
+      options?.channelToken ?? env?.VENDURE_CHANNEL_TOKEN ?? "__default_channel__",
+  };
+
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+
+  const fetchOptions: RequestInit & { cf?: Record<string, unknown> } = {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query: bodyQuery, variables }),
+  };
+
+  if (options?.cf) {
+    fetchOptions.cf = options.cf;
+  }
+
+  const res = await fetch(api, fetchOptions);
+  const json = await res.json() as { data?: TData; errors?: unknown[] };
+
+  if (!res.ok || json.errors) {
+    throw new Error(JSON.stringify(json.errors ?? { status: res.status, statusText: res.statusText }));
+  }
+
+  return {
+    data: json.data as TData,
+    token: res.headers.get(AUTH_HEADER) ?? undefined,
+  };
 }
 
 export { gql };
-
-export async function graphqlRequestWithEnv<TData = any, TVariables = Record<string, any>>(
-    env: any,
-    query: string | TadaDocumentNode<TData, TVariables> | { toString(): string },
-    variables?: TVariables,
-    cf?: any
-): Promise<TData> {
-    const api = env && typeof env.VENDURE_SHOP_API === "string" ? env.VENDURE_SHOP_API : DEFAULT_VENDURE_SHOP_API;
-    const bodyQuery = queryToString(query);
-
-    const fetchOptions: any = {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: bodyQuery, variables }),
-    };
-    if (cf) fetchOptions.cf = cf;
-
-    const res = await fetch(api, fetchOptions);
-
-    const json = await res.json() as any;
-    if (!res.ok || json.errors) {
-        const err = json.errors ?? { status: res.status, statusText: res.statusText };
-        throw new Error(JSON.stringify(err));
-    }
-
-    return json.data as TData;
-}

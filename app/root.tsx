@@ -1,21 +1,31 @@
-import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import MainLayout from "./layouts/MainLayout";
+import { graphqlRequest } from "workers/graphqlClient";
+import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
-	{
-		rel: "preconnect",
-		href: "https://fonts.gstatic.com",
-		crossOrigin: "anonymous",
-	},
+	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap",
 	},
 ];
+
+export async function loader({ context, request }: Route.LoaderArgs) {
+	const env = context.cloudflare.env;
+	try {
+		const result = await graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } });
+		console.log("Mega Menu Data:", result.data);
+		return { megaMenu: result.data.getMegaMenu };
+	} catch (error) {
+		console.error("Error fetching Mega Menu Data:", error);
+		return { megaMenu: null };
+	}
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
@@ -36,8 +46,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+	const { megaMenu } = useLoaderData<typeof loader>();
 	return (
-		<MainLayout>
+		<MainLayout megaMenu={megaMenu}>
 			<Outlet />
 		</MainLayout>
 	);
