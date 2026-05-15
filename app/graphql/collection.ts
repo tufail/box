@@ -46,3 +46,81 @@ export const GET_COLLECTIONS = graphql(`
 
 export type CollectionsResult = ResultOf<typeof GET_COLLECTIONS>;
 export type CollectionItem = CollectionsResult["collections"]["items"][number];
+
+// ─── Collection page (plain string — uses custom search fields) ──────────────
+
+export interface CollectionBreadcrumb {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface CollectionDetail {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  breadcrumbs: CollectionBreadcrumb[];
+  featuredAsset: { preview: string } | null;
+}
+
+export interface CollectionPageFacetValue {
+  count: number;
+  facetValue: { id: string; name: string; facet: { id: string; name: string } };
+}
+
+export interface CollectionPageData {
+  collection: CollectionDetail | null;
+  search: {
+    totalItems: number;
+    items: import("./product").SearchProductItem[];
+    facetValues: CollectionPageFacetValue[];
+  };
+}
+
+export interface CollectionPageVariables {
+  slug: string;
+  input: {
+    collectionSlug: string;
+    groupByProduct: boolean;
+    take: number;
+    skip: number;
+    sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC" };
+    facetValueIds?: string[];
+    facetValueOperator?: "AND" | "OR";
+  };
+}
+
+export const COLLECTION_PAGE_QUERY = `
+  query CollectionPage($slug: String!, $input: SearchInput!) {
+    collection(slug: $slug) {
+      id
+      name
+      slug
+      description
+      breadcrumbs { id name slug }
+      featuredAsset { preview }
+    }
+    search(input: $input) {
+      totalItems
+      items {
+        productId
+        productName
+        slug
+        description
+        inStock
+        productAsset { id preview }
+        price {
+          __typename
+          ... on PriceRange { min max }
+          ... on SinglePrice { value }
+        }
+        customProductVariantMappings { isOnSale stockQty discount }
+      }
+      facetValues {
+        count
+        facetValue { id name facet { id name } }
+      }
+    }
+  }
+`;

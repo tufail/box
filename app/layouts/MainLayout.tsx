@@ -1,7 +1,8 @@
 import type { MegaMenuData } from "~/graphql/megamenu";
 import MegaMenu from "../components/MegaMenu";
+import SearchBox from "../components/SearchBox";
 import { Link } from "react-router";
-import { CircleUser, Globe, Search, ShoppingCart } from "lucide-react";
+import { CircleUser, Globe, ShoppingCart } from "lucide-react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -31,19 +32,8 @@ export default function MainLayout({ children, megaMenu }: MainLayoutProps) {
               className="h-6 md:h-10 inline-block mr-2"
             />
           </Link>
-          <div className="w-1/2 relative hidden md:block">
-            <input
-              type="text"
-              placeholder="Search Products, Brands"
-              className="border border-gray-300 rounded-full py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <button
-              className="absolute right-0 bg-primary text-white hover:bg-primary-dark rounded-l-none rounded-r-full h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer"
-              type="submit"
-              aria-label="Search"
-            >
-              <Search size={18} />
-            </button>
+          <div className="w-1/2 hidden md:block">
+            <SearchBox />
           </div>
           <div className="flex items-center gap-5">
             <Link
