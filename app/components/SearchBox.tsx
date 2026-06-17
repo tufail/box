@@ -168,17 +168,17 @@ export default function SearchBox() {
 							}
 						}}
 						placeholder="Search Products"
-						className="border border-gray-300 rounded-full py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12"
+						className="border border-gray-300 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12"
 						autoComplete="off"
 					/>
-					<button type="submit" aria-label="Search" className="absolute right-0 bg-primary text-white hover:bg-primary-dark rounded-l-none rounded-r-full h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center">
-						{loading ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Search size={18} />}
+					<button type="submit" aria-label="Search" className="absolute right-0 bg-primary text-white hover:bg-primary-dark  h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center">
+						{loading ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent  animate-spin" /> : <Search size={18} />}
 					</button>
 				</div>
 			</form>
 
 			{open && (
-				<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
+				<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
 					{hasItems && (
 						<>
 							<SectionLabel label="Products" />
@@ -188,7 +188,7 @@ export default function SearchBox() {
 						</>
 					)}
 
-					{(hasCollections || hasFacets) && (
+					{/* {(hasCollections || hasFacets) && (
 						<div className="px-4 pb-3 border-t border-gray-100">
 							{hasCollections && (
 								<>
@@ -212,7 +212,7 @@ export default function SearchBox() {
 								</>
 							)}
 						</div>
-					)}
+					)} */}
 				</div>
 			)}
 		</div>

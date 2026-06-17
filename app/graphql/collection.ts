@@ -91,6 +91,39 @@ export interface CollectionPageVariables {
   };
 }
 
+export interface HomeCollectionItem {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  featuredAsset: { id: string; preview: string } | null;
+}
+
+export interface HomeCollectionsResult {
+  collections: {
+    totalItems: number;
+    items: HomeCollectionItem[];
+  };
+}
+
+export const HOME_COLLECTIONS_QUERY = `
+  query HomeCollections($options: CollectionListOptions) {
+    collections(options: $options) {
+      totalItems
+      items {
+        id
+        name
+        slug
+        parentId
+        featuredAsset {
+          id
+          preview
+        }
+      }
+    }
+  }
+`;
+
 export const COLLECTION_PAGE_QUERY = `
   query CollectionPage($slug: String!, $input: SearchInput!) {
     collection(slug: $slug) {
@@ -105,6 +138,7 @@ export const COLLECTION_PAGE_QUERY = `
       totalItems
       items {
         productId
+        productVariantId
         productName
         slug
         description
@@ -116,6 +150,7 @@ export const COLLECTION_PAGE_QUERY = `
           ... on SinglePrice { value }
         }
         customProductVariantMappings { isOnSale stockQty discount }
+        customProductMappings { variantCount salesCount }
       }
       facetValues {
         count

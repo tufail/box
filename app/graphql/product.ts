@@ -110,6 +110,7 @@ export type SearchResultPrice =
 
 export interface SearchProductItem {
   productId: string;
+  productVariantId: string;
   productName: string;
   slug: string;
   description: string;
@@ -120,6 +121,10 @@ export interface SearchProductItem {
     isOnSale: boolean;
     stockQty: number;
     discount: number;
+  } | null;
+  customProductMappings: {
+    variantCount: number;
+    salesCount: number;
   } | null;
 }
 
@@ -135,6 +140,8 @@ export interface SearchTopSellingVariables {
     take?: number;
     skip?: number;
     term?: string;
+    collectionSlug?: string;
+    collectionId?: string;
     groupByProduct?: boolean;
     sort?: {
       salesCount?: "ASC" | "DESC";
@@ -185,6 +192,7 @@ export const SEARCH_PAGE_QUERY = `
       totalItems
       items {
         productId
+        productVariantId
         productName
         slug
         description
@@ -196,6 +204,7 @@ export const SEARCH_PAGE_QUERY = `
           ... on SinglePrice { value }
         }
         customProductVariantMappings { isOnSale stockQty discount }
+        customProductMappings { variantCount salesCount }
       }
       facetValues {
         count
@@ -209,12 +218,13 @@ export const SEARCH_PAGE_QUERY = `
   }
 `;
 
-export const SEARCH_TOP_SELLING = `
-  query GetTopSellingProducts($input: SearchInput!) {
+export const SEARCH_NEW_ARRIVALS = `
+  query GetNewArrivals($input: SearchInput!) {
     search(input: $input) {
       totalItems
       items {
         productId
+        productVariantId
         productName
         slug
         description
@@ -238,6 +248,44 @@ export const SEARCH_TOP_SELLING = `
           stockQty
           discount
         }
+        customProductMappings { variantCount salesCount }
+      }
+    }
+  }
+`;
+
+export const SEARCH_TOP_SELLING = `
+  query GetTopSellingProducts($input: SearchInput!) {
+    search(input: $input) {
+      totalItems
+      items {
+        productId
+        productVariantId
+        productName
+        slug
+        description
+        inStock
+        productAsset {
+          id
+          preview
+        }
+        price {
+          __typename
+          ... on PriceRange {
+            min
+            max
+          }
+          ... on SinglePrice {
+            value
+          }
+        }
+        customProductVariantMappings {
+          isOnSale
+          stockQty
+          discount
+        }
+        customProductMappings { variantCount salesCount }
+        customProductMappings { variantCount salesCount }
       }
     }
   }

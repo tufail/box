@@ -19,3 +19,10 @@ body {
 .bg-secondary {
 	@apply bg-[#DCDFD5] dark:bg-gray-900;
 }
+
+@utility scrollbar-hide {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}

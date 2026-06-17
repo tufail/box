@@ -7,9 +7,10 @@ import ProductCard from "./ProductCard";
 interface Props {
   products: SearchProductItem[];
   vendureBase: string;
+  title?: string;
 }
 
-export default function HomeTopSelling({ products, vendureBase }: Props) {
+export default function HomeTopSelling({ products, vendureBase, title = "Top Selling Products" }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: "auto",
@@ -41,7 +42,7 @@ export default function HomeTopSelling({ products, vendureBase }: Props) {
   return (
     <section className="py-8 container mx-auto px-4">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold">Top Selling Products</h2>
+        <h2 className="text-xl font-bold">{title}</h2>
         <div className="flex gap-2">
           <button
             onClick={() => emblaApi?.scrollPrev()}
