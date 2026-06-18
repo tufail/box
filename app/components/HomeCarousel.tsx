@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { vendureImageUrl } from "./VendureImage";
 
 function ConditionalLink({ href, children }: { href?: string; children: React.ReactNode }) {
 	if (!href) return <>{children}</>;
@@ -23,7 +25,7 @@ const defaultSlides: CarouselSlide[] = [
 	{ id: "5", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1400&q=80", label: "Gold Standard" },
 ];
 
-export default function HomeCarousel({ items = defaultSlides }: { items?: CarouselSlide[] }) {
+export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }: { items?: CarouselSlide[]; vendureBase?: string }) {
 	const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -53,14 +55,42 @@ export default function HomeCarousel({ items = defaultSlides }: { items?: Carous
 							<div key={slide.id} className="flex-none w-full">
 								<ConditionalLink href={slide.href}>
 									<picture>
-										{slide.mobileImage && <source media="(max-width: 767px)" srcSet={slide.mobileImage} />}
-										<img src={slide.image} alt={slide.label} className="w-full h-auto block" draggable={false} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} />
+										{slide.mobileImage && (
+											<source
+												media="(max-width: 767px)"
+												srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { w: 768, format: "webp", mode: "resize" })}
+											/>
+										)}
+										<img
+											src={vendureImageUrl(slide.image, vendureBase, { w: 1400, format: "webp", mode: "resize" })}
+											alt={slide.label}
+											className="w-full h-auto block"
+											draggable={false}
+											loading={index === 0 ? "eager" : "lazy"}
+											fetchPriority={index === 0 ? "high" : "auto"}
+										/>
 									</picture>
 								</ConditionalLink>
 							</div>
 						))}
 					</div>
 				</div>
+
+				<button
+					onClick={() => emblaApi?.scrollPrev()}
+					aria-label="Previous slide"
+					className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded bg-black/70 text-white shadow-md flex items-center justify-center hover:bg-black transition-colors"
+				>
+					<ChevronLeft size={20} />
+				</button>
+
+				<button
+					onClick={() => emblaApi?.scrollNext()}
+					aria-label="Next slide"
+					className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded bg-black/70 text-white shadow-md flex items-center justify-center hover:bg-black transition-colors"
+				>
+					<ChevronRight size={20} />
+				</button>
 
 				{/* Dot indicators — single overlay, centred at the bottom of the image */}
 				{scrollSnaps.length > 1 && (

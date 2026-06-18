@@ -1,4 +1,4 @@
-import type { Route } from "./+types/search";
+import type { Route } from "./+types/collections";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -29,8 +29,6 @@ function sortToInput(sort: SortKey) {
   return { salesCount: "DESC" as const };
 }
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 interface FacetGroup {
   facetId: string;
   facetName: string;
@@ -47,28 +45,31 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
   return [...map.values()];
 }
 
-// ── Meta ───────────────────────────────────────────────────────────────────
-
 export function meta({ data }: Route.MetaArgs) {
-  const q = (data as { q?: string } | undefined)?.q ?? "";
-  return [{ title: q ? `Search: ${q} — PHQ` : "Search — PHQ" }];
+  const canonicalUrl = (data as { canonicalUrl?: string } | undefined)?.canonicalUrl ?? "/collections";
+  return [
+    { title: "All Products — PHQ" },
+    { name: "description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar." },
+    { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: "All Products — PHQ" },
+    { property: "og:description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products." },
+    { property: "og:url", content: canonicalUrl },
+  ];
 }
-
-// ── Loader ─────────────────────────────────────────────────────────────────
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const q = url.searchParams.get("q")?.trim() ?? "";
   const sort = (url.searchParams.get("sort") ?? "sales_desc") as SortKey;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const fv = url.searchParams.get("fv")?.split(",").filter(Boolean) ?? [];
+  const canonicalUrl = `${url.origin}/collections`;
 
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
   const input: SearchPageVariables["input"] = {
-    term: q || undefined,
-    groupByProduct: true,
+    groupByProduct: false,
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
     sort: sortToInput(sort),
@@ -82,13 +83,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       { input },
       { request }
     );
-    return { ...data.search, q, sort, page, fv, vendureBase };
+    return { ...data.search, sort, page, fv, vendureBase, canonicalUrl };
   } catch {
-    return { totalItems: 0, items: [], facetValues: [], collections: [], q, sort, page, fv, vendureBase };
+    return { totalItems: 0, items: [], facetValues: [], collections: [], sort, page, fv, vendureBase, canonicalUrl };
   }
 }
-
-// ── Filter sidebar ─────────────────────────────────────────────────────────
 
 interface FilterSidebarProps {
   facetGroups: FacetGroup[];
@@ -150,10 +149,8 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
-
-export default function SearchPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, q, sort, page, fv, vendureBase } = loaderData;
+export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
+  const { totalItems, items, facetValues, sort, page, fv, vendureBase } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -176,28 +173,17 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      {/* ── Breadcrumb ── */}
       <div className="mb-4">
-        <Breadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: q ? `Search results for "${q}"` : "All Products" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "All Products" }]} />
       </div>
 
-      {/* ── Top bar ── */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">All Products</h1>
+        <p className="text-sm text-gray-500 mt-1">Browse our full catalogue</p>
+      </div>
+
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">
-            {q ? (
-              <>Results for <span className="text-primary">"{q}"</span></>
-            ) : (
-              "All Products"
-            )}
-          </h1>
-          <p className="text-sm text-gray-500">{totalItems} product{totalItems !== 1 ? "s" : ""} found</p>
-        </div>
+        <p className="text-sm text-gray-500">{totalItems} product{totalItems !== 1 ? "s" : ""}</p>
 
         <div className="flex items-center gap-3">
           <button
@@ -225,9 +211,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      {/* ── Layout ── */}
       <div className="flex gap-6 items-start">
-        {/* Desktop sidebar */}
         <aside className="hidden lg:block w-52 flex-shrink-0">
           <div className="text-sm font-semibold text-gray-800 mb-4">Filters</div>
           <FilterSidebar
@@ -238,22 +222,27 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
           />
         </aside>
 
-        {/* Product grid */}
         <div className="flex-1 min-w-0">
           {items.length === 0 ? (
             <div className="text-center py-24 text-gray-400">
               <p className="text-lg font-semibold text-gray-600 mb-1">No products found</p>
-              {q && <p className="text-sm">Try a different search term or clear some filters.</p>}
+              <p className="text-sm">Try clearing some filters.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((product) => (
-                <ProductCard key={product.productId} product={product} vendureBase={vendureBase} />
+                <ProductCard
+                  key={product.productVariantId}
+                  product={product}
+                  vendureBase={vendureBase}
+                  showVariantName
+                  forceAddToCart
+                  variantId={product.productVariantId}
+                />
               ))}
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-10">
               <button
@@ -263,9 +252,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
               >
                 ← Prev
               </button>
-              <span className="text-sm text-gray-600">
-                Page {page} of {totalPages}
-              </span>
+              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
               <button
                 disabled={page === totalPages}
                 onClick={() => updateParam("page", String((page as number) + 1))}
@@ -278,20 +265,13 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      {/* Mobile filter drawer */}
       {mobileFiltersOpen && (
         <div className="fixed inset-0 z-[300] lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileFiltersOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <span className="font-bold text-gray-800">Filters</span>
-              <button
-                onClick={() => setMobileFiltersOpen(false)}
-                className="text-gray-400 hover:text-gray-700"
-              >
+              <button onClick={() => setMobileFiltersOpen(false)} className="text-gray-400 hover:text-gray-700">
                 <X size={20} />
               </button>
             </div>
@@ -300,10 +280,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                 facetGroups={facetGroups}
                 facetValues={facetValues}
                 activeFv={fv as string[]}
-                onToggle={(id) => {
-                  toggleFacet(id);
-                  setMobileFiltersOpen(false);
-                }}
+                onToggle={(id) => { toggleFacet(id); setMobileFiltersOpen(false); }}
               />
             </div>
           </div>

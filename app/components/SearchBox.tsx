@@ -49,7 +49,7 @@ interface CollectionChipProps {
 }
 function CollectionChip({ col, term, onSelect }: CollectionChipProps) {
 	return (
-		<button onMouseDown={onSelect} className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
+		<button onMouseDown={onSelect} className="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
 			{highlight(col.collection.name, term)}
 			<span className="text-xs text-gray-400">{col.count}</span>
 		</button>
@@ -63,7 +63,7 @@ interface FacetChipProps {
 }
 function FacetChip({ fv, term, onSelect }: FacetChipProps) {
 	return (
-		<button onMouseDown={onSelect} className="inline-flex items-center px-3 py-1 rounded-full border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
+		<button onMouseDown={onSelect} className="inline-flex items-center px-3 py-1 rounded border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
 			{highlight(fv.facetValue.name, term)}
 		</button>
 	);
@@ -168,10 +168,10 @@ export default function SearchBox() {
 							}
 						}}
 						placeholder="Search Products"
-						className="border border-gray-300 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12"
+						className="border border-gray-300 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12 rounded-l rounded-r"
 						autoComplete="off"
 					/>
-					<button type="submit" aria-label="Search" className="absolute right-0 bg-primary text-white hover:bg-primary-dark  h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center">
+					<button type="submit" aria-label="Search" className="absolute right-0 bg-primary text-white hover:bg-primary-dark h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center rounded-r">
 						{loading ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent  animate-spin" /> : <Search size={18} />}
 					</button>
 				</div>

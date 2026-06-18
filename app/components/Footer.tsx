@@ -59,7 +59,7 @@ const aboutLinks = [
 	{ label: "Blog", href: "/blog" },
 ];
 
-const paymentMethods = ["Visa", "Mastercard", "Maestro", "PayPal", "Discover"];
+const paymentMethods = [1, 2, 3, 4, 5];
 
 const socialLinks = [
 	{ href: "https://facebook.com/proteinhouseqatar", label: "Facebook", Icon: FacebookIcon },
@@ -80,10 +80,7 @@ export default function Footer() {
 					<div className="container mx-auto px-4">
 						<div className="grid grid-cols-2 md:grid-cols-4">
 							{trustBadges.map(({ icon: Icon, title, desc }, i) => (
-								<div
-									key={title}
-									className={`flex items-center gap-3 py-4 px-4 md:py-3 ${i !== 0 ? "md:border-l md:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-100 md:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-gray-100 md:border-l md:border-gray-200" : ""}`}
-								>
+								<div key={title} className={`flex items-center gap-3 py-4 px-4 md:py-3 ${i !== 0 ? "md:border-l md:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-100 md:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-gray-100 md:border-l md:border-gray-200" : ""}`}>
 									<Icon size={30} strokeWidth={1.5} className="text-gray-800 shrink-0" />
 									<div>
 										<p className="font-semibold text-xs md:text-sm text-gray-900 leading-tight">{title}</p>
@@ -109,11 +106,15 @@ export default function Footer() {
 									</div>
 									<div className="flex items-center gap-2">
 										<Phone size={14} className="shrink-0 text-gray-500" />
-										<a href="tel:+97477689275" className="hover:text-white transition-colors">+974 77689275</a>
+										<a href="tel:+97477689275" className="hover:text-white transition-colors">
+											+974 77689275
+										</a>
 									</div>
 									<div className="flex items-center gap-2">
 										<Mail size={14} className="shrink-0 text-gray-500" />
-										<a href="mailto:askadmin@proteinhouseqa.com" className="hover:text-white transition-colors break-all">askadmin@proteinhouseqa.com</a>
+										<a href="mailto:askadmin@proteinhouseqa.com" className="hover:text-white transition-colors break-all">
+											askadmin@proteinhouseqa.com
+										</a>
 									</div>
 								</div>
 							</div>
@@ -157,9 +158,7 @@ export default function Footer() {
 							{/* Newsletter */}
 							<div>
 								<h3 className="font-bold text-white mb-4 text-sm">Newsletter</h3>
-								<p className="text-sm text-gray-400 mb-4 leading-relaxed">
-									Join 3,000+ subscribers and get update on newly added products and offers.
-								</p>
+								<p className="text-sm text-gray-400 mb-4 leading-relaxed">Join 3,000+ subscribers and get update on newly added products and offers.</p>
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
@@ -167,14 +166,7 @@ export default function Footer() {
 									}}
 									className="flex"
 								>
-									<input
-										type="email"
-										value={email}
-										onChange={(e) => setEmail(e.target.value)}
-										placeholder="Email Address"
-										required
-										className="flex-1 min-w-0 px-3 py-2.5 text-sm text-gray-900 bg-white rounded-l focus:outline-none focus:ring-2 focus:ring-primary"
-									/>
+									<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" required className="flex-1 min-w-0 px-3 py-2.5 text-sm text-gray-900 bg-white rounded-l focus:outline-none focus:ring-2 focus:ring-primary" />
 									<button type="submit" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2.5 rounded-r transition-colors whitespace-nowrap cursor-pointer">
 										Subscribe
 									</button>
@@ -187,10 +179,10 @@ export default function Footer() {
 					<div className="border-t border-gray-800">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
 							<p className="text-sm text-gray-400">Copyright © {new Date().getFullYear()} Protein House Qatar</p>
-							<div className="flex items-center gap-1.5 flex-wrap justify-center">
+							<div className="flex items-center gap-1 flex-wrap justify-center">
 								{paymentMethods.map((m) => (
 									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">
-										{m}
+										<img src={`/images/payments/PAY-${m}.jpg`} alt={`Payment Method ${m}`} className="h-6" />
 									</span>
 								))}
 							</div>
@@ -200,13 +192,7 @@ export default function Footer() {
 			</footer>
 
 			{/* WhatsApp floating button */}
-			<a
-				href="https://wa.me/97477689275"
-				target="_blank"
-				rel="noopener noreferrer"
-				aria-label="Chat on WhatsApp"
-				className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors"
-			>
+			<a href="https://wa.me/97477689275" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded p-3 shadow-xl transition-colors">
 				<WhatsAppIcon />
 			</a>
 		</>

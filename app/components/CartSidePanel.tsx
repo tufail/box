@@ -282,7 +282,7 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
             <Link
               to="/checkout"
               onClick={onClose}
-              className="bg-primary text-white text-center font-semibold py-3 px-6 rounded-full hover:bg-green-700 transition-colors"
+              className="bg-primary text-white text-center font-semibold py-3 px-6 rounded hover:bg-primary/90 transition-colors"
             >
               Proceed to Checkout
             </Link>

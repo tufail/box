@@ -7,7 +7,7 @@ import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher } from "react-router";
-import { CircleUser, Globe, Menu, ShoppingCart, X, Check } from "lucide-react";
+import { CircleUser, Globe, Menu, ShoppingCart, X, Check, Truck, ShieldCheck } from "lucide-react";
 
 interface MainLayoutProps {
 	children: React.ReactNode;
@@ -78,7 +78,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 		submit(body);
 	}
 
-	const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
+	const inputCls = "w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
 	const labelCls = "block text-sm font-medium text-gray-700 mb-1";
 
 	return (
@@ -87,7 +87,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 			<div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
 			{/* Card */}
-			<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10">
+			<div className="relative bg-white rounded shadow-xl w-full max-w-md p-6 z-10">
 				<button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
 					<X size={20} />
 				</button>
@@ -96,7 +96,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 
 				{registered ? (
 					<div className="text-center py-6">
-						<div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+						<div className="w-12 h-12 bg-green-100 rounded flex items-center justify-center mx-auto mb-3">
 							<Check size={24} className="text-green-600" />
 						</div>
 						<p className="font-semibold text-gray-900 mb-1">Account created!</p>
@@ -115,7 +115,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 				) : (
 					<>
 						{/* Tab bar */}
-						<div className="flex gap-1 mb-5 bg-gray-100 rounded-lg p-1">
+						<div className="flex gap-1 mb-5 bg-gray-100 rounded p-1">
 							{(["login", "register"] as const).map((t) => (
 								<button
 									key={t}
@@ -145,8 +145,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 									</label>
 									<input name="password" type="password" required className={inputCls} />
 								</div>
-								{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
-								<button type="submit" disabled={loading} className="w-full bg-primary text-white font-semibold py-3 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+								{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm">{error}</div>}
+								<button type="submit" disabled={loading} className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
 									{loading ? "Signing in…" : "Login"}
 								</button>
 							</form>
@@ -184,8 +184,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 									</label>
 									<input name="password" type="password" required placeholder="Minimum 8 characters" className={inputCls} />
 								</div>
-								{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
-								<button type="submit" disabled={loading} className="w-full bg-primary text-white font-semibold py-3 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+								{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm">{error}</div>}
+								<button type="submit" disabled={loading} className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
 									{loading ? "Creating account…" : "Create Account"}
 								</button>
 							</form>
@@ -204,8 +204,14 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 	const [accountOpen, setAccountOpen] = useState(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [currentLang, setCurrentLang] = useState<"en" | "ar">("en");
 	const accountRef = useRef<HTMLDivElement>(null);
 	const logoutFetcher = useFetcher();
+
+	useEffect(() => {
+		const match = document.cookie.match(/googtrans=\/en\/(ar|en)/);
+		if (match?.[1] === "ar") setCurrentLang("ar");
+	}, []);
 
 	useEffect(() => {
 		function handleClickOutside(event: MouseEvent) {
@@ -217,15 +223,44 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
+	function toggleLanguage() {
+		const nextLang = currentLang === "en" ? "ar" : "en";
+		const expiredDate = "expires=Thu, 01 Jan 1970 00:00:00 UTC";
+		const host = location.hostname;
+
+		if (nextLang === "ar") {
+			document.cookie = `googtrans=/en/ar; path=/`;
+			document.cookie = `googtrans=/en/ar; path=/; domain=${host}`;
+		} else {
+			document.cookie = `googtrans=; ${expiredDate}; path=/`;
+			document.cookie = `googtrans=; ${expiredDate}; path=/; domain=${host}`;
+		}
+
+		window.location.reload();
+	}
+
 	return (
 		<div className="min-h-screen flex flex-col">
 			<div className="bg-black py-1">
-				<div className="container text-sm text-white mx-auto px-4 flex justify-between items-center">
-					<div>100% Authentic Products</div>
-					<button className="flex items-center gap-1 text-white hover:text-primary transition-colors">
-						<Globe size={14} />
-						<span>العربية</span>
-					</button>
+				<div className="container text-sm text-white mx-auto px-4 grid grid-cols-3 items-center">
+					<div className="flex items-center gap-1.5">
+						<ShieldCheck size={13} className="text-primary flex-shrink-0" />
+						<span>100% Authentic Products</span>
+					</div>
+					<div className="flex items-center justify-center gap-1.5">
+						<Truck size={13} className="text-primary flex-shrink-0" />
+						<span>FREE Delivery Over QAR 99 in Doha</span>
+					</div>
+					<div className="flex justify-end">
+						<button onClick={toggleLanguage} translate="no" className="flex items-center gap-1 text-white hover:text-primary transition-colors">
+							<Globe size={14} />
+							{currentLang === "en" ? (
+								<span lang="ar" className="font-arabic">العربية</span>
+							) : (
+								<span>English</span>
+							)}
+						</button>
+					</div>
 				</div>
 			</div>
 			<header className="bg-white border-b border-gray-200">
@@ -244,7 +279,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 					<div className="flex items-center gap-5">
 						<button onClick={openCart} className="text-gray-600 relative hover:text-primary transition-colors cursor-pointer" aria-label="Open cart">
 							<ShoppingCart size={26} />
-							<span className="absolute bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center -top-2 -right-2 pointer-events-none">{cartCount > 99 ? "99+" : cartCount}</span>
+							<span className="absolute bg-primary text-white text-xs rounded h-5 w-5 flex items-center justify-center -top-2 -right-2 pointer-events-none">{cartCount > 99 ? "99+" : cartCount}</span>
 						</button>
 
 						{activeCustomer ? (
@@ -255,7 +290,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 								</button>
 
 								{accountOpen && (
-									<div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+									<div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50 py-1">
 										<Link to="/account" onClick={() => setAccountOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
 											My Account
 										</Link>

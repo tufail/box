@@ -5,6 +5,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
+import VendureImage from "~/components/VendureImage";
 import {
   COLLECTION_PAGE_QUERY,
   type CollectionPageData,
@@ -68,7 +69,6 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   const input: CollectionPageVariables["input"] = {
     collectionSlug: slug,
-    groupByProduct: true,
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
     sort: sortToInput(sort),
@@ -110,7 +110,7 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
                 <button
                   key={id}
                   onClick={() => onToggle(id)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
                   {match.facetValue.name}
                   <X size={10} />
@@ -199,11 +199,15 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       {collection && (
         <div className="mb-6">
           {collection.featuredAsset?.preview && (
-            <div className="w-full h-40 md:h-56 rounded-xl overflow-hidden mb-4 bg-gray-100">
-              <img
+            <div className="w-full h-40 md:h-56 rounded overflow-hidden mb-4 bg-gray-100">
+              <VendureImage
                 src={collection.featuredAsset.preview}
+                vendureBase={vendureBase}
                 alt={collection.name}
-                className="w-full h-full object-cover"
+                width={1200}
+                height={300}
+                objectFit="cover"
+                eager
               />
             </div>
           )}
@@ -221,12 +225,12 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileFiltersOpen(true)}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
+            className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
           >
             <SlidersHorizontal size={14} />
             Filters
             {(fv as string[]).length > 0 && (
-              <span className="bg-primary text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
                 {(fv as string[]).length}
               </span>
             )}
@@ -235,7 +239,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           <select
             value={sort as string}
             onChange={(e) => updateParam("sort", e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -267,7 +271,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((product) => (
-                <ProductCard key={product.productId} product={product} vendureBase={vendureBase} />
+                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} showVariantName forceAddToCart variantId={product.productVariantId} />
               ))}
             </div>
           )}
@@ -278,7 +282,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === 1}
                 onClick={() => updateParam("page", String((page as number) - 1))}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ← Prev
               </button>
@@ -286,7 +290,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === totalPages}
                 onClick={() => updateParam("page", String((page as number) + 1))}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next →
               </button>

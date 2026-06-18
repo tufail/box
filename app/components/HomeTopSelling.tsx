@@ -41,40 +41,42 @@ export default function HomeTopSelling({ products, vendureBase, title = "Top Sel
 
   return (
     <section className="py-8 container mx-auto px-4">
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5">
         <h2 className="text-xl font-bold">{title}</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => emblaApi?.scrollPrev()}
-            disabled={!canPrev}
-            aria-label="Previous products"
-            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-primary hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            onClick={() => emblaApi?.scrollNext()}
-            disabled={!canNext}
-            aria-label="Next products"
-            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-primary hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
       </div>
 
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="flex -mx-2">
-          {products.map((product, index) => (
-            <div key={product.productId} className="flex-none w-1/2 md:w-1/4 px-2">
-              <ProductCard
-                product={product}
-                vendureBase={vendureBase}
-                eager={index < 4}
-              />
-            </div>
-          ))}
+      <div className="relative">
+        <button
+          onClick={() => emblaApi?.scrollPrev()}
+          disabled={!canPrev}
+          aria-label="Previous products"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded bg-gray-900 text-white shadow-md flex items-center justify-center hover:bg-gray-700 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="overflow-hidden" ref={emblaRef}>
+          <div className="flex -mx-2">
+            {products.map((product, index) => (
+              <div key={product.productId} className="flex-none w-1/2 md:w-1/4 px-2">
+                <ProductCard
+                  product={product}
+                  vendureBase={vendureBase}
+                  eager={index < 4}
+                />
+              </div>
+            ))}
+          </div>
         </div>
+
+        <button
+          onClick={() => emblaApi?.scrollNext()}
+          disabled={!canNext}
+          aria-label="Next products"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded bg-gray-900 text-white shadow-md flex items-center justify-center hover:bg-gray-700 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+        >
+          <ChevronRight size={20} />
+        </button>
       </div>
     </section>
   );

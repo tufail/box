@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLoaderData, useFetcher, useNavigate, redirect } from "react-router";
+import { useLoaderData, useFetcher, useNavigate, redirect, Link } from "react-router";
 import type { Route } from "./+types/checkout";
 import { graphqlRequest } from "workers/graphqlClient";
 import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData } from "~/graphql/order";
@@ -12,6 +12,7 @@ import {
 import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package } from "lucide-react";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import { useCart } from "~/context/CartContext";
+import { qatarZones } from "~/constants/qatar";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ function StepPanel({
 }) {
   return (
     <div
-      className={`rounded-xl border-2 bg-white overflow-hidden transition-all ${
+      className={`rounded border-2 bg-white overflow-hidden transition-all ${
         isActive ? "border-primary shadow-sm" : "border-gray-200"
       }`}
     >
@@ -96,7 +97,7 @@ function StepPanel({
         }`}
       >
         <div
-          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+          className={`flex-shrink-0 w-8 h-8 rounded flex items-center justify-center text-sm font-bold ${
             isCompleted
               ? "bg-green-500 text-white"
               : isActive
@@ -161,15 +162,101 @@ function Field({
         type={type}
         required={required}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
+    </div>
+  );
+}
+
+function Select({
+  label,
+  name,
+  autoComplete,
+  placeholder,
+  required,
+  className = "sm:col-span-2",
+  onChange,
+  children,
+}: {
+  label: string;
+  name: string;
+  autoComplete?: string;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <select
+        name={name}
+        autoComplete={autoComplete}
+        required={required}
+        defaultValue=""
+        onChange={onChange}
+        className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+      >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
+        {children}
+      </select>
+    </div>
+  );
+}
+
+function TermsHint() {
+  return (
+    <p className="text-center text-xs text-gray-400 mt-3">
+      By continuing, I agree to the{" "}
+      <Link to="/terms" className="underline hover:text-gray-600 transition-colors">
+        Terms & Conditions
+      </Link>{" "}
+      and{" "}
+      <Link to="/privacy-policy" className="underline hover:text-gray-600 transition-colors">
+        Privacy Policy
+      </Link>
+      .
+    </p>
+  );
+}
+
+function NewsletterConsent() {
+  const [checked, setChecked] = useState(true);
+  return (
+    <div className="mt-4">
+      <label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => setChecked((v) => !v)}>
+        <div
+          className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white ${
+            checked ? "border-green-500" : "border-gray-300"
+          }`}
+        >
+          {checked && <Check size={12} strokeWidth={3} className="text-green-500" />}
+        </div>
+        <input type="hidden" name="emailOffers" value={checked ? "true" : "false"} />
+        <span className="text-sm text-gray-700">Email me with news and offers</span>
+      </label>
+      <p className="text-xs text-gray-400 mt-1.5 ml-7">
+        By subscribing you agree to our{" "}
+        <Link to="/privacy-policy" className="underline hover:text-gray-600 transition-colors">
+          Privacy Policy
+        </Link>
+        . You can unsubscribe at any time.
+      </p>
     </div>
   );
 }
 
 function ErrorBox({ message }: { message: string }) {
   return (
-    <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mt-4">
+    <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm mt-4">
       {message}
     </div>
   );
@@ -180,7 +267,7 @@ function SubmitBtn({ label, loading }: { label: string; loading: boolean }) {
     <button
       type="submit"
       disabled={loading}
-      className="mt-5 w-full bg-primary text-white font-semibold py-3 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      className="mt-5 w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
     >
       {loading ? "Processing…" : label}
     </button>
@@ -274,8 +361,11 @@ function CustomerStep({
     const last = fd.get("lastName") as string;
     const email = fd.get("emailAddress") as string;
     const password = fd.get("password") as string;
+    const phoneNumber = fd.get("phoneNumber") as string;
     submittedRef.current = { name: `${first} ${last}`.trim(), email };
-    submit({ _intent: "register", firstName: first, lastName: last, emailAddress: email, password });
+    const body: Record<string, string> = { _intent: "register", firstName: first, lastName: last, emailAddress: email, password };
+    if (phoneNumber) body.phoneNumber = phoneNumber;
+    submit(body);
   }
 
   const tabs = [
@@ -287,7 +377,7 @@ function CustomerStep({
   return (
     <div className="pt-2">
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -314,8 +404,10 @@ function CustomerStep({
             <Field label="Last Name" name="lastName" required className="sm:col-span-1" />
             <Field label="Email Address" name="emailAddress" type="email" required />
           </FieldGroup>
+          <NewsletterConsent />
           {error && <ErrorBox message={error} />}
           <SubmitBtn label="Continue as Guest" loading={loading} />
+          <TermsHint />
         </form>
       )}
 
@@ -343,9 +435,17 @@ function CustomerStep({
               required
               placeholder="Minimum 8 characters"
             />
+            <Field
+              label="Phone Number"
+              name="phoneNumber"
+              type="tel"
+              placeholder="+974 xxxx xxxx"
+            />
           </FieldGroup>
+          <NewsletterConsent />
           {error && <ErrorBox message={error} />}
           <SubmitBtn label="Create Account & Continue" loading={loading} />
+          <TermsHint />
         </form>
       )}
     </div>
@@ -356,6 +456,7 @@ function CustomerStep({
 
 function ShippingAddressStep({ onComplete }: { onComplete: (summary: string) => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [zoneList, setZoneList] = useState<number[]>([]);
   const fetcher = useFetcher<{
     error?: string;
     setOrderShippingAddress?: Record<string, unknown>;
@@ -377,6 +478,11 @@ function ShippingAddressStep({ onComplete }: { onComplete: (summary: string) => 
     }
   }, [fetcher.data, fetcher.state]);
 
+  function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const zone = qatarZones.find((z) => z.municipality === e.target.value);
+    setZoneList(zone ? zone.zoneCodes : []);
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -384,22 +490,20 @@ function ShippingAddressStep({ onComplete }: { onComplete: (summary: string) => 
     const last = fd.get("lastName") as string;
     const street = fd.get("streetLine1") as string;
     const city = fd.get("city") as string;
-    const country = fd.get("countryCode") as string;
-    summaryRef.current = `${first} ${last} · ${street}, ${city}, ${country}`;
+    const postalCode = fd.get("postalCode") as string;
+    summaryRef.current = `${first} ${last} · ${street}, ${city}, Zone ${postalCode}`;
     const body: Record<string, string> = {
       _intent: "setShippingAddress",
       firstName: first,
       lastName: last,
       streetLine1: street,
       city,
-      countryCode: country,
+      countryCode: "QA",
+      province: "Doha",
     };
     const streetLine2 = fd.get("streetLine2") as string;
-    const province = fd.get("province") as string;
-    const postalCode = fd.get("postalCode") as string;
     const phoneNumber = fd.get("phoneNumber") as string;
     if (streetLine2) body.streetLine2 = streetLine2;
-    if (province) body.province = province;
     if (postalCode) body.postalCode = postalCode;
     if (phoneNumber) body.phoneNumber = phoneNumber;
     setError(null);
@@ -408,46 +512,48 @@ function ShippingAddressStep({ onComplete }: { onComplete: (summary: string) => 
 
   return (
     <form onSubmit={handleSubmit} className="pt-2">
+      {/* Hidden fields */}
+      <input type="hidden" name="countryCode" value="QA" />
+      <input type="hidden" name="province" value="Doha" />
+
       <FieldGroup>
         <Field label="First Name" name="firstName" required className="sm:col-span-1" />
         <Field label="Last Name" name="lastName" required className="sm:col-span-1" />
-        <Field label="Street Address" name="streetLine1" required placeholder="123 Main Street" />
+        <Field label="Address (villa, flat, building & block, etc.)" name="streetLine1" required />
         <Field
-          label="Apt, Suite, etc."
+          label="Street"
           name="streetLine2"
-          placeholder="Optional"
           className="sm:col-span-2"
         />
-        <Field label="City" name="city" className="sm:col-span-1" />
-        <Field label="State / Province" name="province" className="sm:col-span-1" />
-        <Field label="Postal Code" name="postalCode" className="sm:col-span-1" />
-        <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Country <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="countryCode"
-            required
-            defaultValue=""
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="" disabled>Select country</option>
-            <option value="QA">Qatar</option>
-            <option value="AE">United Arab Emirates</option>
-            <option value="SA">Saudi Arabia</option>
-            <option value="KW">Kuwait</option>
-            <option value="BH">Bahrain</option>
-            <option value="OM">Oman</option>
-            <option value="US">United States</option>
-            <option value="GB">United Kingdom</option>
-            <option value="DE">Germany</option>
-            <option value="FR">France</option>
-            <option value="AU">Australia</option>
-            <option value="CA">Canada</option>
-            <option value="IN">India</option>
-            <option value="PK">Pakistan</option>
-          </select>
-        </div>
+        <Select
+          name="city"
+          autoComplete="locality"
+          placeholder="Select Municipality..."
+          required
+          label="Municipality"
+          className="sm:col-span-1"
+          onChange={handleCityChange}
+        >
+          {qatarZones.map((z, index) => (
+            <option key={index} value={z.municipality}>
+              {z.municipality}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name="postalCode"
+          autoComplete="postal-code"
+          placeholder="Select Zone..."
+          required
+          label="Zone"
+          className="sm:col-span-1"
+        >
+          {zoneList.map((zone, index) => (
+            <option key={index} value={`${zone}`}>
+              Zone {zone}
+            </option>
+          ))}
+        </Select>
         <Field
           label="Phone Number"
           name="phoneNumber"
@@ -553,7 +659,7 @@ function ShippingMethodStep({
           {methods.map((m) => (
             <label
               key={m.id}
-              className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+              className={`flex items-center gap-4 p-4 rounded border-2 cursor-pointer transition-colors ${
                 selected === m.id
                   ? "border-primary bg-primary/5"
                   : "border-gray-200 hover:border-gray-300"
@@ -592,7 +698,7 @@ function ShippingMethodStep({
         type="button"
         onClick={handleContinue}
         disabled={!selected || loading}
-        className="mt-5 w-full bg-primary text-white font-semibold py-3 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+        className="mt-5 w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? "Processing…" : "Continue to Payment"}
       </button>
@@ -692,7 +798,7 @@ function PaymentStep({
           {methods.map((m) => (
             <label
               key={m.code}
-              className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+              className={`flex items-center gap-4 p-4 rounded border-2 cursor-pointer transition-colors ${
                 selected === m.code
                   ? "border-primary bg-primary/5"
                   : "border-gray-200 hover:border-gray-300"
@@ -724,7 +830,7 @@ function PaymentStep({
         type="button"
         onClick={handlePay}
         disabled={!selected || loading || methods.length === 0}
-        className="mt-5 w-full bg-primary text-white font-semibold py-3.5 rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-base"
+        className="mt-5 w-full bg-primary text-white font-semibold py-3.5 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-base"
       >
         <ShieldCheck size={18} />
         {loading ? "Processing Payment…" : `Place Order · ${fmt(total, currency)}`}
@@ -748,7 +854,7 @@ function OrderSummaryPanel({
   vendureBase: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden lg:sticky lg:top-6">
+    <div className="bg-white rounded border border-gray-200 overflow-hidden lg:sticky lg:top-6">
       <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center gap-2">
         <Package size={18} className="text-gray-500" />
         <h2 className="font-semibold text-gray-900">Order Summary</h2>
@@ -768,10 +874,10 @@ function OrderSummaryPanel({
                 <img
                   src={resolveImg(img, vendureBase)}
                   alt={line.productVariant.product.name}
-                  className="w-14 h-14 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                  className="w-14 h-14 object-cover rounded border border-gray-200 flex-shrink-0"
                 />
               ) : (
-                <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0" />
+                <div className="w-14 h-14 bg-gray-100 rounded flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 leading-tight line-clamp-2">
@@ -845,6 +951,10 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Left — Steps */}
         <div className="lg:col-span-2 space-y-4">
+          <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+            <ChevronDown size={14} className="rotate-90" />
+            Continue Shopping
+          </Link>
           <StepPanel
             num={1}
             title="Customer Information"

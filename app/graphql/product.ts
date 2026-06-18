@@ -12,7 +12,7 @@ export interface ProductDetailVariant {
   stockLevel: string;
   featuredAsset: { preview: string } | null;
   assets: { preview: string }[];
-  customFields: { rrp: number | null; additionalInfo: string | null } | null;
+  customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null } | null;
   options: { code: string; name: string; group: { code: string; name: string } }[];
 }
 
@@ -69,7 +69,7 @@ export const PRODUCT_DETAIL_QUERY = `
         stockLevel
         featuredAsset { preview }
         assets { preview }
-        customFields { rrp additionalInfo }
+        customFields { rrp keyInfo additionalInfo }
         options { code name group { code name } }
       }
       facetValues { name facet { name } }
@@ -112,6 +112,7 @@ export interface SearchProductItem {
   productId: string;
   productVariantId: string;
   productName: string;
+  productVariantName?: string;
   slug: string;
   description: string;
   inStock: boolean;

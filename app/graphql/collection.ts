@@ -82,7 +82,6 @@ export interface CollectionPageVariables {
   slug: string;
   input: {
     collectionSlug: string;
-    groupByProduct: boolean;
     take: number;
     skip: number;
     sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC" };
@@ -140,6 +139,7 @@ export const COLLECTION_PAGE_QUERY = `
         productId
         productVariantId
         productName
+        productVariantName
         slug
         description
         inStock

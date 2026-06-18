@@ -170,7 +170,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 															</div>
 														)}
 														{col.promoAssetPreview && (
-															<Link to={col.promoUrl ?? "#"} className="block group rounded-lg overflow-hidden border border-gray-100 hover:border-primary transition-colors mt-auto" onClick={() => setShopByOpen(false)}>
+															<Link to={col.promoUrl ?? "#"} className="block group rounded overflow-hidden border border-gray-100 hover:border-primary transition-colors mt-auto" onClick={() => setShopByOpen(false)}>
 																<img src={col.promoAssetPreview} alt={col.promoLabel ?? "Promotion"} className="w-full h-[100px] object-cover group-hover:scale-105 transition-transform duration-300" />
 																{col.promoLabel && <p className="text-xs font-medium text-center py-2 px-3 bg-gray-50 group-hover:text-primary transition-colors">{col.promoLabel}</p>}
 															</Link>
@@ -230,7 +230,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 																</div>
 															)}
 															{col.promoAssetPreview && (
-																<Link to={col.promoUrl ?? "#"} className="block group rounded-lg overflow-hidden border border-gray-100 hover:border-primary transition-colors mt-auto" onClick={() => setDesktopOpen(null)}>
+																<Link to={col.promoUrl ?? "#"} className="block group rounded overflow-hidden border border-gray-100 hover:border-primary transition-colors mt-auto" onClick={() => setDesktopOpen(null)}>
 																	<img src={col.promoAssetPreview} alt={col.promoLabel ?? "Promotion"} className="w-full h-[120px] object-cover group-hover:scale-105 transition-transform duration-300" />
 																	{col.promoLabel && <p className="text-xs font-medium text-center py-2 px-3 bg-gray-50 group-hover:text-primary transition-colors">{col.promoLabel}</p>}
 																</Link>

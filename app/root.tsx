@@ -15,7 +15,7 @@ export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+Arabic:wght@400;500&display=swap",
 	},
 ];
 
@@ -47,6 +47,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				{children}
 				<ScrollRestoration />
 				<Scripts />
+				<div id="google_translate_element" />
+				<script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'ar,en',autoDisplay:true},'google_translate_element');}` }} />
+				<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async={true} />
 			</body>
 		</html>
 	);

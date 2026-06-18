@@ -1,4 +1,4 @@
-import gql from "gql.tada";
+import { graphql as gql } from "gql.tada";
 import type { TadaDocumentNode } from "gql.tada";
 import { print } from "graphql";
 

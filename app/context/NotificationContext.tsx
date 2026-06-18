@@ -46,7 +46,7 @@ function Toast({
 
   return (
     <div
-      className={`relative flex items-start gap-3 bg-white shadow-lg rounded-lg overflow-hidden pr-4 pl-4 py-3 min-w-[300px] max-w-sm pointer-events-auto transition-all duration-300 ease-out ${
+      className={`relative flex items-start gap-3 bg-white shadow-lg rounded overflow-hidden pr-4 pl-4 py-3 min-w-[300px] max-w-sm pointer-events-auto transition-all duration-300 ease-out ${
         visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"
       }`}
     >

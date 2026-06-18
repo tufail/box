@@ -1,9 +1,16 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
 	--font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 	--font-roboto: "Roboto", sans-serif;
-	--color-primary: #4caa21;
+	--font-arabic: "Noto Sans Arabic", sans-serif;
+	--color-primary: #458500;
+	--color-cart: #f38a00;
+}
+
+@utility font-arabic {
+	font-family: var(--font-arabic);
 }
 
 html,
@@ -20,9 +27,30 @@ body {
 	@apply bg-[#DCDFD5] dark:bg-gray-900;
 }
 
+.prose :where(td, th):not(:where([class~="not-prose"] *)) {
+	padding: 0.25rem 0.5rem;
+}
+
+.prose :where(td, th, .rich-text-table-cell):not(:where([class~="not-prose"] *)) p {
+	margin: 0;
+}
+
 @utility scrollbar-hide {
 	scrollbar-width: none;
 	&::-webkit-scrollbar {
 		display: none;
 	}
 }
+
+/* Move Google Translate widget off-screen (not display:none — keeps it JS-functional) */
+#google_translate_element {
+	position: absolute !important;
+	left: -9999px !important;
+	top: -9999px !important;
+}
+/* Hide the top translation banner iframe and balloon */
+iframe.skiptranslate,
+.goog-te-balloon-frame { display: none !important; }
+/* Remove the top offset Google Translate injects onto body */
+body { top: 0 !important; overflow-x: hidden !important; }
+html { overflow-x: hidden !important; }

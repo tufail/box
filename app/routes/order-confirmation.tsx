@@ -17,7 +17,7 @@ export default function OrderConfirmationPage() {
     <CheckoutLayout>
       <div className="max-w-lg mx-auto text-center py-12 px-4">
         {/* Success icon */}
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-green-100 rounded flex items-center justify-center mx-auto mb-6">
           <Check size={40} className="text-green-500" strokeWidth={2.5} />
         </div>
 
@@ -29,7 +29,7 @@ export default function OrderConfirmationPage() {
         </p>
 
         {orderCode && (
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-8 text-left">
+          <div className="bg-gray-50 rounded border border-gray-200 p-6 mb-8 text-left">
             <div className="flex items-center gap-3 mb-4">
               <Package size={20} className="text-gray-400" />
               <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">
@@ -48,7 +48,7 @@ export default function OrderConfirmationPage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             to="/"
-            className="inline-flex items-center justify-center gap-2 bg-primary text-white font-semibold px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-primary text-white font-semibold px-8 py-3 rounded hover:bg-primary/90 transition-colors"
           >
             <ShoppingBag size={18} />
             Continue Shopping

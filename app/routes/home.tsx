@@ -77,8 +77,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       ? collectionsResult.value.data.collections.items
       : [];
 
-  // Top-level = collections whose parentId doesn't match any id in the returned list
-  // (their parent is the root, which the API doesn't return)
   const collectionIds = new Set(rawCollections.map((c) => c.id));
   const topLevel = rawCollections.filter((c) => !collectionIds.has(c.parentId ?? ""));
   const subLevel = rawCollections.filter((c) => collectionIds.has(c.parentId ?? ""));
@@ -100,7 +98,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       newProducts={loaderData.newProducts}
       vendureBase={loaderData.vendureBase}
       carouselItems={loaderData.carouselItems}
-topLevelCollections={loaderData.topLevelCollections}
+      topLevelCollections={loaderData.topLevelCollections}
       subCollections={loaderData.subCollections}
     />
   );
