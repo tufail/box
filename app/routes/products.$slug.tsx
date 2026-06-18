@@ -1,6 +1,6 @@
 import type { Route } from "./+types/products.$slug";
 import { useState, useEffect } from "react";
-import { useFetcher } from "react-router";
+import { useFetcher, useNavigate } from "react-router";
 import { useCart } from "~/context/CartContext";
 import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, Info, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -59,14 +59,16 @@ function groupHasPriceVariation(variants: ProductDetailVariant[], selected: Reco
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export function meta({ data }: Route.MetaArgs) {
-	const d = data as { product?: ProductDetailItem; canonicalUrl?: string; vendureBase?: string } | undefined;
+	const d = data as { product?: ProductDetailItem; canonicalUrl?: string; vendureBase?: string; activeVariantName?: string | null } | undefined;
 	const product = d?.product;
 	const canonicalUrl = d?.canonicalUrl ?? "";
 	const vendureBase = d?.vendureBase ?? "";
+	const variantName = d?.activeVariantName ?? null;
 
 	if (!product) return [{ title: "Product — PHQ" }];
 
-	const title = product.customFields?.metaTitle ?? `${product.name} — PHQ`;
+	const baseTitle = product.customFields?.metaTitle ?? product.name;
+	const title = variantName ? `${baseTitle} — ${variantName} — PHQ` : `${baseTitle} — PHQ`;
 	const rawDescription = product.customFields?.metaDescription
 		?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
@@ -102,13 +104,19 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const slug = params.slug!;
 	const url = new URL(request.url);
 	const selectedVariantId = url.searchParams.get("variant") ?? null;
-	const canonicalUrl = `${url.origin}/products/${slug}`;
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
 	try {
 		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug }, { request });
 		if (!data.product) throw new Response("Not Found", { status: 404 });
+
+		const activeVariant = selectedVariantId
+			? (data.product.variants.find((v) => v.id === selectedVariantId) ?? data.product.variants[0])
+			: data.product.variants[0];
+		const canonicalUrl = activeVariant
+			? `${url.origin}/products/${slug}?variant=${activeVariant.id}`
+			: `${url.origin}/products/${slug}`;
 
 		let similarProducts: SearchProductItem[] = [];
 		const collectionSlug = data.product.collections[0]?.slug;
@@ -121,11 +129,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			}
 		}
 
-		return { product: data.product, vendureBase, similarProducts, selectedVariantId, canonicalUrl };
+		return { product: data.product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
 	}
+}
+
+export function shouldRevalidate({ nextUrl, currentUrl, defaultShouldRevalidate }: { nextUrl: URL; currentUrl: URL; defaultShouldRevalidate: boolean }) {
+	// Variant switches update only ?variant= on the same path — all data is already loaded
+	if (nextUrl.pathname === currentUrl.pathname) return false;
+	return defaultShouldRevalidate;
 }
 
 // ── Image gallery ──────────────────────────────────────────────────────────
@@ -217,6 +231,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const [qty, setQty] = useState(1);
 	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
 	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
+	const navigate = useNavigate();
 	const { openCart, setCartCount } = useCart();
 	const { notify } = useNotification();
 
@@ -370,7 +385,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													const available = matchedVariant ? isInStock(matchedVariant.stockLevel) : false;
 													const isActive = selected[group.code] === val;
 													return (
-														<button key={val} disabled={!available} onClick={() => setSelected((prev) => ({ ...prev, [group.code]: val }))} className={`px-4 py-2.5 rounded border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-gray-900 font-semibold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"}`}>
+														<button key={val} disabled={!available} onClick={() => {
+																const newSelected = { ...selected, [group.code]: val };
+																setSelected(newSelected);
+																const newVariant = findVariant(product.variants, newSelected);
+																if (newVariant) {
+																	navigate(`/products/${product.slug}?variant=${newVariant.id}`, { replace: true, preventScrollReset: true });
+																}
+															}} className={`px-4 py-2.5 rounded border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-gray-900 font-semibold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"}`}>
 															<span className="block">{val}</span>
 															{showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : available ? "text-gray-500" : "text-gray-300"}`}>{available && matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>}
 														</button>
