@@ -24,6 +24,11 @@ export interface OrderLineItem {
   };
 }
 
+export interface OrderDiscount {
+  description: string;
+  amountWithTax: number;
+}
+
 export interface ActiveOrder {
   id: string;
   code: string;
@@ -34,6 +39,8 @@ export interface ActiveOrder {
   shippingWithTax: number;
   totalWithTax: number;
   lines: OrderLineItem[];
+  discounts: OrderDiscount[];
+  couponCodes: string[];
 }
 
 export interface ActiveOrderData {
@@ -262,6 +269,11 @@ export const ACTIVE_ORDER_QUERY = `
       subTotalWithTax
       shippingWithTax
       totalWithTax
+      couponCodes
+      discounts {
+        description
+        amountWithTax
+      }
       lines {
         id
         quantity

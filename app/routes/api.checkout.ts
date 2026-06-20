@@ -10,6 +10,7 @@ import {
   ELIGIBLE_PAYMENT_METHODS_QUERY,
   TRANSITION_ORDER_TO_STATE_MUTATION,
   ADD_PAYMENT_TO_ORDER_MUTATION,
+  APPLY_COUPON_CODE_MUTATION,
   type ShippingMethod,
   type PaymentMethod,
 } from "~/graphql/checkout";
@@ -243,9 +244,44 @@ export async function action({ request, context }: Route.ActionArgs) {
         { request, ...(transToken ? { authToken: transToken } : {}) }
       );
 
+      const payResult = data.addPaymentToOrder;
+
+      // For pay-online (Sadad hosted checkout), extract metadata and return for redirect
+      if (payResult.__typename === "Order" && method === "pay-online") {
+        const payments = payResult.payments as Array<Record<string, unknown>> | undefined;
+        const sadadPayment = payments?.find(
+          (p) => p.method === method && p.state === "Created"
+        );
+        if (sadadPayment?.metadata) {
+          return new Response(
+            JSON.stringify({ sadadMetadata: sadadPayment.metadata }),
+            { headers: makeHeaders(token ?? transToken) }
+          );
+        }
+        return new Response(
+          JSON.stringify({ error: "Payment could not be initialised" }),
+          { status: 500, headers: makeHeaders(token ?? transToken) }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ addPaymentToOrder: data.addPaymentToOrder }),
+        JSON.stringify({ addPaymentToOrder: payResult }),
         { headers: makeHeaders(token ?? transToken) }
+      );
+    }
+
+    // ── Apply coupon code ────────────────────────────────────────────────────────
+    if (intent === "applyCoupon") {
+      const { couponCode } = body as { couponCode: string };
+      const { data, token } = await graphqlRequest<{ applyCouponCode: GQLResult }>(
+        env,
+        APPLY_COUPON_CODE_MUTATION,
+        { couponCode },
+        { request }
+      );
+      return new Response(
+        JSON.stringify({ applyCouponCode: data.applyCouponCode }),
+        { headers: makeHeaders(token) }
       );
     }
 

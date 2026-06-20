@@ -164,13 +164,63 @@ export const ADD_PAYMENT_TO_ORDER_MUTATION = `
   mutation AddPaymentToOrder($input: PaymentInput!) {
     addPaymentToOrder(input: $input) {
       __typename
-      ... on Order { id code state }
+      ... on Order {
+        id
+        code
+        state
+        payments {
+          id
+          state
+          method
+          metadata
+        }
+      }
       ... on OrderPaymentStateError { errorCode message }
       ... on IneligiblePaymentMethodError { errorCode message eligibilityCheckerMessage }
       ... on PaymentFailedError { errorCode message paymentErrorMessage }
       ... on PaymentDeclinedError { errorCode message paymentErrorMessage }
       ... on OrderStateTransitionError { errorCode message transitionError fromState toState }
       ... on NoActiveOrderError { errorCode message }
+    }
+  }
+`;
+
+export const GET_ORDER_BY_CODE_QUERY = `
+  query GetOrderByCode($code: String!) {
+    orderByCode(code: $code) {
+      id
+      code
+      state
+      totalWithTax
+      currencyCode
+      payments {
+        id
+        state
+        method
+        errorMessage
+        metadata
+      }
+    }
+  }
+`;
+
+export const APPLY_COUPON_CODE_MUTATION = `
+  mutation ApplyCouponCode($couponCode: String!) {
+    applyCouponCode(couponCode: $couponCode) {
+      __typename
+      ... on Order {
+        id
+        totalWithTax
+        subTotalWithTax
+        couponCodes
+        discounts {
+          description
+          amountWithTax
+        }
+      }
+      ... on CouponCodeExpiredError { errorCode message couponCode }
+      ... on CouponCodeInvalidError { errorCode message couponCode }
+      ... on CouponCodeLimitError   { errorCode message couponCode limit }
     }
   }
 `;

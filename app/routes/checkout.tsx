@@ -2,17 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useLoaderData, useFetcher, useNavigate, redirect, Link } from "react-router";
 import type { Route } from "./+types/checkout";
 import { graphqlRequest } from "workers/graphqlClient";
-import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData } from "~/graphql/order";
+import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData, type OrderDiscount } from "~/graphql/order";
 import {
   ACTIVE_CUSTOMER_QUERY,
   type ActiveCustomer,
   type ShippingMethod,
   type PaymentMethod,
 } from "~/graphql/checkout";
-import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package } from "lucide-react";
+import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X } from "lucide-react";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
+import SocialAuthButtons from "~/components/SocialAuthButtons";
 import { useCart } from "~/context/CartContext";
 import { qatarZones } from "~/constants/qatar";
+import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
+import type { SadadPaymentMetadata } from "~/types/sadad";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +277,7 @@ function SubmitBtn({ label, loading }: { label: string; loading: boolean }) {
   );
 }
 
+
 // ── Step 1: Customer ──────────────────────────────────────────────────────────
 
 interface CustomerSummary {
@@ -412,41 +416,47 @@ function CustomerStep({
       )}
 
       {tab === "login" && (
-        <form onSubmit={handleLogin}>
-          <FieldGroup>
-            <Field label="Email Address" name="email" type="email" required />
-            <Field label="Password" name="password" type="password" required />
-          </FieldGroup>
-          {error && <ErrorBox message={error} />}
-          <SubmitBtn label="Login & Continue" loading={loading} />
-        </form>
+        <>
+          <SocialAuthButtons dividerLabel="Or sign in with email" />
+          <form onSubmit={handleLogin}>
+            <FieldGroup>
+              <Field label="Email Address" name="email" type="email" required />
+              <Field label="Password" name="password" type="password" required />
+            </FieldGroup>
+            {error && <ErrorBox message={error} />}
+            <SubmitBtn label="Login & Continue" loading={loading} />
+          </form>
+        </>
       )}
 
       {tab === "register" && (
-        <form onSubmit={handleRegister}>
-          <FieldGroup>
-            <Field label="First Name" name="firstName" required className="sm:col-span-1" />
-            <Field label="Last Name" name="lastName" required className="sm:col-span-1" />
-            <Field label="Email Address" name="emailAddress" type="email" required />
-            <Field
-              label="Password"
-              name="password"
-              type="password"
-              required
-              placeholder="Minimum 8 characters"
-            />
-            <Field
-              label="Phone Number"
-              name="phoneNumber"
-              type="tel"
-              placeholder="+974 xxxx xxxx"
-            />
-          </FieldGroup>
-          <NewsletterConsent />
-          {error && <ErrorBox message={error} />}
-          <SubmitBtn label="Create Account & Continue" loading={loading} />
-          <TermsHint />
-        </form>
+        <>
+          <SocialAuthButtons dividerLabel="Or sign up with email" />
+          <form onSubmit={handleRegister}>
+            <FieldGroup>
+              <Field label="First Name" name="firstName" required className="sm:col-span-1" />
+              <Field label="Last Name" name="lastName" required className="sm:col-span-1" />
+              <Field label="Email Address" name="emailAddress" type="email" required />
+              <Field
+                label="Password"
+                name="password"
+                type="password"
+                required
+                placeholder="Minimum 8 characters"
+              />
+              <Field
+                label="Phone Number"
+                name="phoneNumber"
+                type="tel"
+                placeholder="+974 xxxx xxxx"
+              />
+            </FieldGroup>
+            <NewsletterConsent />
+            {error && <ErrorBox message={error} />}
+            <SubmitBtn label="Create Account & Continue" loading={loading} />
+            <TermsHint />
+          </form>
+        </>
       )}
     </div>
   );
@@ -722,9 +732,11 @@ function PaymentStep({
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sadadMetadata, setSadadMetadata] = useState<SadadPaymentMetadata | null>(null);
   const loadFetcher = useFetcher<{ paymentMethods?: PaymentMethod[]; error?: string }>();
   const payFetcher = useFetcher<{
     addPaymentToOrder?: Record<string, unknown>;
+    sadadMetadata?: SadadPaymentMetadata;
     error?: string;
   }>();
   const loading = payFetcher.state !== "idle";
@@ -750,6 +762,10 @@ function PaymentStep({
     if (payFetcher.state !== "idle" || !payFetcher.data) return;
     const d = payFetcher.data;
     if (d.error) { setError(d.error); return; }
+    if (d.sadadMetadata) {
+      setSadadMetadata(d.sadadMetadata);
+      return;
+    }
     if (d.addPaymentToOrder) {
       const r = d.addPaymentToOrder;
       if (r.__typename === "Order") {
@@ -777,6 +793,10 @@ function PaymentStep({
   const paymentIcons: Record<string, React.ReactNode> = {
     default: <CreditCard size={20} className="text-gray-400 flex-shrink-0" />,
   };
+
+  if (sadadMetadata) {
+    return <SadadCheckoutForm metadata={sadadMetadata} />;
+  }
 
   return (
     <div className="pt-2">
@@ -844,15 +864,117 @@ function PaymentStep({
   );
 }
 
+// ── Coupon Form ───────────────────────────────────────────────────────────────
+
+type CouponUpdate = Pick<ActiveOrder, "totalWithTax" | "subTotalWithTax" | "discounts" | "couponCodes">;
+
+function CouponForm({
+  orderState,
+  onApplied,
+}: {
+  orderState: string;
+  onApplied: (updates: CouponUpdate) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [toast, setToast] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const fetcher = useFetcher<{ applyCouponCode?: Record<string, unknown>; error?: string }>();
+  const isLocked = orderState === "ArrangingPayment";
+  const isBusy = fetcher.state !== "idle";
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    const r = fetcher.data.applyCouponCode;
+    if (!r) return;
+    if (r.__typename === "Order") {
+      setCode("");
+      setToast({ type: "success", message: "Coupon applied successfully!" });
+      onApplied({
+        totalWithTax: r.totalWithTax as number,
+        subTotalWithTax: r.subTotalWithTax as number,
+        discounts: r.discounts as OrderDiscount[],
+        couponCodes: r.couponCodes as string[],
+      });
+    } else {
+      setToast({ type: "error", message: (r.message as string) || "Invalid coupon code." });
+    }
+  }, [fetcher.data, fetcher.state]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!code.trim() || isLocked || isBusy) return;
+    fetcher.submit(
+      { _intent: "applyCoupon", couponCode: code.trim() },
+      { method: "post", encType: "application/json", action: "/api/checkout" }
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <div className="px-5 py-3 border-t border-gray-100">
+        <p className="text-xs text-gray-400 text-center italic">
+          Coupon codes cannot be changed while payment is in progress.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-5 py-4 border-t border-gray-100">
+      {toast && (
+        <div
+          className={`flex items-start gap-2 mb-3 px-3 py-2 rounded text-sm ${
+            toast.type === "error"
+              ? "bg-red-50 border border-red-200 text-red-700"
+              : "bg-green-50 border border-green-200 text-green-700"
+          }`}
+        >
+          <span className="flex-1">{toast.message}</span>
+          <button type="button" onClick={() => setToast(null)} className="flex-shrink-0 opacity-60 hover:opacity-100">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <div className="relative flex-1">
+          <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="Coupon code"
+            className="w-full border border-gray-300 rounded pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase placeholder:normal-case"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!code.trim() || isBusy}
+          className="bg-primary text-white text-sm font-medium px-4 py-2 rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+        >
+          {isBusy ? "…" : "Apply"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // ── Order Summary Panel ───────────────────────────────────────────────────────
 
 function OrderSummaryPanel({
   order,
   vendureBase,
+  onOrderUpdate,
 }: {
   order: ActiveOrder;
   vendureBase: string;
+  onOrderUpdate: (updates: CouponUpdate) => void;
 }) {
+  const discounts = order.discounts?.filter((d) => d.amountWithTax < 0) ?? [];
+
   return (
     <div className="bg-white rounded border border-gray-200 overflow-hidden lg:sticky lg:top-6">
       <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center gap-2">
@@ -896,11 +1018,28 @@ function OrderSummaryPanel({
         })}
       </div>
 
+      {/* Coupon form — between items list and totals */}
+      <CouponForm orderState={order.state} onApplied={onOrderUpdate} />
+
       <div className="p-5 border-t border-gray-200 space-y-3">
         <div className="flex justify-between text-sm text-gray-600">
           <span>Subtotal</span>
           <span>{fmt(order.subTotalWithTax, order.currencyCode)}</span>
         </div>
+
+        {/* Discount lines */}
+        {discounts.map((d, i) => (
+          <div key={i} className="flex justify-between text-sm text-green-600">
+            <span className="flex items-center gap-1 truncate">
+              <Tag size={12} className="flex-shrink-0" />
+              {d.description}
+            </span>
+            <span className="flex-shrink-0 ml-2">
+              -{fmt(Math.abs(d.amountWithTax), order.currencyCode)}
+            </span>
+          </div>
+        ))}
+
         <div className="flex justify-between text-sm text-gray-600">
           <span>Shipping</span>
           <span>
@@ -1040,7 +1179,11 @@ export default function CheckoutPage() {
 
         {/* Right — Summary (appears first on mobile) */}
         <div className="lg:col-span-1 order-first lg:order-last">
-          <OrderSummaryPanel order={order} vendureBase={vendureBase} />
+          <OrderSummaryPanel
+            order={order}
+            vendureBase={vendureBase}
+            onOrderUpdate={(updates) => setOrder((prev) => ({ ...prev, ...updates }))}
+          />
         </div>
       </div>
     </CheckoutLayout>

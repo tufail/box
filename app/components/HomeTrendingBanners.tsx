@@ -12,8 +12,8 @@ export default function HomeTrendingBanners({ title = "Trending Products", vendu
   useEffect(() => {
     let cancelled = false;
     fetch("/api/banner/trending-products")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { items: BannerItem[] } | null) => {
+      .then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
+      .then((data) => {
         if (!cancelled) setState(data?.items ?? []);
       })
       .catch(() => {

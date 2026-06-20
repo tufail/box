@@ -24,7 +24,6 @@ function formatQAR(value: number): string {
 export default function ProductCard({ product, vendureBase, eager = false, showVariantName = false, forceAddToCart = false, variantId, onAddToCart }: ProductCardProps) {
 	const priceQAR = minPrice(product.price) / 100;
 	const discount = product.customProductVariantMappings?.discount ?? 0;
-	console.log(discount, priceQAR);
 	const isOnSale = product.customProductVariantMappings?.isOnSale ?? false;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
 	const discountPercent = discount > 0 ? (discount / 100 / priceQAR) * 100 : 0;

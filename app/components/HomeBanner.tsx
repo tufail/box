@@ -32,8 +32,8 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	useEffect(() => {
 		let cancelled = false;
 		fetch(`/api/banner/${slug}`)
-			.then((r) => (r.ok ? r.json() : null))
-			.then((data: { items: BannerItem[] } | null) => {
+			.then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
+			.then((data) => {
 				if (!cancelled) setState(data?.items?.[0] ?? null);
 			})
 			.catch(() => {
