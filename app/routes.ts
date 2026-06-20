@@ -11,6 +11,7 @@ export default [
     route("checkout/success", "routes/checkout.success.tsx"),
     route("checkout/failed", "routes/checkout.failed.tsx"),
     route("order-confirmation", "routes/order-confirmation.tsx"),
+    route("wishlist", "routes/wishlist.tsx"),
     route("register", "routes/register.tsx"),
     route("forgot-password", "routes/forgot-password.tsx"),
     route("reset-password", "routes/reset-password.tsx"),

@@ -2,7 +2,7 @@ import type { Route } from "./+types/products.$slug";
 import { useState, useEffect } from "react";
 import { useFetcher, useNavigate } from "react-router";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, Info, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, Info, ShieldCheck, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -11,6 +11,7 @@ import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
 import { useNotification } from "~/context/NotificationContext";
+import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 
 const WHATSAPP_NUMBER = "97412345678"; // replace with business WhatsApp number (country code + number, no +)
 
@@ -58,12 +59,11 @@ function groupHasPriceVariation(variants: ProductDetailVariant[], selected: Reco
 
 // ── Meta ───────────────────────────────────────────────────────────────────
 
-export function meta({ data }: Route.MetaArgs) {
-	const d = data as { product?: ProductDetailItem; canonicalUrl?: string; vendureBase?: string; activeVariantName?: string | null } | undefined;
-	const product = d?.product;
-	const canonicalUrl = d?.canonicalUrl ?? "";
-	const vendureBase = d?.vendureBase ?? "";
-	const variantName = d?.activeVariantName ?? null;
+export function meta({ loaderData }: Route.MetaArgs) {
+	const product = loaderData?.product;
+	const canonicalUrl = loaderData?.canonicalUrl ?? "";
+	const vendureBase = loaderData?.vendureBase ?? "";
+	const variantName = loaderData?.activeVariantName ?? null;
 
 	if (!product) return [{ title: "Product — PHQ" }];
 
@@ -144,8 +144,12 @@ export function shouldRevalidate({ nextUrl, currentUrl, defaultShouldRevalidate 
 
 // ── Image gallery ──────────────────────────────────────────────────────────
 
-function Gallery({ images, variantImages, vendureBase, name }: { images: string[]; variantImages: string[]; vendureBase: string; name: string }) {
+function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistItem }: { images: string[]; variantImages: string[]; vendureBase: string; name: string; shareUrl: string; wishlistItem: WishlistItem }) {
 	const [active, setActive] = useState(0);
+	const [showShare, setShowShare] = useState(false);
+	const [copied, setCopied] = useState(false);
+	const { toggle, isWishlisted } = useWishlist();
+	const wishlisted = isWishlisted(wishlistItem.variantId);
 
 	// Merge: variant images first, then product images (dedup by url)
 	const combined = [...variantImages, ...images].filter((src, i, arr) => arr.indexOf(src) === i);
@@ -158,40 +162,121 @@ function Gallery({ images, variantImages, vendureBase, name }: { images: string[
 
 	const currentIdx = Math.min(active, resolved.length - 1);
 
+	const handleCopy = () => {
+		if (typeof navigator !== "undefined") {
+			navigator.clipboard.writeText(shareUrl).then(() => {
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			});
+		}
+	};
+
+	const shareLinks = [
+		{
+			label: "WhatsApp",
+			href: `https://wa.me/?text=${encodeURIComponent(shareUrl)}`,
+			color: "text-green-600 hover:bg-green-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+				</svg>
+			),
+		},
+		{
+			label: "Facebook",
+			href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+			color: "text-blue-600 hover:bg-blue-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+				</svg>
+			),
+		},
+		{
+			label: "X (Twitter)",
+			href: `https://x.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(name)}`,
+			color: "text-gray-900 hover:bg-gray-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+				</svg>
+			),
+		},
+	];
+
 	return (
 		<div className="flex flex-col gap-3">
-			<div className="relative aspect-square rounded overflow-hidden">
-				<VendureImage
-					key={resolved[currentIdx]}
-					src={resolved[currentIdx]}
-					vendureBase={vendureBase}
-					alt={name}
-					width={600}
-					height={600}
-					objectFit="contain"
-					eager={currentIdx === 0}
-				/>
+			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
+			<div className="relative">
+				<div className="relative aspect-square rounded overflow-hidden">
+					<VendureImage
+						key={resolved[currentIdx]}
+						src={resolved[currentIdx]}
+						vendureBase={vendureBase}
+						alt={name}
+						width={600}
+						height={600}
+						objectFit="contain"
+						eager={currentIdx === 0}
+					/>
 
-				{/* Carousel prev/next */}
-				{resolved.length > 1 && (
-					<>
-						<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Previous image">
-							<ChevronLeft size={16} />
-						</button>
-						<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Next image">
-							<ChevronRight size={16} />
-						</button>
-					</>
-				)}
+					{/* Carousel prev/next */}
+					{resolved.length > 1 && (
+						<>
+							<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Previous image">
+								<ChevronLeft size={16} />
+							</button>
+							<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Next image">
+								<ChevronRight size={16} />
+							</button>
+						</>
+					)}
+				</div>
 
-				{/* Action buttons — absolute top-right of image */}
-				<div className="absolute top-3 right-3 flex flex-col gap-2">
-					<button className="w-9 h-9 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-primary hover:border-primary transition-colors" aria-label="Wishlist">
-						<Heart size={15} />
+				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
+				<div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+					<button
+						onClick={() => toggle(wishlistItem)}
+						className={`w-9 h-9 rounded backdrop-blur-sm border shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white border-red-200 text-red-500" : "bg-white/80 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"}`}
+						aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+					>
+						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
-					<button className="w-9 h-9 rounded bg-primary/90 backdrop-blur-sm text-white shadow-sm flex items-center justify-center hover:bg-primary transition-colors" aria-label="Share">
-						<Share2 size={15} />
-					</button>
+					<div className="relative">
+						<button
+							onClick={() => setShowShare((s) => !s)}
+							className={`w-9 h-9 rounded backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-primary" : "bg-primary/90 hover:bg-primary"}`}
+							aria-label="Share"
+						>
+							<Share2 size={15} />
+						</button>
+
+						{/* Share dropdown — absolute from the button, so it never widens the parent */}
+						{showShare && (
+							<div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-20">
+								{shareLinks.map((link) => (
+									<a
+										key={link.label}
+										href={link.href}
+										target="_blank"
+										rel="noopener noreferrer"
+										onClick={() => setShowShare(false)}
+										className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}
+									>
+										{link.icon}
+										{link.label}
+									</a>
+								))}
+								<button
+									onClick={handleCopy}
+									className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100"
+								>
+									<Link2 size={15} className="flex-shrink-0" />
+									{copied ? "Copied!" : "Copy Link"}
+								</button>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -332,7 +417,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-8 items-start">
 					{/* Image column — 1/3 */}
 					<div>
-						<Gallery images={allImages} variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a) => a.preview) ?? [])]} vendureBase={vendureBase} name={product.name} />
+						<Gallery
+								images={allImages}
+								variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
+								vendureBase={vendureBase}
+								name={product.name}
+								shareUrl={canonicalUrl}
+								wishlistItem={{
+									variantId: activeVariant?.id ?? "",
+									productSlug: product.slug,
+									name: product.name,
+									price: activeVariant?.price ?? 0,
+									currencyCode: activeVariant?.currencyCode ?? "QAR",
+									image: product.featuredAsset?.preview ?? "",
+									vendureBase,
+								}}
+							/>
 					</div>
 
 					{/* Detail column — 2/3 */}

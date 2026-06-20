@@ -50,7 +50,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
       env,
       SEARCH_NEW_ARRIVALS,
-      { input: { take: 12, groupByProduct: true, sort: { name: "ASC" } } },
+      { input: { take: 12, groupByProduct: true } },
       cacheOpts
     ),
     graphqlRequest<BannerData, BannerVariables>(

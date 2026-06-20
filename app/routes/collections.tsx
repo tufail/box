@@ -17,16 +17,18 @@ const PAGE_SIZE = 24;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "sales_desc", label: "Best Sellers" },
+  { value: "default", label: "Latest" },
   { value: "name_asc", label: "Name A–Z" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
 ];
 
-function sortToInput(sort: SortKey) {
-  if (sort === "name_asc") return { name: "ASC" as const };
-  if (sort === "price_asc") return { price: "ASC" as const };
-  if (sort === "price_desc") return { price: "DESC" as const };
-  return { salesCount: "DESC" as const };
+function sortToInput(sort: SortKey): SearchPageVariables["input"]["sort"] {
+  if (sort === "sales_desc") return { salesCount: "DESC" };
+  if (sort === "name_asc") return { name: "ASC" };
+  if (sort === "price_asc") return { price: "ASC" };
+  if (sort === "price_desc") return { price: "DESC" };
+  return undefined;
 }
 
 interface FacetGroup {
@@ -45,8 +47,8 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
   return [...map.values()];
 }
 
-export function meta({ data }: Route.MetaArgs) {
-  const canonicalUrl = (data as { canonicalUrl?: string } | undefined)?.canonicalUrl ?? "/collections";
+export function meta({ loaderData }: Route.MetaArgs) {
+  const canonicalUrl = loaderData?.canonicalUrl ?? "/collections";
   return [
     { title: "All Products — PHQ" },
     { name: "description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar." },
@@ -68,11 +70,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
+  const sortInput = sortToInput(sort);
   const input: SearchPageVariables["input"] = {
     groupByProduct: false,
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
-    sort: sortToInput(sort),
+    ...(sortInput && { sort: sortInput }),
     ...(fv.length > 0 && { facetValueIds: fv, facetValueOperator: "AND" }),
   };
 

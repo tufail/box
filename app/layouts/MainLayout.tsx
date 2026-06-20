@@ -7,8 +7,9 @@ import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher } from "react-router";
-import { CircleUser, Globe, Menu, ShoppingCart, X, Check, Truck, ShieldCheck } from "lucide-react";
+import { CircleUser, Globe, Heart, Menu, ShoppingCart, X, Check, Truck, ShieldCheck } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
+import { useWishlist } from "../context/WishlistContext";
 
 interface MainLayoutProps {
 	children: React.ReactNode;
@@ -158,6 +159,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 			lastName: fd.get("lastName") as string,
 			emailAddress: fd.get("emailAddress") as string,
 			password: fd.get("password") as string,
+			emailOffers: fd.get("emailOffers") as string,
 		};
 		const phone = fd.get("phoneNumber") as string;
 		if (phone) body.phoneNumber = phone;
@@ -251,7 +253,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 
 						{tab === "register" && (
 							<div>
-								<SocialAuthButtons dividerLabel="Or sign up with email" onSuccess={onSocialSuccess} />
+								<SocialAuthButtons dividerLabel="Or sign up with email" onSuccess={onSocialSuccess} emailOffers={newsletter} />
 								<form onSubmit={handleRegister} className="space-y-4">
 									<div className="grid grid-cols-2 gap-3">
 										<div>
@@ -339,6 +341,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 
 export default function MainLayout({ children, megaMenu, activeCustomer }: MainLayoutProps) {
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
+	const { wishlistCount } = useWishlist();
 	const [accountOpen, setAccountOpen] = useState(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -423,6 +426,14 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 						<SearchBox />
 					</div>
 					<div className="flex items-center gap-5">
+						<Link to="/wishlist" className="text-gray-600 relative hover:text-primary transition-colors" aria-label="Wishlist">
+							<Heart size={26} />
+							{wishlistCount > 0 && (
+								<span className="absolute bg-red-500 text-white text-xs rounded h-5 w-5 flex items-center justify-center -top-2 -right-2 pointer-events-none">
+									{wishlistCount > 99 ? "99+" : wishlistCount}
+								</span>
+							)}
+						</Link>
 						<button onClick={openCart} className="text-gray-600 relative hover:text-primary transition-colors cursor-pointer" aria-label="Open cart">
 							<ShoppingCart size={26} />
 							<span className="absolute bg-primary text-white text-xs rounded h-5 w-5 flex items-center justify-center -top-2 -right-2 pointer-events-none">{cartCount > 99 ? "99+" : cartCount}</span>

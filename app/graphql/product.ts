@@ -173,7 +173,7 @@ export interface SearchPageData {
   };
 }
 
-export type SortKey = "sales_desc" | "name_asc" | "price_asc" | "price_desc";
+export type SortKey = "default" | "sales_desc" | "name_asc" | "price_asc" | "price_desc";
 
 export interface SearchPageVariables {
   input: {

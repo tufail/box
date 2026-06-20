@@ -28,12 +28,12 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 	return (
 		<div>
 			<HomeCarousel items={slides.length > 0 ? slides : undefined} vendureBase={vendureBase} />
-			<HomeTopSelling products={products} vendureBase={vendureBase} />
+			<HomeTopSelling products={products} vendureBase={vendureBase} viewAllHref="/collections" />
 			<HomeBanner slug="top-selling-banner" />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeFeaturedCollections topLevelCollections={topLevelCollections} subCollections={subCollections} vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
-			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title="New Arrivals" />
+			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title="New Arrivals" viewAllHref="/collections?sort=default" />
 		</div>
 	);
 }

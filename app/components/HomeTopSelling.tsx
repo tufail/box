@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoveRight } from "lucide-react";
+import { Link } from "react-router";
 import type { SearchProductItem } from "~/graphql/product";
 import ProductCard from "./ProductCard";
 
@@ -8,9 +9,10 @@ interface Props {
   products: SearchProductItem[];
   vendureBase: string;
   title?: string;
+  viewAllHref?: string;
 }
 
-export default function HomeTopSelling({ products, vendureBase, title = "Top Selling Products" }: Props) {
+export default function HomeTopSelling({ products, vendureBase, title = "Top Selling Products", viewAllHref }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: "auto",
@@ -41,8 +43,17 @@ export default function HomeTopSelling({ products, vendureBase, title = "Top Sel
 
   return (
     <section className="py-8 container mx-auto px-4">
-      <div className="mb-5">
+      <div className="mb-5 flex items-center justify-between">
         <h2 className="text-xl font-bold">{title}</h2>
+        {viewAllHref && (
+          <Link
+            to={viewAllHref}
+            className="flex items-center gap-2 text-sm font-semibold text-primary hover:gap-3 transition-all duration-200 group"
+          >
+            View All
+            <MoveRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+          </Link>
+        )}
       </div>
 
       <div className="relative">

@@ -62,6 +62,7 @@ export interface CollectionDetail {
   description: string;
   breadcrumbs: CollectionBreadcrumb[];
   featuredAsset: { preview: string } | null;
+  customFields: { banner: { source: string } | null } | null;
 }
 
 export interface CollectionPageFacetValue {
@@ -123,6 +124,21 @@ export const HOME_COLLECTIONS_QUERY = `
   }
 `;
 
+export interface CollectionFacetsData {
+  search: { facetValues: CollectionPageFacetValue[] };
+}
+
+export const COLLECTION_FACETS_QUERY = `
+  query CollectionAllFacets($input: SearchInput!) {
+    search(input: $input) {
+      facetValues {
+        count
+        facetValue { id name facet { id name } }
+      }
+    }
+  }
+`;
+
 export const COLLECTION_PAGE_QUERY = `
   query CollectionPage($slug: String!, $input: SearchInput!) {
     collection(slug: $slug) {
@@ -132,6 +148,7 @@ export const COLLECTION_PAGE_QUERY = `
       description
       breadcrumbs { id name slug }
       featuredAsset { preview }
+      customFields { banner { source } }
     }
     search(input: $input) {
       totalItems

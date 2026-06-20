@@ -5,29 +5,32 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
-import VendureImage from "~/components/VendureImage";
 import {
   COLLECTION_PAGE_QUERY,
+  COLLECTION_FACETS_QUERY,
   type CollectionPageData,
   type CollectionPageFacetValue,
   type CollectionPageVariables,
+  type CollectionFacetsData,
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
 
 const PAGE_SIZE = 24;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "default", label: "Latest" },
   { value: "sales_desc", label: "Best Sellers" },
   { value: "name_asc", label: "Name A–Z" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
 ];
 
-function sortToInput(sort: SortKey) {
-  if (sort === "name_asc") return { name: "ASC" as const };
-  if (sort === "price_asc") return { price: "ASC" as const };
-  if (sort === "price_desc") return { price: "DESC" as const };
-  return { salesCount: "DESC" as const };
+function sortToInput(sort: SortKey): CollectionPageVariables["input"]["sort"] {
+  if (sort === "sales_desc") return { salesCount: "DESC" };
+  if (sort === "name_asc") return { name: "ASC" };
+  if (sort === "price_asc") return { price: "ASC" };
+  if (sort === "price_desc") return { price: "DESC" };
+  return undefined;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -45,13 +48,19 @@ function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
     if (!map.has(facetId)) map.set(facetId, { facetId, facetName, values: [] });
     map.get(facetId)!.values.push({ id: facetValue.id, name: facetValue.name, count });
   }
-  return [...map.values()];
+  return [...map.values()].sort((a, b) => {
+    const aIsCat = a.facetName.toLowerCase() === "category";
+    const bIsCat = b.facetName.toLowerCase() === "category";
+    if (aIsCat && !bIsCat) return -1;
+    if (!aIsCat && bIsCat) return 1;
+    return 0;
+  });
 }
 
 // ── Meta ───────────────────────────────────────────────────────────────────
 
-export function meta({ data }: Route.MetaArgs) {
-  const name = (data as { collection?: { name: string } } | undefined)?.collection?.name ?? "Collection";
+export function meta({ loaderData }: Route.MetaArgs) {
+  const name = loaderData?.collection?.name ?? "Collection";
   return [{ title: `${name} — PHQ` }];
 }
 
@@ -67,24 +76,33 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
+  const sortInput = sortToInput(sort);
   const input: CollectionPageVariables["input"] = {
     collectionSlug: slug,
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
-    sort: sortToInput(sort),
-    ...(fv.length > 0 && { facetValueIds: fv, facetValueOperator: "AND" }),
+    ...(sortInput && { sort: sortInput }),
+    ...(fv.length > 0 && { facetValueIds: fv, facetValueOperator: "OR" }),
   };
 
+  // Fetch all facets without any active filters so the sidebar never collapses
+  const facetsInput = { collectionSlug: slug, take: 0, groupByProduct: true };
+
   try {
-    const { data } = await graphqlRequest<CollectionPageData, CollectionPageVariables>(
-      env,
-      COLLECTION_PAGE_QUERY,
-      { slug, input },
-      { request }
-    );
-    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase };
+    const [mainResult, facetsResult] = await Promise.allSettled([
+      graphqlRequest<CollectionPageData, CollectionPageVariables>(env, COLLECTION_PAGE_QUERY, { slug, input }, { request }),
+      graphqlRequest<CollectionFacetsData>(env, COLLECTION_FACETS_QUERY, { input: facetsInput }, { request }),
+    ]);
+
+    if (mainResult.status === "rejected") throw mainResult.reason;
+    const { data } = mainResult.value;
+    const allFacetValues = facetsResult.status === "fulfilled"
+      ? facetsResult.value.data.search.facetValues
+      : data.search.facetValues;
+
+    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues };
   } catch {
-    return { totalItems: 0, items: [], facetValues: [], collection: null, sort, page, fv, vendureBase };
+    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase };
   }
 }
 
@@ -92,27 +110,32 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 interface FilterSidebarProps {
   facetGroups: FacetGroup[];
-  facetValues: CollectionPageFacetValue[];
+  filteredIds: Set<string>;
   activeFv: string[];
   onToggle: (id: string) => void;
+  onClearAll: () => void;
 }
 
-function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterSidebarProps) {
+function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll }: FilterSidebarProps) {
   return (
     <div>
       {activeFv.length > 0 && (
         <div className="mb-5">
-          <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Active</div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-400 uppercase tracking-wide">Active filters</span>
+            <button onClick={onClearAll} className="text-xs text-primary hover:underline">Clear all</button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {activeFv.map((id) => {
-              const match = facetValues.find((f) => f.facetValue.id === id);
+              const allValues = facetGroups.flatMap((g) => g.values);
+              const match = allValues.find((v) => v.id === id);
               return match ? (
                 <button
                   key={id}
                   onClick={() => onToggle(id)}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
-                  {match.facetValue.name}
+                  {match.name}
                   <X size={10} />
                 </button>
               ) : null;
@@ -127,22 +150,26 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
             {group.facetName}
           </div>
           <ul className="space-y-2">
-            {group.values.map((v) => (
-              <li key={v.id}>
-                <label className="flex items-center gap-2.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={activeFv.includes(v.id)}
-                    onChange={() => onToggle(v.id)}
-                    className="accent-primary w-4 h-4 rounded flex-shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-gray-700 group-hover:text-primary transition-colors">
-                    {v.name}
-                  </span>
-                  <span className="text-xs text-gray-400">{v.count}</span>
-                </label>
-              </li>
-            ))}
+            {group.values.map((v) => {
+              const isActive = activeFv.includes(v.id);
+              const unavailable = activeFv.length > 0 && !filteredIds.has(v.id) && !isActive;
+              return (
+                <li key={v.id}>
+                  <label className={`flex items-center gap-2.5 cursor-pointer group ${unavailable ? "opacity-40" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={() => onToggle(v.id)}
+                      className="accent-primary w-4 h-4 rounded flex-shrink-0"
+                    />
+                    <span className={`flex-1 text-sm transition-colors ${isActive ? "text-primary font-medium" : "text-gray-700 group-hover:text-primary"}`}>
+                      {v.name}
+                    </span>
+                    <span className="text-xs text-gray-400">{v.count}</span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
@@ -153,12 +180,15 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, collection, sort, page, fv, vendureBase } = loaderData;
+  const { totalItems, items, facetValues, allFacetValues, collection, sort, page, fv, vendureBase } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
-  const facetGroups = groupFacets(facetValues);
+  // Build sidebar from the unfiltered facet list so nothing disappears on selection
+  const facetGroups = groupFacets(allFacetValues ?? facetValues);
+  // IDs present in the current filtered result — used to dim unavailable options
+  const filteredIds = new Set((facetValues ?? []).map((f) => f.facetValue.id));
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams);
@@ -172,6 +202,10 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       ? (fv as string[]).filter((x) => x !== id)
       : [...(fv as string[]), id];
     updateParam("fv", next.join(",") || null);
+  }
+
+  function clearAllFacets() {
+    updateParam("fv", null);
   }
 
   // Build breadcrumb from Vendure's collection.breadcrumbs
@@ -198,16 +232,14 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       {/* ── Collection header ── */}
       {collection && (
         <div className="mb-6">
-          {collection.featuredAsset?.preview && (
-            <div className="w-full h-40 md:h-56 rounded overflow-hidden mb-4 bg-gray-100">
-              <VendureImage
-                src={collection.featuredAsset.preview}
-                vendureBase={vendureBase}
+          {collection.customFields?.banner?.source && (
+            <div className="w-full rounded overflow-hidden mb-4 bg-gray-100">
+              <img
+                src={collection.customFields.banner.source}
                 alt={collection.name}
-                width={1200}
-                height={300}
-                objectFit="cover"
-                eager
+                className="w-full h-auto object-cover"
+                loading="eager"
+                fetchPriority="high"
               />
             </div>
           )}
@@ -255,9 +287,10 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           <div className="text-sm font-semibold text-gray-800 mb-4">Filters</div>
           <FilterSidebar
             facetGroups={facetGroups}
-            facetValues={facetValues}
+            filteredIds={filteredIds}
             activeFv={fv as string[]}
             onToggle={toggleFacet}
+            onClearAll={clearAllFacets}
           />
         </aside>
 
@@ -313,9 +346,10 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <FilterSidebar
                 facetGroups={facetGroups}
-                facetValues={facetValues}
+                filteredIds={filteredIds}
                 activeFv={fv as string[]}
                 onToggle={(id) => { toggleFacet(id); setMobileFiltersOpen(false); }}
+                onClearAll={() => { clearAllFacets(); setMobileFiltersOpen(false); }}
               />
             </div>
           </div>
