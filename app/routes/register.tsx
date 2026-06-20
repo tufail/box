@@ -80,6 +80,7 @@ export default function RegisterPage() {
       lastName: fd.get("lastName") as string,
       emailAddress: emailVal,
       password: fd.get("password") as string,
+      emailOffers: fd.get("emailOffers") as string,
     };
     const phone = fd.get("phoneNumber") as string;
     if (phone) body.phoneNumber = phone;
@@ -133,7 +134,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <SocialAuthButtons dividerLabel="Or sign up with email" />
+          <SocialAuthButtons dividerLabel="Or sign up with email" emailOffers={newsletter} />
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">

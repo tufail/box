@@ -231,11 +231,10 @@ function TermsHint() {
   );
 }
 
-function NewsletterConsent() {
-  const [checked, setChecked] = useState(true);
+function NewsletterConsent({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="mt-4">
-      <label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => setChecked((v) => !v)}>
+      <label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => onChange(!checked)}>
         <div
           className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white ${
             checked ? "border-green-500" : "border-gray-300"
@@ -292,6 +291,7 @@ function CustomerStep({
 }) {
   const [tab, setTab] = useState<"guest" | "login" | "register">("guest");
   const [error, setError] = useState<string | null>(null);
+  const [newsletterChecked, setNewsletterChecked] = useState(true);
   const fetcher = useFetcher<{
     error?: string;
     login?: Record<string, unknown>;
@@ -367,7 +367,8 @@ function CustomerStep({
     const password = fd.get("password") as string;
     const phoneNumber = fd.get("phoneNumber") as string;
     submittedRef.current = { name: `${first} ${last}`.trim(), email };
-    const body: Record<string, string> = { _intent: "register", firstName: first, lastName: last, emailAddress: email, password };
+    const emailOffers = fd.get("emailOffers") as string;
+    const body: Record<string, string> = { _intent: "register", firstName: first, lastName: last, emailAddress: email, password, emailOffers };
     if (phoneNumber) body.phoneNumber = phoneNumber;
     submit(body);
   }
@@ -408,7 +409,7 @@ function CustomerStep({
             <Field label="Last Name" name="lastName" required className="sm:col-span-1" />
             <Field label="Email Address" name="emailAddress" type="email" required />
           </FieldGroup>
-          <NewsletterConsent />
+          <NewsletterConsent checked={newsletterChecked} onChange={setNewsletterChecked} />
           {error && <ErrorBox message={error} />}
           <SubmitBtn label="Continue as Guest" loading={loading} />
           <TermsHint />
@@ -431,7 +432,7 @@ function CustomerStep({
 
       {tab === "register" && (
         <>
-          <SocialAuthButtons dividerLabel="Or sign up with email" />
+          <SocialAuthButtons dividerLabel="Or sign up with email" emailOffers={newsletterChecked} />
           <form onSubmit={handleRegister}>
             <FieldGroup>
               <Field label="First Name" name="firstName" required className="sm:col-span-1" />
@@ -451,7 +452,7 @@ function CustomerStep({
                 placeholder="+974 xxxx xxxx"
               />
             </FieldGroup>
-            <NewsletterConsent />
+            <NewsletterConsent checked={newsletterChecked} onChange={setNewsletterChecked} />
             {error && <ErrorBox message={error} />}
             <SubmitBtn label="Create Account & Continue" loading={loading} />
             <TermsHint />

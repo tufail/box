@@ -65,11 +65,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // ── register ─────────────────────────────────────────────────────────────────
   if (intent === "register") {
-    const { firstName, lastName, emailAddress, password, phoneNumber } = body as {
-      firstName: string; lastName: string; emailAddress: string; password: string; phoneNumber?: string;
+    const { firstName, lastName, emailAddress, password, phoneNumber, emailOffers } = body as {
+      firstName: string; lastName: string; emailAddress: string; password: string; phoneNumber?: string; emailOffers?: string;
     };
-    const input: Record<string, string> = { firstName, lastName, emailAddress, password };
+    const input: Record<string, unknown> = { firstName, lastName, emailAddress, password };
     if (phoneNumber) input.phoneNumber = phoneNumber;
+    input.customFields = { emailOffers: emailOffers === "true" };
     try {
       const { data } = await graphqlRequest<{
         registerCustomerAccount: {
@@ -178,11 +179,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // ── socialLogin ───────────────────────────────────────────────────────────────
   if (intent === "socialLogin") {
-    const { provider, token } = body as { provider: "google" | "facebook"; token: string };
+    const { provider, token, emailOffers } = body as { provider: "google" | "facebook"; token: string; emailOffers?: string };
     if (!provider || !token) {
       return Response.json({ error: "Missing provider or token." }, { status: 400 });
     }
-    const input = { [provider]: { token } };
+    const input = { [provider]: { token, emailOffers: emailOffers === "true" } };
     try {
       const { data, token: authToken } = await graphqlRequest<SocialLoginResult>(
         env,

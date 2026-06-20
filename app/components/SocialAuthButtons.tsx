@@ -39,11 +39,13 @@ interface Props {
    * so the page picks up the new auth session.
    */
   onSuccess?: () => void;
+  /** Whether the user consented to marketing emails — sent inside the authenticate input */
+  emailOffers?: boolean;
   /** Pass "white" when the divider sits on a non-white background */
   bg?: "white" | "gray";
 }
 
-export default function SocialAuthButtons({ dividerLabel, onSuccess, bg = "white" }: Props) {
+export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers = false, bg = "white" }: Props) {
   const [active, setActive] = useState<"google" | "facebook" | null>(null);
   const [socialError, setSocialError] = useState<string | null>(null);
   const fetcher = useFetcher<{ success?: boolean; error?: string }>();
@@ -66,7 +68,7 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, bg = "white
 
   async function submit(provider: "google" | "facebook", token: string) {
     fetcher.submit(
-      { _intent: "socialLogin", provider, token },
+      { _intent: "socialLogin", provider, token, emailOffers: String(emailOffers) },
       { method: "post", encType: "application/json", action: "/api/auth" }
     );
   }
