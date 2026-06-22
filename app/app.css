@@ -5,7 +5,7 @@
 	--font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 	--font-roboto: "Roboto", sans-serif;
 	--font-arabic: "Noto Sans Arabic", sans-serif;
-	--color-primary: #458500;
+	--color-primary: #224d53;
 	--color-cart: #f38a00;
 }
 
@@ -52,5 +52,5 @@ body {
 iframe.skiptranslate,
 .goog-te-balloon-frame { display: none !important; }
 /* Remove the top offset Google Translate injects onto body */
-body { top: 0 !important; overflow-x: hidden !important; }
-html { overflow-x: hidden !important; }
+body { top: 0 !important; overflow-x: clip !important; }
+html { overflow-x: clip !important; }

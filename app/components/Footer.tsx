@@ -76,7 +76,7 @@ export default function Footer() {
 		<>
 			<footer>
 				{/* Trust badges */}
-				<div className="border-t border-gray-200 bg-white py-5">
+				<div className="border-t border-stone-200 bg-stone-100 py-5">
 					<div className="container mx-auto px-4">
 						<div className="grid grid-cols-2 md:grid-cols-4">
 							{trustBadges.map(({ icon: Icon, title, desc }, i) => (
@@ -93,25 +93,25 @@ export default function Footer() {
 				</div>
 
 				{/* Main dark section */}
-				<div className="bg-gray-950 text-white">
+				<div className="bg-primary text-white">
 					<div className="container mx-auto px-4 py-10">
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
 							{/* Company info */}
 							<div>
 								<h3 className="font-bold text-white mb-4 text-sm">Protein House Qatar</h3>
-								<div className="space-y-3 text-sm text-gray-400">
+								<div className="space-y-3 text-sm text-white/70">
 									<div className="flex items-start gap-2">
-										<MapPin size={14} className="mt-0.5 shrink-0 text-gray-500" />
+										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" />
 										<span className="leading-relaxed">Al Muntazah Trading Center Building No -2, Office 6 5th Floor Hiteen Street, Doha, Qatar</span>
 									</div>
 									<div className="flex items-center gap-2">
-										<Phone size={14} className="shrink-0 text-gray-500" />
+										<Phone size={14} className="shrink-0 text-white/70" />
 										<a href="tel:+97477689275" className="hover:text-white transition-colors">
 											+974 77689275
 										</a>
 									</div>
 									<div className="flex items-center gap-2">
-										<Mail size={14} className="shrink-0 text-gray-500" />
+										<Mail size={14} className="shrink-0 text-white/70" />
 										<a href="mailto:askadmin@proteinhouseqa.com" className="hover:text-white transition-colors break-all">
 											askadmin@proteinhouseqa.com
 										</a>
@@ -125,7 +125,7 @@ export default function Footer() {
 								<ul className="space-y-2.5">
 									{helpLinks.map(({ label, href }) => (
 										<li key={label}>
-											<Link to={href} className="text-sm text-gray-400 hover:text-white transition-colors">
+											<Link to={href} className="text-sm text-white/70 hover:text-white transition-colors">
 												{label}
 											</Link>
 										</li>
@@ -139,7 +139,7 @@ export default function Footer() {
 								<ul className="space-y-2.5 mb-6">
 									{aboutLinks.map(({ label, href }) => (
 										<li key={label}>
-											<Link to={href} className="text-sm text-gray-400 hover:text-white transition-colors">
+											<Link to={href} className="text-sm text-white/70 hover:text-white transition-colors">
 												{label}
 											</Link>
 										</li>
@@ -148,7 +148,7 @@ export default function Footer() {
 								<h3 className="font-bold text-white mb-3 text-sm">Social</h3>
 								<div className="flex items-center gap-3">
 									{socialLinks.map(({ href, label, Icon }) => (
-										<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-gray-400 hover:text-white transition-colors">
+										<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-white/70 hover:text-white transition-colors">
 											<Icon />
 										</a>
 									))}
@@ -158,7 +158,7 @@ export default function Footer() {
 							{/* Newsletter */}
 							<div>
 								<h3 className="font-bold text-white mb-4 text-sm">Newsletter</h3>
-								<p className="text-sm text-gray-400 mb-4 leading-relaxed">Join 3,000+ subscribers and get update on newly added products and offers.</p>
+								<p className="text-sm text-white/70 mb-4 leading-relaxed">Join 3,000+ subscribers and get update on newly added products and offers.</p>
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
@@ -167,7 +167,7 @@ export default function Footer() {
 									className="flex"
 								>
 									<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" required className="flex-1 min-w-0 px-3 py-2.5 text-sm text-gray-900 bg-white rounded-l focus:outline-none focus:ring-2 focus:ring-primary" />
-									<button type="submit" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2.5 rounded-r transition-colors whitespace-nowrap cursor-pointer">
+									<button type="submit" className="bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-semibold px-4 py-2.5 rounded-r transition-colors whitespace-nowrap cursor-pointer">
 										Subscribe
 									</button>
 								</form>
@@ -176,9 +176,9 @@ export default function Footer() {
 					</div>
 
 					{/* Bottom bar */}
-					<div className="border-t border-gray-800">
+					<div className="border-t border-white/20">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-sm text-gray-400">Copyright © {new Date().getFullYear()} Protein House Qatar</p>
+							<p className="text-sm text-white/70">Copyright © {new Date().getFullYear()} Protein House Qatar</p>
 							<div className="flex items-center gap-1 flex-wrap justify-center">
 								{paymentMethods.map((m) => (
 									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">

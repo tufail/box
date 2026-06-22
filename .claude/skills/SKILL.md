@@ -1,4 +1,4 @@
-# PHQ Frontend — Development Skill Guide
+﻿# NutriBox Frontend — Development Skill Guide
 
 Conventions and best practices for this project: React Router v7 + gql.tada + Cloudflare Workers + Vendure.
 
@@ -20,7 +20,7 @@ export function meta({ data }: Route.MetaArgs) {
 
 export async function loader({ context, request, params }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
-  const { data } = await graphqlRequest(env, GET_PRODUCT, { slug: params.slug }, { request });
+  const { data } = await graNutriBoxlRequest(env, GET_PRODUCT, { slug: params.slug }, { request });
   if (!data.product) throw new Response("Not Found", { status: 404 });
   return { product: data.product };
 }
@@ -42,7 +42,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
 export async function action({ request, context }: Route.ActionArgs) {
   const env = context.cloudflare.env;
   const formData = await request.formData();
-  const { data, token } = await graphqlRequest(env, ADD_TO_CART, { ... }, { request });
+  const { data, token } = await graNutriBoxlRequest(env, ADD_TO_CART, { ... }, { request });
   // Set auth cookie if token returned
   const headers = new Headers();
   if (token) headers.append("Set-Cookie", `vendure-auth-token=${token}; Path=/; HttpOnly; SameSite=Lax`);
@@ -57,17 +57,17 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 ---
 
-## GraphQL with gql.tada
+## GraNutriBoxL with gql.tada
 
 ### Defining queries
 
-All queries live in `app/graphql/`. Group by domain (e.g., `collection.ts`, `product.ts`, `cart.ts`).
+All queries live in `app/graNutriBoxl/`. Group by domain (e.g., `collection.ts`, `product.ts`, `cart.ts`).
 
 ```ts
-// app/graphql/product.ts
-import { graphql, type ResultOf } from "./graphql";
+// app/graNutriBoxl/product.ts
+import { graNutriBoxl, type ResultOf } from "./graNutriBoxl";
 
-export const PRODUCT_FIELDS = graphql(`
+export const PRODUCT_FIELDS = graNutriBoxl(`
   fragment ProductFields on Product {
     id
     name
@@ -76,7 +76,7 @@ export const PRODUCT_FIELDS = graphql(`
   }
 `);
 
-export const GET_PRODUCT = graphql(`
+export const GET_PRODUCT = graNutriBoxl(`
   query GetProduct($slug: String!) {
     product(slug: $slug) {
       ...ProductFields
@@ -89,28 +89,28 @@ export const PRODUCT_DATA = {} as ResultOf<typeof GET_PRODUCT>;
 ```
 
 **Rules:**
-- Use `graphql()` (from `~/graphql/graphql`) — never the raw `gql` tag for queries that need type safety.
-- Use `gql` (from `workers/graphqlClient`) only for quick inline Worker-side queries (e.g., introspection tests).
+- Use `graNutriBoxl()` (from `~/graNutriBoxl/graNutriBoxl`) — never the raw `gql` tag for queries that need type safety.
+- Use `gql` (from `workers/graNutriBoxlClient`) only for quick inline Worker-side queries (e.g., introspection tests).
 - Export `TYPENAME_DATA = {} as ResultOf<typeof QUERY>` at the bottom of each query file to use as prop types (matches the existing pattern in `collection.ts`).
-- Use fragments (`graphql(\`fragment ... on Type\`, [dep])`) to share field selections across queries.
+- Use fragments (`graNutriBoxl(\`fragment ... on Type\`, [dep])`) to share field selections across queries.
 - Use `readFragment()` when consuming masked fragments in components.
-- After changing any query shape, run `npm run typecheck` — gql.tada regenerates `graphql-env.d.ts` automatically.
+- After changing any query shape, run `npm run typecheck` — gql.tada regenerates `graNutriBoxl-env.d.ts` automatically.
 
 ### Scalars
 
-Configured in `app/graphql/graphql.ts`:
+Configured in `app/graNutriBoxl/graNutriBoxl.ts`:
 - `DateTime` → `string`
 - `Money` → `number` (Vendure stores money as integers in the minor unit, e.g. cents)
 - `JSON` → `Record<string, unknown>`
 
 ---
 
-## graphqlRequest — the Vendure client
+## graNutriBoxlRequest — the Vendure client
 
 Signature:
 
 ```ts
-graphqlRequest<TData, TVariables>(
+graNutriBoxlRequest<TData, TVariables>(
   env,          // context.cloudflare.env
   query,        // TadaDocumentNode or string
   variables?,   // typed from query
@@ -128,7 +128,7 @@ graphqlRequest<TData, TVariables>(
 - Use `cf: { cacheTtl: N, cacheEverything: true }` for public, read-only queries (product lists, collections) to leverage Cloudflare's cache.
 - Use `cf: { cacheTtl: 0, cacheEverything: false }` for user-specific or mutating operations.
 - If `token` is returned, set it as `vendure-auth-token` cookie in the response (HttpOnly, SameSite=Lax).
-- The client throws on GraphQL errors — wrap in try/catch in loaders and actions.
+- The client throws on GraNutriBoxL errors — wrap in try/catch in loaders and actions.
 
 ---
 
@@ -180,12 +180,12 @@ export default {
 
 ## Component Conventions
 
-### Prop types from GraphQL
+### Prop types from GraNutriBoxL
 
 Use the `ResultOf` pattern to derive prop types directly from queries — avoids duplication:
 
 ```ts
-import type { PRODUCT_DATA } from "~/graphql/product";
+import type { PRODUCT_DATA } from "~/graNutriBoxl/product";
 
 interface ProductCardProps {
   product: (typeof PRODUCT_DATA.products.items)[0];
@@ -196,8 +196,8 @@ interface ProductCardProps {
 
 Use `~/*` for imports from `app/`:
 ```ts
-import { graphqlRequest } from "workers/graphqlClient"; // workers/ only
-import { GET_COLLECTIONS } from "~/graphql/collection";  // app/ via alias
+import { graNutriBoxlRequest } from "workers/graNutriBoxlClient"; // workers/ only
+import { GET_COLLECTIONS } from "~/graNutriBoxl/collection";  // app/ via alias
 ```
 
 ---

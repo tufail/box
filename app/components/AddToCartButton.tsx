@@ -5,7 +5,7 @@ interface AddToCartButtonProps {
 
 export default function AddToCartButton({ inStock = true, onClick }: AddToCartButtonProps) {
 	return (
-		<button disabled={!inStock} onClick={onClick} className="bg-cart hover:bg-[#d47800] disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed cursor-pointer text-white font-semibold text-sm py-2.5 px-7 rounded transition-colors w-auto mx-auto block">
+		<button disabled={!inStock} onClick={onClick} className="w-full bg-primary hover:bg-primary/90 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer text-white font-semibold text-sm py-1.5 rounded-lg transition-colors block">
 			{inStock ? "Add to Cart" : "Out of Stock"}
 		</button>
 	);

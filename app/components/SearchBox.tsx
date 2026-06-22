@@ -168,10 +168,10 @@ export default function SearchBox() {
 							}
 						}}
 						placeholder="Search Products"
-						className="border border-gray-300 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12 rounded-l rounded-r"
+						className="border border-stone-400 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12 rounded-xl bg-white"
 						autoComplete="off"
 					/>
-					<button type="submit" aria-label="Search" className="absolute right-0 bg-primary text-white hover:bg-primary-dark h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center rounded-r">
+					<button type="submit" aria-label="Search" className="absolute right-0 text-gray-500 hover:text-primary h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center focus:outline-none">
 						{loading ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent  animate-spin" /> : <Search size={18} />}
 					</button>
 				</div>

@@ -4,10 +4,10 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "phq-frontend",
+	"name": "nutribox-frontend",
 	"compatibility_date": "2025-04-04",
 	"main": "./workers/app.ts",
-	// Dev / local defaults — override VENDURE_SHOP_API for production via:
+	// Dev / local defaults -- override VENDURE_SHOP_API for production via:
 	//   wrangler secret put VENDURE_SHOP_API
 	// or add an [env.production] block below.
 	"vars": {
@@ -18,6 +18,6 @@
 	},
 	"compatibility_flags": ["nodejs_compat"],
 	// Smart Placement: routes each request to the datacenter closest to your
-	// Vendure backend, reducing round-trip latency by 50–200 ms in production.
+	// Vendure backend, reducing round-trip latency by 50-200 ms in production.
 	"placement": { "mode": "smart" },
 }

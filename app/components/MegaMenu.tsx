@@ -117,7 +117,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 						{/* Shop By button — desktop (hover) */}
 						<div ref={shopByRef} onMouseEnter={() => setShopByOpen(true)} onMouseLeave={() => setShopByOpen(false)}>
 							<button
-								className={`flex items-center gap-2 font-medium text-sm border-r border-gray-200 pr-6 h-12 transition-colors ${shopByOpen ? "text-primary" : "hover:text-primary"}`}
+								className="flex items-center gap-2 font-medium text-sm text-primary border-r border-gray-200 pr-6 h-12 transition-colors"
 								aria-expanded={shopByOpen}
 								aria-label="Shop By"
 							>
@@ -194,11 +194,11 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 							return (
 								<div key={index} onMouseEnter={() => hasDropdown && setDesktopOpen(index)} onMouseLeave={() => setDesktopOpen(null)}>
 									<button className="font-medium flex items-center gap-1 py-2 group ml-8" aria-expanded={desktopOpen === index} aria-haspopup={hasDropdown ? "true" : undefined}>
-										<Link to={itemHref(item)} className="text-black text-sm group-hover:text-primary transition-colors">
+										<Link to={itemHref(item)} className="text-primary text-sm transition-colors">
 											{item.label}
 										</Link>
 										{hasDropdown && (
-											<span className={`group-hover:text-primary transition-all duration-300 ${desktopOpen === index ? "-rotate-180" : ""}`}>
+											<span className={`text-primary transition-all duration-300 ${desktopOpen === index ? "-rotate-180" : ""}`}>
 												<ChevronDown size={18} />
 											</span>
 										)}

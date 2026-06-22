@@ -17,7 +17,7 @@ export default function HomeFeaturedCollections({ topLevelCollections, subCollec
 
 			<div className="flex flex-wrap justify-center gap-4 mb-6">
 				{topLevelCollections.map((col) => (
-					<Link key={col.id} to={`/collections/${col.slug}`} className="group block w-[calc(50%-0.5rem)] md:w-[calc(25%-0.75rem)] border border-gray-200 overflow-hidden bg-white">
+					<Link key={col.id} to={`/collections/${col.slug}`} className="group block w-[calc(50%-0.5rem)] md:w-[calc(25%-0.75rem)] border border-gray-200 overflow-hidden bg-white rounded-xl">
 						<div className="aspect-square overflow-hidden">
 							{col.featuredAsset ? (
 								<VendureImage

@@ -1,5 +1,5 @@
 {
-	"name": "phq-frontend",
+	"name": "nutribox-frontend",
 	"private": true,
 	"type": "module",
 	"scripts": {

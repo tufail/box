@@ -50,7 +50,7 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	const picture = (
 		<picture>
 			{state.mobileAssetPreview && <source media="(max-width: 767px)" srcSet={state.mobileAssetPreview} />}
-			<img src={state.assetPreview} alt={state.title} className="w-full border border-gray-200 h-auto block" loading="lazy" />
+			<img src={state.assetPreview} alt={state.title} className="w-full border border-gray-200 h-auto block rounded-xl" loading="lazy" />
 		</picture>
 	);
 

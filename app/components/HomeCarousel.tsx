@@ -47,60 +47,59 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	}, [emblaApi, onSelect]);
 
 	return (
-		<div className="bg-white mt-2 md:mt-4 lg:mt-4 relative">
+		<div className="mt-2 md:mt-4">
 			<div className="relative container mx-auto px-4">
-				<div className="overflow-hidden" ref={emblaRef}>
-					<div className="flex">
-						{items.map((slide, index) => (
-							<div key={slide.id} className="flex-none w-full">
-								<ConditionalLink href={slide.href}>
-									<picture>
-										{slide.mobileImage && (
-											<source
-												media="(max-width: 767px)"
-												srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { w: 768, format: "webp", mode: "resize" })}
-											/>
-										)}
-										<img
-											src={vendureImageUrl(slide.image, vendureBase, { w: 1400, format: "webp", mode: "resize" })}
-											alt={slide.label}
-											className="w-full h-auto block"
-											draggable={false}
-											loading={index === 0 ? "eager" : "lazy"}
-											fetchPriority={index === 0 ? "high" : "auto"}
+				<div className="overflow-hidden rounded-xl" ref={emblaRef}>
+				<div className="flex">
+					{items.map((slide, index) => (
+						<div key={slide.id} className="flex-none w-full">
+							<ConditionalLink href={slide.href}>
+								<picture>
+									{slide.mobileImage && (
+										<source
+											media="(max-width: 767px)"
+											srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { w: 768, format: "webp", mode: "resize" })}
 										/>
-									</picture>
-								</ConditionalLink>
-							</div>
-						))}
-					</div>
+									)}
+									<img
+										src={vendureImageUrl(slide.image, vendureBase, { w: 1600, format: "webp", mode: "resize" })}
+										alt={slide.label}
+										className="w-full h-auto block"
+										draggable={false}
+										loading={index === 0 ? "eager" : "lazy"}
+										fetchPriority={index === 0 ? "high" : "auto"}
+									/>
+								</picture>
+							</ConditionalLink>
+						</div>
+					))}
 				</div>
-
-				<button
-					onClick={() => emblaApi?.scrollPrev()}
-					aria-label="Previous slide"
-					className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded bg-black/70 text-white shadow-md flex items-center justify-center hover:bg-black transition-colors"
-				>
-					<ChevronLeft size={20} />
-				</button>
-
-				<button
-					onClick={() => emblaApi?.scrollNext()}
-					aria-label="Next slide"
-					className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded bg-black/70 text-white shadow-md flex items-center justify-center hover:bg-black transition-colors"
-				>
-					<ChevronRight size={20} />
-				</button>
-
-				{/* Dot indicators — single overlay, centred at the bottom of the image */}
-				{scrollSnaps.length > 1 && (
-					<div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 pointer-events-none">
-						{scrollSnaps.map((_, i) => (
-							<button key={i} onClick={() => emblaApi?.scrollTo(i)} aria-label={`Go to slide ${i + 1}`} className={`pointer-events-auto transition-all duration-300 ${i === selectedIndex ? "w-6 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`} />
-						))}
-					</div>
-				)}
 			</div>
+
+			<button
+				onClick={() => emblaApi?.scrollPrev()}
+				aria-label="Previous slide"
+				className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors"
+			>
+				<ChevronLeft size={22} />
+			</button>
+
+			<button
+				onClick={() => emblaApi?.scrollNext()}
+				aria-label="Next slide"
+				className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors"
+			>
+				<ChevronRight size={22} />
+			</button>
+
+		</div>
+		{scrollSnaps.length > 1 && (
+			<div className="flex justify-center gap-2 mt-3">
+				{scrollSnaps.map((_, i) => (
+					<button key={i} onClick={() => emblaApi?.scrollTo(i)} aria-label={`Go to slide ${i + 1}`} className={`rounded-full transition-all duration-300 ${i === selectedIndex ? "w-6 h-2 bg-gray-700" : "w-2 h-2 bg-gray-300 hover:bg-gray-500"}`} />
+				))}
+			</div>
+		)}
 		</div>
 	);
 }
