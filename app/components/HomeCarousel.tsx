@@ -52,9 +52,9 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 				<div className="overflow-hidden rounded-xl" ref={emblaRef}>
 				<div className="flex">
 					{items.map((slide, index) => (
-						<div key={slide.id} className="flex-none w-full">
+						<div key={slide.id} className="flex-none w-full h-[200px] md:h-[200px]">
 							<ConditionalLink href={slide.href}>
-								<picture>
+								<picture className="block w-full h-full">
 									{slide.mobileImage && (
 										<source
 											media="(max-width: 767px)"
@@ -64,7 +64,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 									<img
 										src={vendureImageUrl(slide.image, vendureBase, { w: 1600, format: "webp", mode: "resize" })}
 										alt={slide.label}
-										className="w-full h-auto block"
+										className="w-full h-full object-cover block"
 										draggable={false}
 										loading={index === 0 ? "eager" : "lazy"}
 										fetchPriority={index === 0 ? "high" : "auto"}
