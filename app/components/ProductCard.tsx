@@ -36,7 +36,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 		<div className="group bg-white overflow-hidden flex flex-col h-full rounded-xl">
 
 			{/* Image area */}
-			<div className="relative bg-white border border-gray-200 rounded-xl overflow-hidden">
+			<div className="relative bg-stone-100 border border-stone-200 rounded-xl overflow-hidden">
 				{/* Top-left promo badge */}
 				{(isOnSale || discountPercent > 0) && (
 					<div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-pink-100 text-pink-600 text-[11px] font-semibold px-2 py-0.5 rounded-full">
@@ -56,12 +56,20 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 								height={300}
 								objectFit="contain"
 								eager={eager}
+								imgClassName="mix-blend-multiply"
 							/>
 						) : (
 							<div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl font-bold bg-gray-50">
 								{product.productName[0]}
 							</div>
 						)}
+					</div>
+
+					{/* Star rating badge */}
+					<div className="absolute bottom-0 left-0 z-10 flex items-center gap-1 bg-orange-50 rounded-tr-lg px-2 py-0.5 shadow-sm">
+						<span className="text-[11px] font-semibold text-gray-800">4.4</span>
+						<Star size={10} className="text-amber-400" fill="currentColor" />
+						<span className="text-[11px] text-gray-500">(23)</span>
 					</div>
 
 					{!product.inStock && (
@@ -77,7 +85,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 
 				{/* Product name */}
 				<Link to={productHref}>
-					<p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors">
+					<p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors">
 						{displayName}
 					</p>
 				</Link>

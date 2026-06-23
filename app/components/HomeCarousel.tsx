@@ -47,8 +47,8 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	}, [emblaApi, onSelect]);
 
 	return (
-		<div className="mt-2 md:mt-4">
-			<div className="relative container mx-auto px-4">
+		<div>
+			<div className="relative group">
 				<div className="overflow-hidden rounded-xl" ref={emblaRef}>
 				<div className="flex">
 					{items.map((slide, index) => (
@@ -79,27 +79,20 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 			<button
 				onClick={() => emblaApi?.scrollPrev()}
 				aria-label="Previous slide"
-				className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors"
+				className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
 			>
-				<ChevronLeft size={22} />
+				<ChevronLeft size={14} />
 			</button>
 
 			<button
 				onClick={() => emblaApi?.scrollNext()}
 				aria-label="Next slide"
-				className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors"
+				className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
 			>
-				<ChevronRight size={22} />
+				<ChevronRight size={14} />
 			</button>
 
 		</div>
-		{scrollSnaps.length > 1 && (
-			<div className="flex justify-center gap-2 mt-3">
-				{scrollSnaps.map((_, i) => (
-					<button key={i} onClick={() => emblaApi?.scrollTo(i)} aria-label={`Go to slide ${i + 1}`} className={`rounded-full transition-all duration-300 ${i === selectedIndex ? "w-6 h-2 bg-gray-700" : "w-2 h-2 bg-gray-300 hover:bg-gray-500"}`} />
-				))}
-			</div>
-		)}
 		</div>
 	);
 }

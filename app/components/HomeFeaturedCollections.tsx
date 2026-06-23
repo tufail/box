@@ -1,4 +1,7 @@
-﻿import { Link } from "react-router";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HomeCollectionItem } from "~/graphql/collection";
 import VendureImage from "./VendureImage";
 
@@ -9,48 +12,96 @@ interface Props {
 }
 
 export default function HomeFeaturedCollections({ topLevelCollections, subCollections, vendureBase }: Props) {
-	if (topLevelCollections.length === 0) return null;
+	const allCollections = [...topLevelCollections, ...subCollections];
+	if (allCollections.length === 0) return null;
+
+	return <CollectionScroll collections={allCollections} vendureBase={vendureBase} />;
+}
+
+function CollectionScroll({ collections, vendureBase }: { collections: HomeCollectionItem[]; vendureBase: string }) {
+	const [emblaRef, emblaApi] = useEmblaCarousel({
+		align: "start",
+		slidesToScroll: "auto",
+		containScroll: "trimSnaps",
+	});
+
+	const [canPrev, setCanPrev] = useState(false);
+	const [canNext, setCanNext] = useState(true);
+
+	const onSelect = useCallback(() => {
+		if (!emblaApi) return;
+		setCanPrev(emblaApi.canScrollPrev());
+		setCanNext(emblaApi.canScrollNext());
+	}, [emblaApi]);
+
+	useEffect(() => {
+		if (!emblaApi) return;
+		onSelect();
+		emblaApi.on("select", onSelect);
+		emblaApi.on("reInit", onSelect);
+		return () => {
+			emblaApi.off("select", onSelect);
+			emblaApi.off("reInit", onSelect);
+		};
+	}, [emblaApi, onSelect]);
 
 	return (
-		<section className="py-8 container mx-auto px-4">
-			<h2 className="text-xl font-bold mb-6">Shop By Collection</h2>
+		<section className="pt-8 pb-5 container mx-auto px-4">
+			<div className="relative">
+				<button
+					onClick={() => emblaApi?.scrollPrev()}
+					disabled={!canPrev}
+					aria-label="Previous collections"
+					className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+				>
+					<ChevronLeft size={14} />
+				</button>
 
-			<div className="flex flex-wrap justify-center gap-4 mb-6">
-				{topLevelCollections.map((col) => (
-					<Link key={col.id} to={`/collections/${col.slug}`} className="group block w-[calc(50%-0.5rem)] md:w-[calc(25%-0.75rem)] border border-gray-200 overflow-hidden bg-white rounded-xl">
-						<div className="aspect-square overflow-hidden">
-							{col.featuredAsset ? (
-								<VendureImage
-									src={col.featuredAsset.preview}
-									vendureBase={vendureBase}
-									alt={col.name}
-									width={400}
-									height={400}
-									objectFit="contain"
-									imgClassName="group-hover:scale-105 transition-transform duration-300"
-								/>
-							) : (
-								<div className="w-full h-full flex items-center justify-center">
-									<span className="text-4xl font-bold text-gray-300">{col.name[0]}</span>
-								</div>
-							)}
-						</div>
-						<div className="py-3 flex justify-center px-3">
-							<span className="w-full text-center text-base font-bold text-primary border-2 border-primary rounded py-1.5 px-4 group-hover:bg-primary group-hover:text-white transition-colors duration-200">{col.name}</span>
-						</div>
-					</Link>
-				))}
-			</div>
-
-			{subCollections.length > 0 && (
-				<div className="flex justify-center flex-wrap gap-3 pb-2">
-					{subCollections.map((col) => (
-						<Link key={col.id} to={`/collections/${col.slug}`} className="text-base font-bold text-primary border-2 border-primary rounded py-1.5 px-5 whitespace-nowrap hover:bg-primary hover:text-white transition-colors duration-200">
-							{col.name}
-						</Link>
-					))}
+				<div className="overflow-hidden" ref={emblaRef}>
+					<div className="flex -mx-2">
+						{collections.map((col) => (
+							<div key={col.id} className="flex-none w-[120px] md:w-[140px] px-2">
+								<Link
+									to={`/collections/${col.slug}`}
+									className="group block overflow-hidden rounded-xl bg-white"
+								>
+									<div className="aspect-square overflow-hidden bg-gradient-to-b from-amber-100 to-white">
+										{col.featuredAsset ? (
+											<VendureImage
+												src={col.featuredAsset.preview}
+												vendureBase={vendureBase}
+												alt={col.name}
+												width={400}
+												height={400}
+												objectFit="contain"
+												imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+											/>
+										) : (
+											<div className="w-full h-full flex items-center justify-center">
+												<span className="text-4xl font-bold text-amber-200">{col.name[0]}</span>
+											</div>
+										)}
+									</div>
+									<div className="py-1 text-center px-1 bg-white -mt-5 relative z-10">
+										<span className="text-xs font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200 leading-tight">
+											{col.name}
+										</span>
+									</div>
+								</Link>
+							</div>
+						))}
+					</div>
 				</div>
-			)}
+
+				<button
+					onClick={() => emblaApi?.scrollNext()}
+					disabled={!canNext}
+					aria-label="Next collections"
+					className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+				>
+					<ChevronRight size={14} />
+				</button>
+			</div>
 		</section>
 	);
 }

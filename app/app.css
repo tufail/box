@@ -1,9 +1,9 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @plugin "@tailwindcss/typography";
 
 @theme {
-	--font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-	--font-roboto: "Roboto", sans-serif;
+	--font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 	--font-arabic: "Noto Sans Arabic", sans-serif;
 	--color-primary: #224d53;
 	--color-cart: #f38a00;
@@ -16,11 +16,11 @@
 html,
 body {
 	@apply bg-white dark:bg-gray-950;
+	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 
 	@media (prefers-color-scheme: dark) {
 		color-scheme: dark;
 	}
-	font-family: var(--font-roboto);
 }
 
 .bg-secondary {

@@ -44,7 +44,7 @@ export default function HomeTopSelling({ products, vendureBase, title = "Shop th
   return (
     <section className="py-8 container mx-auto px-4">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-xl font-medium">{title}</h2>
         {viewAllHref && (
           <Link
             to={viewAllHref}
@@ -61,9 +61,9 @@ export default function HomeTopSelling({ products, vendureBase, title = "Shop th
           onClick={() => emblaApi?.scrollPrev()}
           disabled={!canPrev}
           aria-label="Previous products"
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={14} />
         </button>
 
         <div className="overflow-hidden" ref={emblaRef}>
@@ -84,9 +84,9 @@ export default function HomeTopSelling({ products, vendureBase, title = "Shop th
           onClick={() => emblaApi?.scrollNext()}
           disabled={!canNext}
           aria-label="Next products"
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={14} />
         </button>
       </div>
     </section>

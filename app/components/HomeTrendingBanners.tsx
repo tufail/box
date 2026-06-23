@@ -76,7 +76,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
   return (
     <section className="py-8 container mx-auto px-4">
       <div className="mb-5">
-        <h2 className="text-xl font-bold">{title}</h2>
+        <h2 className="text-xl font-medium">{title}</h2>
       </div>
 
       <div className="relative">
@@ -84,15 +84,15 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
           onClick={() => emblaApi?.scrollPrev()}
           disabled={!canPrev}
           aria-label="Previous items"
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={14} />
         </button>
 
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex -mx-2">
             {items.map((item) => (
-              <div key={item.id} className="flex-none w-1/2 md:w-1/4 px-2">
+              <div key={item.id} className="flex-none w-1/2 md:w-1/5 px-2">
                 <a href={item.url} className="border border-gray-200 bg-white overflow-hidden flex flex-col h-full group block rounded-xl">
                   <div className="aspect-square overflow-hidden bg-white">
                     <VendureImage
@@ -119,9 +119,9 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
           onClick={() => emblaApi?.scrollNext()}
           disabled={!canNext}
           aria-label="Next items"
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={14} />
         </button>
       </div>
     </section>

@@ -208,7 +208,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 		<div className="flex flex-col gap-3">
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
 			<div className="relative">
-				<div className="relative aspect-square rounded overflow-hidden">
+				<div className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
 					<VendureImage
 						key={resolved[currentIdx]}
 						src={resolved[currentIdx]}
@@ -218,6 +218,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 						height={600}
 						objectFit="contain"
 						eager={currentIdx === 0}
+						imgClassName="mix-blend-multiply"
 					/>
 
 					{/* Carousel prev/next */}
@@ -284,11 +285,11 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 			{resolved.length > 1 && (
 				<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
 					{resolved.map((src, i) => (
-						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded overflow-hidden border-2 flex-shrink-0 transition-colors ${active === i ? "border-primary" : "border-gray-200 hover:border-gray-400"}`}>
+						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-primary" : "border-stone-200 hover:border-gray-400"}`}>
 							<img
 								src={vendureImageUrl(src, vendureBase, { w: 64, h: 64, format: "webp", mode: "resize" })}
 								alt=""
-								className="w-full h-full object-contain p-1"
+								className="w-full h-full object-contain p-1 mix-blend-multiply"
 								loading="lazy"
 								decoding="async"
 							/>
