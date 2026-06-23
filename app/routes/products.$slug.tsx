@@ -2,10 +2,11 @@ import type { Route } from "./+types/products.$slug";
 import { useState, useEffect } from "react";
 import { useFetcher, useNavigate } from "react-router";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, Info, ShieldCheck, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
+import ProductBundleOffers from "~/components/ProductBundleOffers";
 import { PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, type ProductDetailData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
@@ -417,7 +418,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── Outer 2-col: image=1/3  detail=2/3 ── */}
 				<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-8 items-start">
 					{/* Image column — 1/3 */}
-					<div>
+					<div className="lg:sticky lg:top-[116px] self-start">
 						<Gallery
 								images={allImages}
 								variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
@@ -438,41 +439,37 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 					{/* Detail column — 2/3 */}
 					<div className="flex flex-col">
-						{/* Title — full width of detail column */}
-						<div className="flex items-start justify-between gap-4 mb-4">
-							<div>
-								<h1 className="text-xl font-bold text-gray-900 leading-snug">{product.name}</h1>
-								{brand && (
-									<p className="text-sm text-gray-500">
-										by <span className="text-primary font-medium">{brand}</span>
-									</p>
-								)}
-							</div>
-						</div>
-
-						{/* Stock status row — top + bottom border */}
-						<div className="border-t border-b border-gray-200 py-3 flex items-center justify-between mb-5">
-							<div className="flex items-center gap-1.5">
-								{inStock ? (
-									<>
-										<CheckCircle size={15} className="text-green-500" />
-										<span className="text-sm font-medium text-green-600">In stock</span>
-									</>
-								) : (
-									<>
-										<XCircle size={15} className="text-red-400" />
-										<span className="text-sm font-medium text-red-500">Out of stock</span>
-									</>
-								)}
-							</div>
-
-							{activeVariant?.sku && <span className="text-xs text-gray-400">SKU: {activeVariant.sku}</span>}
-						</div>
-
-						{/* Inner 2-col: options | price card */}
+						{/* Inner 2-col: [title + stock + options] | price card */}
 						<div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 items-start">
-							{/* Left — Option selectors + Quality Promise */}
+							{/* Left — Title + Stock + Option selectors + Quality Promise */}
 							<div className="flex flex-col gap-4">
+								{/* Title */}
+								<div>
+									<h1 className="text-xl font-bold text-gray-900 leading-snug">{product.name}</h1>
+									{brand && (
+										<p className="text-sm text-gray-500">
+											by <span className="text-primary font-medium">{brand}</span>
+										</p>
+									)}
+								</div>
+
+								{/* Stock status */}
+								<div className="border-t border-b border-gray-200 py-2.5 flex items-center justify-between">
+									<div className="flex items-center gap-1.5">
+										{inStock ? (
+											<>
+												<CheckCircle size={15} className="text-green-500" />
+												<span className="text-sm font-medium text-green-600">In stock</span>
+											</>
+										) : (
+											<>
+												<XCircle size={15} className="text-red-400" />
+												<span className="text-sm font-medium text-red-500">Out of stock</span>
+											</>
+										)}
+									</div>
+									{activeVariant?.sku && <span className="text-xs text-gray-400">SKU: {activeVariant.sku}</span>}
+								</div>
 								{optionGroups.map((group) => {
 									const showPrice = groupHasPriceVariation(product.variants, selected, group.code, group.values);
 									return (
@@ -517,6 +514,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
 								{/* Key info — full width below the 2-col grid */}
 								{activeVariant?.customFields?.keyInfo && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.keyInfo }} />}
+
 							</div>
 
 							{/* Right — Price card (sticky) */}
@@ -533,19 +531,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										)}
 									</div>
 
-									{/* Free shipping */}
-									<div className="flex items-center gap-1.5 text-sm text-gray-500">
-										<span>Free shipping</span>
-										<div className="relative group">
-											<Info size={13} className="text-gray-400 cursor-pointer" />
-											<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-												FREE Delivery Over QAR 99 in Doha
-												<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
-											</div>
-										</div>
-									</div>
-
-									<hr className="border-gray-100" />
 									<div className="flex flex-row gap-3">
 										{/* Quantity stepper */}
 										<div className="flex items-center justify-between gap-2">
@@ -573,6 +558,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										</button>
 									</div>
 
+									{/* Bundle offers */}
+									<ProductBundleOffers productId={product.id} triggerVariantId={activeVariant?.id ?? ""} placement="below" vendureBase={vendureBase} />
+
 									{/* WhatsApp Inquiry */}
 									<a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I'm interested in this product and would like to enquire:\n\n*${product.name}*\n\n${typeof window !== "undefined" ? window.location.href : ""}`)}`} target="_blank" rel="noopener noreferrer" translate="no" className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-[#128C7E] text-white font-semibold text-sm py-3 rounded transition-colors">
 										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
@@ -593,6 +581,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							</div>
 						</div>
 						{/* end inner 2-col */}
+
 					</div>
 					{/* end detail column */}
 				</div>

@@ -69,7 +69,7 @@ export default function HomeTopSelling({ products, vendureBase, title = "Shop th
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex -mx-2">
             {products.map((product, index) => (
-              <div key={product.productId} className="flex-none w-1/2 md:w-1/5 px-2">
+              <div key={product.productId} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2">
                 <ProductCard
                   product={product}
                   vendureBase={vendureBase}

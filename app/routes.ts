@@ -23,6 +23,7 @@ export default [
     route("account/reset-password", "routes/account.reset-password.tsx"),
     route("api/search", "routes/api.search.ts"),
     route("api/cart", "routes/api.cart.ts"),
+    route("api/bundle", "routes/api.bundle.ts"),
     route("api/checkout", "routes/api.checkout.ts"),
     route("api/auth", "routes/api.auth.ts"),
     route("api/account", "routes/api.account.ts"),

@@ -92,7 +92,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex -mx-2">
             {items.map((item) => (
-              <div key={item.id} className="flex-none w-1/2 md:w-1/5 px-2">
+              <div key={item.id} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2">
                 <a href={item.url} className="border border-gray-200 bg-white overflow-hidden flex flex-col h-full group block rounded-xl">
                   <div className="aspect-square overflow-hidden bg-white">
                     <VendureImage

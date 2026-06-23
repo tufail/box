@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 
 interface CartContextValue {
   isCartOpen: boolean;
@@ -6,6 +6,8 @@ interface CartContextValue {
   closeCart: () => void;
   cartCount: number;
   setCartCount: (n: number) => void;
+  cartRefreshKey: number;
+  refreshCart: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -19,6 +21,9 @@ export function CartProvider({
 }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartCount, setCartCount] = useState(initialCount);
+  const [cartRefreshKey, setCartRefreshKey] = useState(0);
+  const refreshCart = useCallback(() => setCartRefreshKey((k) => k + 1), []);
+
   return (
     <CartContext.Provider
       value={{
@@ -27,6 +32,8 @@ export function CartProvider({
         closeCart: () => setIsCartOpen(false),
         cartCount,
         setCartCount,
+        cartRefreshKey,
+        refreshCart,
       }}
     >
       {children}

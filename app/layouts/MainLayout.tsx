@@ -389,7 +389,7 @@ function BrandsDropdown() {
 	const close = () => { setOpen(false); setSearch(""); };
 
 	return (
-		<div ref={ref} className="relative hidden md:block flex-shrink-0 ml-10 mr-[-8px]" onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setSearch(""); }}>
+		<div ref={ref} className="relative hidden md:block flex-shrink-0 ml-2 lg:ml-10 mr-[-8px]" onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setSearch(""); }}>
 			<button
 				className="flex items-center gap-1 text-sm font-semibold px-3 py-1.5 rounded text-primary transition-colors"
 				aria-expanded={open}
@@ -524,7 +524,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 				</button>
 			</div>
 			<header className="bg-stone-100 border-b border-stone-200 sticky top-0 z-40">
-				<div className="container mx-auto px-4 py-2 flex items-center gap-4">
+				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4">
 					<div className="flex items-center gap-2 flex-shrink-0">
 						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
 							<Menu size={22} />
@@ -564,10 +564,10 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 						</svg>
 						<span className="relative">offers</span>
 					</Link>
-					<div className="flex-1 hidden md:block mr-20">
+					<div className="flex-1 hidden md:block mr-2 lg:mr-20">
 						<SearchBox />
 					</div>
-					<div className="flex items-center gap-4 flex-shrink-0">
+					<div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
 						<Link to="/wishlist" className="text-gray-600 relative hover:text-primary transition-colors" aria-label="Wishlist">
 							<Heart size={24} />
 							{wishlistCount > 0 && <span className="absolute bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1.5 -right-1.5 pointer-events-none">{wishlistCount > 99 ? "99+" : wishlistCount}</span>}

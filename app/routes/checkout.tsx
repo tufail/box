@@ -3,6 +3,7 @@ import { useLoaderData, useFetcher, useNavigate, redirect, Link } from "react-ro
 import type { Route } from "./+types/checkout";
 import { graphqlRequest } from "workers/graphqlClient";
 import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData, type OrderDiscount } from "~/graphql/order";
+import type { BundleGroup } from "~/graphql/bundle";
 import {
   ACTIVE_CUSTOMER_QUERY,
   type ActiveCustomer,
@@ -976,6 +977,18 @@ function OrderSummaryPanel({
 }) {
   const discounts = order.discounts?.filter((d) => d.amountWithTax < 0) ?? [];
 
+  const [bundleGroups, setBundleGroups] = useState<BundleGroup[]>([]);
+  useEffect(() => {
+    fetch("/api/cart")
+      .then((r) => r.ok ? r.json() as Promise<{ bundleGroups?: BundleGroup[] }> : Promise.resolve({ bundleGroups: [] }))
+      .then((data) => setBundleGroups(data.bundleGroups ?? []))
+      .catch(() => {});
+  }, [order.id]);
+
+  const totalBundleSavings = bundleGroups
+    .filter((bg) => bg.status === "COMPLETE" && bg.discountAmount > 0)
+    .reduce((sum, bg) => sum + bg.discountAmount, 0);
+
   return (
     <div className="bg-white rounded border border-gray-200 overflow-hidden lg:sticky lg:top-6">
       <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center gap-2">
@@ -1023,6 +1036,16 @@ function OrderSummaryPanel({
       <CouponForm orderState={order.state} onApplied={onOrderUpdate} />
 
       <div className="p-5 border-t border-gray-200 space-y-3">
+        {totalBundleSavings > 0 && (
+          <div className="flex justify-between text-sm text-green-600">
+            <span className="flex items-center gap-1">
+              <Package size={12} className="flex-shrink-0" />
+              Bundle savings
+            </span>
+            <span>−{fmt(totalBundleSavings, order.currencyCode)}</span>
+          </div>
+        )}
+
         <div className="flex justify-between text-sm text-gray-600">
           <span>Subtotal</span>
           <span>{fmt(order.subTotalWithTax, order.currencyCode)}</span>

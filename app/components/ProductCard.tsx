@@ -1,8 +1,49 @@
 import { Link } from "react-router";
+import { useEffect, useState } from "react";
 import AddToCartButton from "./AddToCartButton";
 import type { SearchProductItem } from "~/graphql/product";
 import VendureImage from "./VendureImage";
-import { Truck, Star } from "lucide-react";
+import { Truck, Star, Zap, Flame } from "lucide-react";
+
+const deliveryMessages = [
+	{ text: "Free delivery available", icon: <Truck size={12} className="text-primary flex-shrink-0" /> },
+	{ text: "Buying so quickly!", icon: <Zap size={12} className="text-orange-500 flex-shrink-0" fill="currentColor" /> },
+	{ text: "Low in stock!", icon: <Flame size={12} className="text-red-500 flex-shrink-0" /> },
+];
+
+function AnimatedDeliveryBadge() {
+	const [index, setIndex] = useState(0);
+	const [transitioning, setTransitioning] = useState(false);
+
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setTransitioning(true);
+			setTimeout(() => {
+				setIndex((i) => (i + 1) % deliveryMessages.length);
+				setTransitioning(false);
+			}, 900);
+		}, 3500);
+		return () => clearInterval(interval);
+	}, []);
+
+	const current = deliveryMessages[index];
+	const next = deliveryMessages[(index + 1) % deliveryMessages.length];
+
+	return (
+		<div className="relative overflow-hidden h-4 text-[11px] text-gray-500 mt-0.5">
+			<div className={`absolute flex items-center gap-1 ${transitioning ? "slide-out-up" : ""}`}>
+				{current.icon}
+				<span>{current.text}</span>
+			</div>
+			{transitioning && (
+				<div className="absolute flex items-center gap-1 slide-in-up">
+					{next.icon}
+					<span>{next.text}</span>
+				</div>
+			)}
+		</div>
+	);
+}
 
 interface ProductCardProps {
 	product: SearchProductItem;
@@ -109,10 +150,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 				</div>
 
 				{/* Delivery */}
-				<div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
-					<Truck size={12} className="text-primary flex-shrink-0" />
-					<span>Free delivery available</span>
-				</div>
+				<AnimatedDeliveryBadge />
 
 				{/* CTA button */}
 				<div className="mt-auto pt-2">

@@ -22,6 +22,11 @@ export interface OrderLineItem {
       featuredAsset: { preview: string } | null;
     };
   };
+  customFields?: {
+    bundleGroupId?: string | null;
+    bundleDefinitionId?: string | null;
+    bundleName?: string | null;
+  } | null;
 }
 
 export interface OrderDiscount {
@@ -45,6 +50,7 @@ export interface ActiveOrder {
 
 export interface ActiveOrderData {
   activeOrder: ActiveOrder | null;
+  bundleGroups?: import("./bundle").BundleGroup[];
 }
 
 // ─── Add to cart ─────────────────────────────────────────────────────────────
@@ -256,6 +262,28 @@ export const REMOVE_ORDER_LINE_MUTATION = `
   }
 `;
 
+// ─── Remove cart item (bundle-aware) ─────────────────────────────────────────
+
+export interface RemoveCartItemVariables {
+  lineId: string;
+}
+
+export interface RemoveCartItemResult {
+  removeCartItem: {
+    success: boolean;
+    bundleCascaded: boolean;
+  };
+}
+
+export const REMOVE_CART_ITEM_MUTATION = `
+  mutation RemoveCartItem($lineId: ID!) {
+    removeCartItem(lineId: $lineId) {
+      success
+      bundleCascaded
+    }
+  }
+`;
+
 // ─── Active order ─────────────────────────────────────────────────────────────
 
 export const ACTIVE_ORDER_QUERY = `
@@ -290,6 +318,7 @@ export const ACTIVE_ORDER_QUERY = `
             featuredAsset { preview }
           }
         }
+        customFields { bundleGroupId bundleDefinitionId bundleName }
       }
     }
   }
