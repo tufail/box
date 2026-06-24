@@ -52,9 +52,9 @@ function useAddBundle(triggerVariantId: string) {
   }, [fetcher.state, fetcher.data]);
 
   return {
-    submit: (bundleDefinitionId: string) =>
+    submit: (bundleDefinitionId: string, selectedVariantIds: string[]) =>
       fetcher.submit(
-        { _intent: "addBundle", bundleDefinitionId, triggerVariantId },
+        { _intent: "addBundle", bundleDefinitionId, triggerVariantId, selectedVariantIds },
         { method: "POST", action: "/api/bundle", encType: "application/json" }
       ),
     isLoading: fetcher.state !== "idle",
@@ -177,9 +177,11 @@ function BundleItemCard({
           {item.variantName}
         </Link>
 
-        <span className="text-xs font-bold text-primary block">
-          {formatPrice(item.priceWithTax, item.currencyCode)}
-        </span>
+        {item.priceWithTax > 0 && (
+          <span className="text-xs font-bold text-primary block">
+            {formatPrice(item.priceWithTax, item.currencyCode)}
+          </span>
+        )}
 
         {item.requiredQuantity > 1 && (
           <p className="text-[10px] text-gray-400 mt-0.5">Qty: {item.requiredQuantity}</p>
@@ -200,12 +202,11 @@ function BundleCard({ bundle, triggerVariantId, compact = false, vendureBase }: 
   );
 
   const isSelected = (item: BundleOfferItem) => item.required || selectedOptional.has(item.productVariantId);
-  const selectedCount = sortedItems.filter(isSelected).length;
+  const selectedItems = sortedItems.filter(isSelected);
+  const selectedCount = selectedItems.length;
   const discountLabel = formatBundleDiscount(bundle.discountType, bundle.discountValue);
 
-  const totalPrice = sortedItems
-    .filter(isSelected)
-    .reduce((sum, item) => sum + item.priceWithTax * item.requiredQuantity, 0);
+  const totalPrice = selectedItems.reduce((sum, item) => sum + item.priceWithTax * item.requiredQuantity, 0);
   const currency = sortedItems[0]?.currencyCode ?? "QAR";
   const allSelected = selectedCount === sortedItems.length;
 
@@ -215,6 +216,12 @@ function BundleCard({ bundle, triggerVariantId, compact = false, vendureBase }: 
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
+  }
+
+  function handleAdd() {
+    if (selectedCount === 0) return;
+    // Pass only the selected variant IDs — server decides what to add
+    submit(bundle.id, selectedItems.map((i) => i.productVariantId));
   }
 
   return (
@@ -248,7 +255,7 @@ function BundleCard({ bundle, triggerVariantId, compact = false, vendureBase }: 
 
       {/* Footer */}
       <div className="pb-3 pt-1.5">
-        {totalPrice > 0 && (
+        {totalPrice > 0 && currency && (
           <div className="flex justify-end mb-2">
             <span className="text-sm font-extrabold text-gray-900">
               {formatPrice(totalPrice, currency)}
@@ -256,14 +263,8 @@ function BundleCard({ bundle, triggerVariantId, compact = false, vendureBase }: 
           </div>
         )}
 
-        {!allSelected && (
-          <p className="text-[10px] text-amber-600 font-medium mb-2">
-            Select all items to unlock {discountLabel}
-          </p>
-        )}
-
         <button
-          onClick={() => submit(bundle.id)}
+          onClick={handleAdd}
           disabled={isLoading || selectedCount === 0}
           className="w-full flex items-center justify-center gap-2 border-2 border-primary text-primary font-extrabold text-sm py-2.5 rounded-xl hover:bg-primary hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -271,7 +272,7 @@ function BundleCard({ bundle, triggerVariantId, compact = false, vendureBase }: 
             ? <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
             : <ShoppingCart size={15} />
           }
-          {isLoading ? "Adding…" : `Add All To Cart — ${discountLabel}`}
+          {isLoading ? "Adding…" : `Add Bundle To Cart — ${discountLabel}`}
         </button>
       </div>
     </div>

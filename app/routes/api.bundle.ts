@@ -48,8 +48,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     const intent = body._intent as string | undefined;
 
     if (intent === "addBundle") {
-      const { bundleDefinitionId, triggerVariantId } = body as AddBundleToCartVariables & { _intent: string };
-      const variables = { bundleDefinitionId: String(bundleDefinitionId), triggerVariantId: String(triggerVariantId) };
+      const { bundleDefinitionId, triggerVariantId, selectedVariantIds } = body as AddBundleToCartVariables & { _intent: string };
+      const variables: AddBundleToCartVariables = {
+        bundleDefinitionId: String(bundleDefinitionId),
+        triggerVariantId: String(triggerVariantId),
+        selectedVariantIds: Array.isArray(selectedVariantIds) ? selectedVariantIds.map(String) : [],
+      };
       console.log("[addBundle] payload:", JSON.stringify(variables));
       const { data, token } = await graphqlRequest<AddBundleToCartResult, AddBundleToCartVariables>(
         env,

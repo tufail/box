@@ -72,11 +72,12 @@ export interface AddBundleToCartResult {
 export interface AddBundleToCartVariables {
   bundleDefinitionId: string;
   triggerVariantId: string;
+  selectedVariantIds: string[];
 }
 
 export const ADD_BUNDLE_TO_CART_MUTATION = `
-  mutation AddBundleToCart($bundleDefinitionId: ID!, $triggerVariantId: ID!) {
-    addBundleToCart(bundleDefinitionId: $bundleDefinitionId, triggerVariantId: $triggerVariantId) {
+  mutation AddBundleToCart($bundleDefinitionId: ID!, $triggerVariantId: ID!, $selectedVariantIds: [ID!]!) {
+    addBundleToCart(bundleDefinitionId: $bundleDefinitionId, triggerVariantId: $triggerVariantId, selectedVariantIds: $selectedVariantIds) {
       bundleGroupId
       bundleName
       status
