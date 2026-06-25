@@ -213,7 +213,7 @@ export const APPLY_COUPON_CODE_MUTATION = `
         totalWithTax
         subTotalWithTax
         couponCodes
-        discounts {
+        discounts { 
           description
           amountWithTax
         }

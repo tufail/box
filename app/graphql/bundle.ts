@@ -164,9 +164,7 @@ export const VALIDATE_ORDER_BUNDLES_MUTATION = `
 export function formatBundleDiscount(discountType: BundleDiscountType, discountValue: number): string {
   switch (discountType) {
     case "PERCENTAGE": return `Save ${discountValue}%`;
-    case "FIXED_AMOUNT": return `Save QAR ${(discountValue / 100).toFixed(2)}`;
-    case "FREE_PRODUCT": return "1 item free";
-    case "CHEAPEST_FREE": return "Cheapest item free";
+    case "FIXED_AMOUNT": return `Save QAR ${(discountValue).toFixed(2)}`;
     default: return `Save ${discountValue}%`;
   }
 }

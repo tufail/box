@@ -70,12 +70,9 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 	const baseTitle = product.customFields?.metaTitle ?? product.name;
 	const title = variantName ? `${baseTitle} — ${variantName} — PHQ` : `${baseTitle} — PHQ`;
-	const rawDescription = product.customFields?.metaDescription
-		?? product.description.replace(/<[^>]+>/g, "").trim();
+	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
-	const image = product.featuredAsset?.preview
-		? resolveImage(product.featuredAsset.preview, vendureBase)
-		: "";
+	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
 	const brand = product.facetValues.find((f: { name: string; facet: { name: string } }) => f.facet.name.toLowerCase() === "brand")?.name ?? null;
 
 	return [
@@ -112,12 +109,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug }, { request });
 		if (!data.product) throw new Response("Not Found", { status: 404 });
 
-		const activeVariant = selectedVariantId
-			? (data.product.variants.find((v) => v.id === selectedVariantId) ?? data.product.variants[0])
-			: data.product.variants[0];
-		const canonicalUrl = activeVariant
-			? `${url.origin}/products/${slug}?variant=${activeVariant.id}`
-			: `${url.origin}/products/${slug}`;
+		const activeVariant = selectedVariantId ? (data.product.variants.find((v) => v.id === selectedVariantId) ?? data.product.variants[0]) : data.product.variants[0];
+		const canonicalUrl = activeVariant ? `${url.origin}/products/${slug}?variant=${activeVariant.id}` : `${url.origin}/products/${slug}`;
 
 		let similarProducts: SearchProductItem[] = [];
 		const collectionSlug = data.product.collections[0]?.slug;
@@ -210,17 +203,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
 			<div className="relative">
 				<div className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
-					<VendureImage
-						key={resolved[currentIdx]}
-						src={resolved[currentIdx]}
-						vendureBase={vendureBase}
-						alt={name}
-						width={600}
-						height={600}
-						objectFit="contain"
-						eager={currentIdx === 0}
-						imgClassName="mix-blend-multiply"
-					/>
+					<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={600} height={600} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
 
 					{/* Carousel prev/next */}
 					{resolved.length > 1 && (
@@ -237,19 +220,11 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 
 				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
 				<div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-					<button
-						onClick={() => toggle(wishlistItem)}
-						className={`w-9 h-9 rounded backdrop-blur-sm border shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white border-red-200 text-red-500" : "bg-white/80 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"}`}
-						aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-					>
+					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded backdrop-blur-sm border shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white border-red-200 text-red-500" : "bg-white/80 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"}`} aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}>
 						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
 					<div className="relative">
-						<button
-							onClick={() => setShowShare((s) => !s)}
-							className={`w-9 h-9 rounded backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-primary" : "bg-primary/90 hover:bg-primary"}`}
-							aria-label="Share"
-						>
+						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-primary" : "bg-primary/90 hover:bg-primary"}`} aria-label="Share">
 							<Share2 size={15} />
 						</button>
 
@@ -257,22 +232,12 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 						{showShare && (
 							<div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-20">
 								{shareLinks.map((link) => (
-									<a
-										key={link.label}
-										href={link.href}
-										target="_blank"
-										rel="noopener noreferrer"
-										onClick={() => setShowShare(false)}
-										className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}
-									>
+									<a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setShowShare(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}>
 										{link.icon}
 										{link.label}
 									</a>
 								))}
-								<button
-									onClick={handleCopy}
-									className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100"
-								>
+								<button onClick={handleCopy} className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100">
 									<Link2 size={15} className="flex-shrink-0" />
 									{copied ? "Copied!" : "Copy Link"}
 								</button>
@@ -287,13 +252,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 				<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
 					{resolved.map((src, i) => (
 						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-primary" : "border-stone-200 hover:border-gray-400"}`}>
-							<img
-								src={vendureImageUrl(src, vendureBase, { w: 64, h: 64, format: "webp", mode: "resize" })}
-								alt=""
-								className="w-full h-full object-contain p-1 mix-blend-multiply"
-								loading="lazy"
-								decoding="async"
-							/>
+							<img src={vendureImageUrl(src, vendureBase, { w: 64, h: 64, format: "webp", mode: "resize" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
 						</button>
 					))}
 				</div>
@@ -396,19 +355,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			price: (v.price / 100).toFixed(2),
 			priceCurrency: v.currencyCode || "QAR",
 			sku: v.sku,
-			availability: isInStock(v.stockLevel)
-				? "https://schema.org/InStock"
-				: "https://schema.org/OutOfStock",
+			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
 			itemCondition: "https://schema.org/NewCondition",
 		})),
 	};
 
 	return (
 		<>
-			<script
-				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-			/>
+			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 			<div className="container mx-auto px-4 py-6">
 				{/* Breadcrumb */}
 				<div className="mb-5">
@@ -420,21 +374,21 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					{/* Image column — 1/3 */}
 					<div className="lg:sticky lg:top-[116px] self-start">
 						<Gallery
-								images={allImages}
-								variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
-								vendureBase={vendureBase}
-								name={product.name}
-								shareUrl={canonicalUrl}
-								wishlistItem={{
-									variantId: activeVariant?.id ?? "",
-									productSlug: product.slug,
-									name: product.name,
-									price: activeVariant?.price ?? 0,
-									currencyCode: activeVariant?.currencyCode ?? "QAR",
-									image: product.featuredAsset?.preview ?? "",
-									vendureBase,
-								}}
-							/>
+							images={allImages}
+							variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
+							vendureBase={vendureBase}
+							name={product.name}
+							shareUrl={canonicalUrl}
+							wishlistItem={{
+								variantId: activeVariant?.id ?? "",
+								productSlug: product.slug,
+								name: product.name,
+								price: activeVariant?.price ?? 0,
+								currencyCode: activeVariant?.currencyCode ?? "QAR",
+								image: product.featuredAsset?.preview ?? "",
+								vendureBase,
+							}}
+						/>
 					</div>
 
 					{/* Detail column — 2/3 */}
@@ -483,14 +437,19 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													const available = matchedVariant ? isInStock(matchedVariant.stockLevel) : false;
 													const isActive = selected[group.code] === val;
 													return (
-														<button key={val} disabled={!available} onClick={() => {
+														<button
+															key={val}
+															disabled={!available}
+															onClick={() => {
 																const newSelected = { ...selected, [group.code]: val };
 																setSelected(newSelected);
 																const newVariant = findVariant(product.variants, newSelected);
 																if (newVariant) {
 																	navigate(`/products/${product.slug}?variant=${newVariant.id}`, { replace: true, preventScrollReset: true });
 																}
-															}} className={`px-4 py-2.5 rounded border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-gray-900 font-semibold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"}`}>
+															}}
+															className={`px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-gray-900 font-semibold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"}`}
+														>
 															<span className="block">{val}</span>
 															{showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : available ? "text-gray-500" : "text-gray-300"}`}>{available && matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>}
 														</button>
@@ -514,12 +473,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
 								{/* Key info — full width below the 2-col grid */}
 								{activeVariant?.customFields?.keyInfo && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.keyInfo }} />}
-
 							</div>
 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
-								<div className="border border-gray-200 rounded p-5 shadow-sm bg-white flex flex-col gap-4">
+								<div className="border border-gray-200 rounded-md p-5 bg-white flex flex-col gap-4">
 									{/* Price */}
 									<div>
 										<div className="text-2xl font-bold text-gray-900">{price !== null ? formatQAR(price) : "—"}</div>
@@ -534,7 +492,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									<div className="flex flex-row gap-3">
 										{/* Quantity stepper */}
 										<div className="flex items-center justify-between gap-2">
-											<div className="flex items-center border border-gray-300 rounded overflow-hidden">
+											<div className="flex items-center border border-gray-300 rounded-full overflow-hidden">
 												<button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Decrease">
 													<Minus size={13} />
 												</button>
@@ -552,23 +510,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												if (!activeVariant || !inStock) return;
 												cartFetcher.submit({ productVariantId: activeVariant.id, quantity: qty }, { method: "POST", action: "/api/cart", encType: "application/json" });
 											}}
-											className={`w-full text-white font-semibold text-sm py-3 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-cart hover:bg-[#d47800] disabled:bg-gray-300 disabled:cursor-not-allowed"}`}
+											className={`w-full text-white font-semibold text-sm py-3 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
 										>
 											{!inStock ? "Out of Stock" : cartFetcher.state !== "idle" ? "Adding..." : cartFeedback === "success" ? "Added to Cart ✓" : cartFeedback === "error" ? "Failed — try again" : "Add to Cart"}
 										</button>
 									</div>
-
-									{/* Bundle offers */}
-									<ProductBundleOffers productId={product.id} triggerVariantId={activeVariant?.id ?? ""} placement="below" vendureBase={vendureBase} />
-
-									{/* WhatsApp Inquiry */}
-									<a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I'm interested in this product and would like to enquire:\n\n*${product.name}*\n\n${typeof window !== "undefined" ? window.location.href : ""}`)}`} target="_blank" rel="noopener noreferrer" translate="no" className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-[#128C7E] text-white font-semibold text-sm py-3 rounded transition-colors">
-										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
-											<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-										</svg>
-										WhatsApp Enquiry
-									</a>
 								</div>
+								{/* Bundle offers */}
+								<ProductBundleOffers productId={product.id} triggerVariantId={activeVariant?.id ?? ""} triggerVariantPrice={activeVariant?.priceWithTax || activeVariant?.price || 0} triggerImage={activeVariant?.featuredAsset?.preview || product.featuredAsset?.preview} placement="below" vendureBase={vendureBase} />
+
+								{/* WhatsApp Inquiry */}
+								<a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I'm interested in this product and would like to enquire:\n\n*${product.name}*\n\n${typeof window !== "undefined" ? window.location.href : ""}`)}`} target="_blank" rel="noopener noreferrer" translate="no" className="flex mt-4 items-center justify-center gap-2 w-full bg-green-500 hover:bg-[#128C7E] text-white font-semibold text-sm py-3 rounded-full transition-colors">
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+									</svg>
+									WhatsApp Enquiry
+								</a>
 								{/* Trust badges */}
 								<ul className="space-y-1.5 mt-5">
 									{["Express delivery within 2 hours", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"].map((item) => (
@@ -581,26 +538,20 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							</div>
 						</div>
 						{/* end inner 2-col */}
-
 					</div>
 					{/* end detail column */}
 				</div>
 
 				{/* ── Description + variant details ── */}
 				{(product.description || videoUrl || activeVariant?.customFields?.additionalInfo || activeVariant?.customFields?.keyInfo) && (
-					<div className="mt-12 border border-gray-100">
-						<h2 className="text-lg bg-gray-100 px-4 py-2 font-bold text-gray-900 mb-4">Product Information</h2>
+					<div className="mt-12">
 						<div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
 							{/* Left — product description + details + video */}
 							<div className="space-y-10">
-								{product.description && (
-									<div className="p-4">
-										<div className="prose prose-sm  max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: product.description }} />
-									</div>
-								)}
+								{product.description && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: product.description }} />}
 
 								{videoUrl && (
-									<div className="p-4">
+									<div>
 										<h2 className="text-xl font-bold text-gray-900 mb-4">Product Video</h2>
 										<div className="aspect-video rounded overflow-hidden bg-gray-100">
 											<iframe src={videoUrl} title={`${product.name} video`} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
@@ -611,7 +562,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 							{/* Right — variant additionalInfo beside product description */}
 							{activeVariant?.customFields?.additionalInfo && (
-								<div className="lg:sticky lg:top-6 border border-gray-200 p-5 mb-2 mr-2">
+								<div className="lg:sticky lg:top-6">
 									<div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.additionalInfo }} />
 								</div>
 							)}
@@ -619,7 +570,17 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					</div>
 				)}
 			</div>
-			{similarProducts.length > 0 && <HomeTopSelling products={similarProducts} vendureBase={vendureBase} title="Similar Products" />}
+			{similarProducts.length > 0 && (
+				<HomeTopSelling
+					products={similarProducts}
+					vendureBase={vendureBase}
+					title={
+						<>
+							<strong>You May</strong> <span className="font-light">also like</span>
+						</>
+					}
+				/>
+			)}
 		</>
 	);
 }

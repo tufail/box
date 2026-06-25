@@ -166,8 +166,8 @@ export default function Footer() {
 									}}
 									className="flex"
 								>
-									<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" required className="flex-1 min-w-0 px-3 py-2.5 text-sm text-gray-900 bg-white rounded-l focus:outline-none focus:ring-2 focus:ring-primary" />
-									<button type="submit" className="bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-semibold px-4 py-2.5 rounded-r transition-colors whitespace-nowrap cursor-pointer">
+									<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" required className="flex-1 min-w-0 px-4 py-2.5 text-sm text-gray-900 bg-white rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary" />
+									<button type="submit" className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-2.5 rounded-r-full transition-colors whitespace-nowrap cursor-pointer">
 										Subscribe
 									</button>
 								</form>
@@ -192,7 +192,7 @@ export default function Footer() {
 			</footer>
 
 			{/* WhatsApp floating button */}
-			<a href="https://wa.me/97477689275" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded p-3 shadow-xl transition-colors">
+			<a href="https://wa.me/97477689275" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors">
 				<WhatsAppIcon />
 			</a>
 		</>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, MoveRight } from "lucide-react";
 import { Link } from "react-router";
@@ -8,7 +8,7 @@ import ProductCard from "./ProductCard";
 interface Props {
   products: SearchProductItem[];
   vendureBase: string;
-  title?: string;
+  title?: React.ReactNode;
   viewAllHref?: string;
 }
 
@@ -44,7 +44,7 @@ export default function HomeTopSelling({ products, vendureBase, title = "Shop th
   return (
     <section className="py-8 container mx-auto px-4">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-medium">{title}</h2>
+        <h2 className="text-2xl font-medium text-primary">{title}</h2>
         {viewAllHref && (
           <Link
             to={viewAllHref}

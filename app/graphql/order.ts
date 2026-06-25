@@ -11,6 +11,7 @@ export interface OrderLineItem {
   quantity: number;
   unitPriceWithTax: number;
   linePriceWithTax: number;
+  discountedLinePriceWithTax: number;
   featuredAsset: { preview: string } | null;
   productVariant: {
     id: string;
@@ -31,6 +32,7 @@ export interface OrderLineItem {
 
 export interface OrderDiscount {
   description: string;
+  amount: number;
   amountWithTax: number;
 }
 
@@ -209,6 +211,7 @@ export const ADJUST_ORDER_LINE_MUTATION = `
           quantity
           unitPriceWithTax
           linePriceWithTax
+          discountedLinePriceWithTax
           featuredAsset { preview }
           productVariant {
             id name sku
@@ -298,8 +301,9 @@ export const ACTIVE_ORDER_QUERY = `
       shippingWithTax
       totalWithTax
       couponCodes
-      discounts {
+      discounts { 
         description
+        amount
         amountWithTax
       }
       lines {
@@ -307,6 +311,7 @@ export const ACTIVE_ORDER_QUERY = `
         quantity
         unitPriceWithTax
         linePriceWithTax
+        discountedLinePriceWithTax
         featuredAsset { preview }
         productVariant {
           id

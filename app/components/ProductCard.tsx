@@ -159,9 +159,9 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 					) : (
 						<Link
 							to={productHref}
-							className={`w-full block text-center text-white font-semibold text-sm py-1.5 rounded-lg transition-colors ${
+							className={`w-full block text-center text-white font-semibold text-sm py-1.5 rounded-full transition-colors ${
 								product.inStock
-									? "bg-primary hover:bg-primary/90 cursor-pointer"
+									? "bg-[#3b8578] hover:bg-[#2e6b61] cursor-pointer"
 									: "bg-gray-300 text-gray-500 pointer-events-none"
 							}`}
 						>
