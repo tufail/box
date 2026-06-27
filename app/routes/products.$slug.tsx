@@ -3,17 +3,12 @@ import { useState, useEffect, useRef } from "react";
 import { useFetcher, useNavigate, Link, useRouteLoaderData } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Flame } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
-import {
-	PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY,
-	type ProductDetailData, type ProductDetailVariant,
-	type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables,
-	type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder,
-} from "~/graphql/product";
+import { PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -120,21 +115,28 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const canonicalUrl = activeVariant ? `${url.origin}/products/${slug}?variant=${activeVariant.id}` : `${url.origin}/products/${slug}`;
 
 		const collectionSlug = product.collections[0]?.slug;
-		const [simResult, summaryResult] = await Promise.allSettled([
-			collectionSlug
-				? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request })
-				: Promise.resolve(null),
+		const [simResult, summaryResult, currentProductResult] = await Promise.allSettled([
+			collectionSlug ? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request }) : Promise.resolve(null),
 			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug }, { request }),
+			// Dedicated search for current product to get sold count + best seller data
+			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: true, take: 5 } }, { request }),
 		]);
 
-		const similarProducts: SearchProductItem[] = simResult.status === "fulfilled" && simResult.value
-			? simResult.value.data.search.items.filter((p) => p.slug !== slug).slice(0, 8)
-			: [];
-		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled"
-			? (summaryResult.value.data.productRatingSummaryBySlug ?? null)
-			: null;
+		const allSearchItems = simResult.status === "fulfilled" && simResult.value ? simResult.value.data.search.items : [];
+		const similarProducts: SearchProductItem[] = allSearchItems.filter((p) => p.slug !== slug).slice(0, 8);
 
-		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null, ratingSummary };
+		// Find current product in the dedicated search result (term: product.name)
+		const currentProductItems = currentProductResult.status === "fulfilled" ? currentProductResult.value.data.search.items : [];
+		const currentInSearch = currentProductItems.find((p) => p.slug === slug) ?? allSearchItems.find((p) => p.slug === slug); // fallback to similar results
+
+		const soldCount30d: number = currentInSearch?.customProductMappings?.soldCount30d ?? 0;
+		const bestSellerRank: number | null = currentInSearch?.customProductMappings?.bestSellerRank ?? null;
+		const bestSellerCollection: string | null = currentInSearch?.customProductMappings?.bestSellerCollection ?? null;
+		const bestSellerCollectionSlug: string | null = currentInSearch?.customProductMappings?.bestSellerCollectionSlug ?? null;
+
+		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled" ? (summaryResult.value.data.productRatingSummaryBySlug ?? null) : null;
+
+		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -274,7 +276,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary } = loaderData;
+	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug } = loaderData;
 
 	const optionGroups = getOptionGroups(product.variants);
 	const initialSelected = (() => {
@@ -293,6 +295,20 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const { notify } = useNotification();
 
 	const activeVariant = optionGroups.length > 0 ? findVariant(product.variants, selected) : (product.variants[0] ?? null);
+
+	// Rankings come from the dedicated variantRankings query (client-side, updates on variant switch)
+	const [variantRankings, setVariantRankings] = useState<VariantRanking[]>([]);
+	// sold30Days comes from SSR search index (product-level); best seller badge from SSR too
+	const sold30Days = initialSold;
+	const bestSellerInfo = initialRank != null && initialCollection ? { rank: initialRank, collection: initialCollection, slug: initialCollectionSlug } : null;
+
+	useEffect(() => {
+		if (!activeVariant?.id) return;
+		fetch(`/api/variant-rankings?variantId=${encodeURIComponent(activeVariant.id)}`)
+			.then((r) => r.json() as Promise<{ rankings: VariantRanking[] }>)
+			.then((d) => setVariantRankings(d.rankings ?? []))
+			.catch(() => setVariantRankings([]));
+	}, [activeVariant?.id]);
 
 	useEffect(() => {
 		if (cartFetcher.state !== "idle" || !cartFetcher.data) return;
@@ -439,16 +455,24 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										{inStock ? (
 											<>
 												<CheckCircle size={15} className="text-green-500" />
-												<span className="text-sm font-medium text-green-600">In stock</span>
+												<span className="text-xs font-medium text-green-600">In stock</span>
 											</>
 										) : (
 											<>
 												<XCircle size={15} className="text-red-400" />
-												<span className="text-sm font-medium text-red-500">Out of stock</span>
+												<span className="text-xs font-medium text-red-500">Out of stock</span>
 											</>
 										)}
 									</div>
-									{activeVariant?.sku && <span className="text-xs text-gray-400">SKU: {activeVariant.sku}</span>}
+									<div className="inline-flex gap-2">
+										{activeVariant?.sku && <span className="text-xs text-gray-400">SKU: {activeVariant.sku}</span>}
+										{sold30Days > 0 && (
+											<span className="flex items-center gap-1.5 text-xs font-normal text-red-600">
+												<TrendingUp size={15} className="text-red-500" />
+												{sold30Days.toLocaleString()}+ sold in last 30 days
+											</span>
+										)}
+									</div>
 								</div>
 								{optionGroups.map((group) => {
 									const showPrice = groupHasPriceVariation(product.variants, selected, group.code, group.values);
@@ -499,6 +523,20 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
 								{/* Key info — full width below the 2-col grid */}
 								{activeVariant?.customFields?.keyInfo && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.keyInfo }} />}
+								{/* ── Sales & Rankings ── */}
+								{variantRankings.length > 0 && (
+									<div className="mt-2">
+										<h4 className="text-orange-500 text-sm font-bold">Product rankings:</h4>
+										{variantRankings.map((r) => (
+											<div className="flex text-[12px] font-semibold" key={r.collectionSlug}>
+												<span className="mr-1">#{r.rank} in </span>
+												<Link to={`/collections/${r.collectionSlug}`} className="text-blue-700 hover:underline">
+													{r.collectionName}
+												</Link>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 
 							{/* Right — Price card (sticky) */}
@@ -597,16 +635,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				)}
 			</div>
 			{/* ── Ratings & Reviews ── */}
-			<div className="container mx-auto px-4 mt-12">
-				{ratingSummary && ratingSummary.totalReviews > 0 ? (
-					<RatingPanel
-						summary={ratingSummary}
-						productSlug={product.slug}
-					/>
-				) : (
-					<NoReviews productSlug={product.slug} />
-				)}
-			</div>
+			<div className="container mx-auto px-4 mt-12">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} /> : <NoReviews productSlug={product.slug} />}</div>
 
 			{similarProducts.length > 0 && (
 				<HomeTopSelling
@@ -649,12 +678,7 @@ function formatDate(iso: string) {
 	return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-function ReviewCard({ review, compact = false, onVote, isLoggedIn }: {
-	review: ReviewItem;
-	compact?: boolean;
-	onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void;
-	isLoggedIn?: boolean;
-}) {
+function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: ReviewItem; compact?: boolean; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void; isLoggedIn?: boolean }) {
 	return (
 		<div className={`border border-gray-100 rounded-xl p-4 md:p-5 bg-white ${compact ? "" : "shadow-sm"}`}>
 			<div className="flex items-start justify-between gap-3 mb-2">
@@ -722,12 +746,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 
 	return (
 		<div ref={ref} className="relative inline-block" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-			<button
-				onClick={() => setOpen((v) => !v)}
-				className="flex items-center gap-1.5 cursor-pointer"
-				aria-expanded={open}
-				aria-haspopup="true"
-			>
+			<button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 cursor-pointer" aria-expanded={open} aria-haspopup="true">
 				<Stars value={summary.averageRating} size={14} />
 				<span className="text-sm text-gray-600 font-medium">{summary.totalReviews.toLocaleString()} Reviews</span>
 				<ChevronDown size={13} className={`text-gray-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
@@ -735,42 +754,38 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 
 			{open && (
 				<div className="absolute left-0 top-full z-30 w-64 pt-1" role="dialog" aria-label="Rating summary">
-				<div className="bg-white border border-gray-200 rounded-xl shadow-xl p-4">
-					{/* Score row */}
-					<div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-						<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
-						<div>
-							<Stars value={summary.averageRating} size={14} />
-							<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} reviews</p>
+					<div className="bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+						{/* Score row */}
+						<div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
+							<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
+							<div>
+								<Stars value={summary.averageRating} size={14} />
+								<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} reviews</p>
+							</div>
 						</div>
-					</div>
 
-					{/* Distribution bars */}
-					<div className="space-y-1.5 mb-4">
-						{[5, 4, 3, 2, 1].map((star) => {
-							const count = summary.distribution.find((d) => d.rating === star)?.count ?? 0;
-							const pct = Math.round((count / maxCount) * 100);
-							return (
-								<div key={star} className="flex items-center gap-2">
-									<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
-									<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
-									<div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-										<div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+						{/* Distribution bars */}
+						<div className="space-y-1.5 mb-4">
+							{[5, 4, 3, 2, 1].map((star) => {
+								const count = summary.distribution.find((d) => d.rating === star)?.count ?? 0;
+								const pct = Math.round((count / maxCount) * 100);
+								return (
+									<div key={star} className="flex items-center gap-2">
+										<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+										<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
+										<div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+											<div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+										</div>
+										<span className="text-xs text-gray-400 w-10 shrink-0 text-right">{count.toLocaleString()}</span>
 									</div>
-									<span className="text-xs text-gray-400 w-10 shrink-0 text-right">{count.toLocaleString()}</span>
-								</div>
-							);
-						})}
-					</div>
+								);
+							})}
+						</div>
 
-					<Link
-						to={`/products/${productSlug}/reviews`}
-						onClick={() => setOpen(false)}
-						className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors"
-					>
-						See customer reviews
-					</Link>
-				</div>
+						<Link to={`/products/${productSlug}/reviews`} onClick={() => setOpen(false)} className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
+							See customer reviews
+						</Link>
+					</div>
 				</div>
 			)}
 		</div>
@@ -790,10 +805,7 @@ function NoReviews({ productSlug }: { productSlug: string }) {
 					))}
 				</div>
 				<p className="text-gray-500 text-sm">Looks like no one reviewed this product yet.</p>
-				<Link
-					to={`/products/${productSlug}/reviews#write`}
-					className="bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors"
-				>
+				<Link to={`/products/${productSlug}/reviews#write`} className="bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
 					Write a Review
 				</Link>
 			</div>
@@ -811,10 +823,7 @@ const SORT_OPTIONS: { value: ReviewSortOrder; label: string }[] = [
 	{ value: "MOST_HELPFUL", label: "Most Helpful" },
 ];
 
-function RatingPanel({ summary, productSlug }: {
-	summary: ProductRatingSummary;
-	productSlug: string;
-}) {
+function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; productSlug: string }) {
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
 
 	// Auth
@@ -848,8 +857,8 @@ function RatingPanel({ summary, productSlug }: {
 		const current = { ...base, ...voteOverrides[reviewId] };
 		const toggling = current.myVote === vote;
 		const nextVote = toggling ? null : vote;
-		const hDelta = vote === "HELPFUL" ? (toggling ? -1 : 1) : (current.myVote === "HELPFUL" ? -1 : 0);
-		const nhDelta = vote === "NOT_HELPFUL" ? (toggling ? -1 : 1) : (current.myVote === "NOT_HELPFUL" ? -1 : 0);
+		const hDelta = vote === "HELPFUL" ? (toggling ? -1 : 1) : current.myVote === "HELPFUL" ? -1 : 0;
+		const nhDelta = vote === "NOT_HELPFUL" ? (toggling ? -1 : 1) : current.myVote === "NOT_HELPFUL" ? -1 : 0;
 		setVoteOverrides((prev) => ({
 			...prev,
 			[reviewId]: { myVote: nextVote, helpfulCount: current.helpfulCount + hDelta, notHelpfulCount: current.notHelpfulCount + nhDelta },
@@ -857,23 +866,19 @@ function RatingPanel({ summary, productSlug }: {
 		voteFetcher.submit({ _intent: "vote", reviewId, vote }, { method: "POST", action: "/api/reviews", encType: "application/json" });
 	}
 
-	const displayReviews = reviews.map((r) => voteOverrides[r.id] ? { ...r, ...voteOverrides[r.id] } : r);
+	const displayReviews = reviews.map((r) => (voteOverrides[r.id] ? { ...r, ...voteOverrides[r.id] } : r));
 
 	return (
 		<section aria-label="Customer reviews">
 			{/* Header */}
 			<div className="flex items-center justify-between gap-4 mb-6">
 				<h2 className="text-xl font-bold text-gray-900">Customer Reviews</h2>
-				<Link
-					to={`/products/${productSlug}/reviews#write`}
-					className="shrink-0 border-2 border-primary text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary hover:text-white transition-colors"
-				>
+				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 border-2 border-primary text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary hover:text-white transition-colors">
 					Write a Review
 				</Link>
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
-
 				{/* Left sidebar */}
 				<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
 					<div className="flex flex-col items-center py-2">
@@ -920,12 +925,12 @@ function RatingPanel({ summary, productSlug }: {
 						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} reviews</span>
 						<div className="flex items-center gap-2">
 							<span className="text-sm text-gray-500 hidden sm:inline">Sort:</span>
-							<select
-								value={sort}
-								onChange={(e) => handleSortChange(e.target.value as ReviewSortOrder)}
-								className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-							>
-								{SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+							<select value={sort} onChange={(e) => handleSortChange(e.target.value as ReviewSortOrder)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+								{SORT_OPTIONS.map((o) => (
+									<option key={o.value} value={o.value}>
+										{o.label}
+									</option>
+								))}
 							</select>
 						</div>
 					</div>
@@ -941,19 +946,14 @@ function RatingPanel({ summary, productSlug }: {
 							))}
 						</div>
 					) : displayReviews.length > 0 ? (
-						displayReviews.map((r) => (
-							<ReviewCard key={r.id} review={r} onVote={handleVote} isLoggedIn={isLoggedIn} />
-						))
+						displayReviews.map((r) => <ReviewCard key={r.id} review={r} onVote={handleVote} isLoggedIn={isLoggedIn} />)
 					) : (
 						<p className="text-sm text-gray-400 py-4">No reviews yet.</p>
 					)}
 
 					{totalReviews > 5 && (
 						<div className="pt-2">
-							<Link
-								to={`/products/${productSlug}/reviews`}
-								className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors"
-							>
+							<Link to={`/products/${productSlug}/reviews`} className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors">
 								More Reviews ({totalReviews.toLocaleString()})
 							</Link>
 						</div>

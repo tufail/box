@@ -167,7 +167,7 @@ export const COLLECTION_PAGE_QUERY = `
           ... on SinglePrice { value }
         }
         customProductVariantMappings { isOnSale stockQty discount rrp }
-        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
       facetValues {
         count

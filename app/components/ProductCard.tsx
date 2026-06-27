@@ -3,31 +3,30 @@ import { useEffect, useState } from "react";
 import AddToCartButton from "./AddToCartButton";
 import type { SearchProductItem } from "~/graphql/product";
 import VendureImage from "./VendureImage";
-import { Truck, Star, Zap, Flame } from "lucide-react";
+import { TrendingUp, Star } from "lucide-react";
 
-const deliveryMessages = [
-	{ text: "Free delivery available", icon: <Truck size={12} className="text-primary flex-shrink-0" /> },
-	{ text: "Buying so quickly!", icon: <Zap size={12} className="text-orange-500 flex-shrink-0" fill="currentColor" /> },
-	{ text: "Low in stock!", icon: <Flame size={12} className="text-red-500 flex-shrink-0" /> },
-];
+type Message = { text: string; icon: React.ReactNode };
 
-function AnimatedDeliveryBadge() {
+function AnimatedDeliveryBadge({ messages }: { messages: Message[] }) {
 	const [index, setIndex] = useState(0);
 	const [transitioning, setTransitioning] = useState(false);
 
 	useEffect(() => {
+		if (messages.length <= 1) return;
 		const interval = setInterval(() => {
 			setTransitioning(true);
 			setTimeout(() => {
-				setIndex((i) => (i + 1) % deliveryMessages.length);
+				setIndex((i) => (i + 1) % messages.length);
 				setTransitioning(false);
 			}, 900);
 		}, 3500);
 		return () => clearInterval(interval);
-	}, []);
+	}, [messages.length]);
 
-	const current = deliveryMessages[index];
-	const next = deliveryMessages[(index + 1) % deliveryMessages.length];
+	if (messages.length === 0) return null;
+
+	const current = messages[index % messages.length];
+	const next = messages[(index + 1) % messages.length];
 
 	return (
 		<div className="relative overflow-hidden h-4 text-[11px] text-gray-500 mt-0.5">
@@ -35,7 +34,7 @@ function AnimatedDeliveryBadge() {
 				{current.icon}
 				<span>{current.text}</span>
 			</div>
-			{transitioning && (
+			{transitioning && next && (
 				<div className="absolute flex items-center gap-1 slide-in-up">
 					{next.icon}
 					<span>{next.text}</span>
@@ -68,52 +67,55 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 	const discount = product.customProductVariantMappings?.discount ?? 0;
 	const isOnSale = product.customProductVariantMappings?.isOnSale ?? false;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
-	const discountPercent = discount > 0 ? Math.round((discount / 100) / (priceQAR + discount / 100) * 100) : 0;
+	const discountPercent = discount > 0 ? Math.round((discount / 100 / (priceQAR + discount / 100)) * 100) : 0;
 	const variantCount = product.customProductMappings?.variantCount ?? 1;
+	const sold30Days = product.customProductMappings?.soldCount30d ?? 0;
+	const bestSellerRank = product.customProductMappings?.bestSellerRank ?? null;
+	const bestSellerCollection = product.customProductMappings?.bestSellerCollection ?? null;
 	const productHref = variantId ? `/products/${product.slug}?variant=${variantId}` : `/products/${product.slug}`;
 	const displayName = showVariantName && product.productVariantName ? product.productVariantName : product.productName;
 
+	// Build animated message list: base messages + sold30Days + rank
+	const messageArray: Message[] = [
+		...(sold30Days > 0
+			? [
+					{
+						text: `${sold30Days.toLocaleString()}+ sold in last 30 days`,
+						icon: <TrendingUp size={12} className="text-orange-500 flex-shrink-0" />,
+					},
+				]
+			: []),
+		...(bestSellerRank != null && bestSellerCollection
+			? [
+					{
+						text: `#${bestSellerRank} in ${bestSellerCollection}`,
+						icon: <Star size={12} className="text-amber-500 flex-shrink-0" fill="currentColor" />,
+					},
+				]
+			: []),
+	];
+
 	return (
 		<div className="group bg-white overflow-hidden flex flex-col h-full rounded-xl">
-
 			{/* Image area */}
 			<div className="relative bg-stone-100 border border-stone-200 rounded-xl overflow-hidden">
-				{/* Top-left promo badge */}
-				{(isOnSale || discountPercent > 0) && (
+				{/* Top-left badge — best seller takes priority over sale */}
+				{isOnSale || discountPercent > 0 ? (
 					<div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-pink-100 text-pink-600 text-[11px] font-semibold px-2 py-0.5 rounded-full">
 						<Star size={10} fill="currentColor" />
 						<span>{isOnSale ? "On Sale" : "Best Deal"}</span>
 					</div>
-				)}
+				) : null}
 
 				<Link to={productHref} className="block">
-					<div className="aspect-square overflow-hidden">
-						{product.productAsset ? (
-							<VendureImage
-								src={product.productAsset.preview}
-								vendureBase={vendureBase}
-								alt={product.productName}
-								width={300}
-								height={300}
-								objectFit="contain"
-								eager={eager}
-								imgClassName="mix-blend-multiply"
-							/>
-						) : (
-							<div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl font-bold bg-gray-50">
-								{product.productName[0]}
-							</div>
-						)}
-					</div>
+					<div className="aspect-square overflow-hidden">{product.productAsset ? <VendureImage src={product.productAsset.preview} vendureBase={vendureBase} alt={product.productName} width={300} height={300} objectFit="contain" eager={eager} imgClassName="mix-blend-multiply" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl font-bold bg-gray-50">{product.productName[0]}</div>}</div>
 
 					{/* Star rating badge */}
 					{(product.customProductMappings?.avgRating ?? 0) > 0 && (
 						<div className="absolute bottom-0 left-0 z-10 flex items-center gap-1 bg-orange-50 rounded-tr-lg px-2 py-0.5 shadow-sm">
 							<span className="text-[11px] font-semibold text-gray-800">{product.customProductMappings!.avgRating!.toFixed(1)}</span>
 							<Star size={10} className="text-amber-400" fill="currentColor" />
-							{(product.customProductMappings?.reviewCount ?? 0) > 0 && (
-								<span className="text-[11px] text-gray-500">({product.customProductMappings!.reviewCount!.toLocaleString()})</span>
-							)}
+							{(product.customProductMappings?.reviewCount ?? 0) > 0 && <span className="text-[11px] text-gray-500">({product.customProductMappings!.reviewCount!.toLocaleString()})</span>}
 						</div>
 					)}
 
@@ -127,18 +129,13 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 
 			{/* Info */}
 			<div className="flex flex-col flex-1 pt-2.5 pb-3 gap-1">
-
 				{/* Product name */}
 				<Link to={productHref}>
-					<p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors">
-						{displayName}
-					</p>
+					<p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors">{displayName}</p>
 				</Link>
 
 				{/* Variant label */}
-				{product.productVariantName && (
-					<p className="text-xs text-gray-500">{product.productVariantName}</p>
-				)}
+				{product.productVariantName && <p className="text-xs text-gray-500">{product.productVariantName}</p>}
 
 				{/* Price row */}
 				<div className="mt-1">
@@ -146,34 +143,21 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 					{originalQAR && (
 						<div className="flex items-center gap-2 mt-0.5">
 							<span className="text-xs text-gray-400 line-through">QAR {formatQAR(originalQAR)}</span>
-							<span className="text-[11px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
-								{discountPercent}% OFF
-							</span>
+							<span className="text-[11px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">{discountPercent}% OFF</span>
 						</div>
 					)}
 				</div>
 
-				{/* Delivery */}
-				<AnimatedDeliveryBadge />
+				{/* Animated badge — cycles through delivery info, sold count, rank */}
+				<AnimatedDeliveryBadge messages={messageArray} />
 
 				{/* CTA button */}
 				<div className="mt-auto pt-2">
 					{forceAddToCart ? (
 						<AddToCartButton inStock={product.inStock} onClick={() => onAddToCart?.(product)} />
 					) : (
-						<Link
-							to={productHref}
-							className={`w-full block text-center text-white font-semibold text-sm py-1.5 rounded-full transition-colors ${
-								product.inStock
-									? "bg-[#3b8578] hover:bg-[#2e6b61] cursor-pointer"
-									: "bg-gray-300 text-gray-500 pointer-events-none"
-							}`}
-						>
-							{product.inStock
-								? variantCount > 1
-									? "Show Options"
-									: "Add to Cart"
-								: "Out of Stock"}
+						<Link to={productHref} className={`w-full block text-center text-white font-semibold text-sm py-1.5 rounded-full transition-colors ${product.inStock ? "bg-[#3b8578] hover:bg-[#2e6b61] cursor-pointer" : "bg-gray-300 text-gray-500 pointer-events-none"}`}>
+							{product.inStock ? (variantCount > 1 ? "Show Options" : "Add to Cart") : "Out of Stock"}
 						</Link>
 					)}
 				</div>

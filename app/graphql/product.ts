@@ -130,6 +130,10 @@ export interface SearchProductItem {
     avgRating: number | null;
     reviewCount: number | null;
     isBundle: boolean | null;
+    soldCount30d: number | null;
+    bestSellerRank: number | null;
+    bestSellerCollection: string | null;
+    bestSellerCollectionSlug: string | null;
   } | null;
 }
 
@@ -210,7 +214,7 @@ export const SEARCH_PAGE_QUERY = `
           ... on SinglePrice { value }
         }
         customProductVariantMappings { isOnSale stockQty discount rrp }
-        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
       facetValues {
         count
@@ -255,7 +259,7 @@ export const SEARCH_NEW_ARRIVALS = `
           discount
           rrp
         }
-        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
     }
   }
@@ -292,7 +296,7 @@ export const SEARCH_TOP_SELLING = `
           discount
           rrp
         }
-        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
     }
   }
@@ -428,5 +432,27 @@ export const SUBMIT_REVIEW_MUTATION = `
 export const VOTE_ON_REVIEW_MUTATION = `
   mutation VoteOnReview($reviewId: ID!, $vote: ReviewVoteType!) {
     voteOnReview(reviewId: $reviewId, vote: $vote) { id helpfulCount notHelpfulCount myVote }
+  }
+`;
+
+// ─── Variant Rankings ─────────────────────────────────────────────────────────
+
+export interface VariantRanking {
+  rank: number;
+  collectionName: string;
+  collectionSlug: string;
+}
+
+export interface VariantRankingsData {
+  variantRankings: VariantRanking[];
+}
+
+export const VARIANT_RANKINGS_QUERY = `
+  query VariantRankings($variantId: ID!) {
+    variantRankings(variantId: $variantId) {
+      rank
+      collectionName
+      collectionSlug
+    }
   }
 `;
