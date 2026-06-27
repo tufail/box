@@ -122,10 +122,14 @@ export interface SearchProductItem {
     isOnSale: boolean;
     stockQty: number;
     discount: number;
+    rrp: number | null;
   } | null;
   customProductMappings: {
     variantCount: number;
     salesCount: number;
+    avgRating: number | null;
+    reviewCount: number | null;
+    isBundle: boolean | null;
   } | null;
 }
 
@@ -148,6 +152,7 @@ export interface SearchTopSellingVariables {
       salesCount?: "ASC" | "DESC";
       name?: "ASC" | "DESC";
       price?: "ASC" | "DESC";
+      avgRating?: "ASC" | "DESC";
     };
   };
 }
@@ -173,7 +178,7 @@ export interface SearchPageData {
   };
 }
 
-export type SortKey = "default" | "sales_desc" | "name_asc" | "price_asc" | "price_desc";
+export type SortKey = "default" | "sales_desc" | "name_asc" | "price_asc" | "price_desc" | "rating_desc";
 
 export interface SearchPageVariables {
   input: {
@@ -204,8 +209,8 @@ export const SEARCH_PAGE_QUERY = `
           ... on PriceRange { min max }
           ... on SinglePrice { value }
         }
-        customProductVariantMappings { isOnSale stockQty discount }
-        customProductMappings { variantCount salesCount }
+        customProductVariantMappings { isOnSale stockQty discount rrp }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
       }
       facetValues {
         count
@@ -248,8 +253,9 @@ export const SEARCH_NEW_ARRIVALS = `
           isOnSale
           stockQty
           discount
+          rrp
         }
-        customProductMappings { variantCount salesCount }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
       }
     }
   }
@@ -284,10 +290,143 @@ export const SEARCH_TOP_SELLING = `
           isOnSale
           stockQty
           discount
+          rrp
         }
-        customProductMappings { variantCount salesCount }
-        customProductMappings { variantCount salesCount }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
       }
     }
+  }
+`;
+
+// ─── Reviews & Ratings ────────────────────────────────────────────────────────
+
+export interface ReviewImage {
+  id?: string;
+  url: string;
+  sortOrder?: number;
+}
+
+export interface ReviewItem {
+  id: string;
+  createdAt: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  authorName: string;
+  authorLocation: string | null;
+  isVerifiedPurchase: boolean;
+  helpfulCount: number;
+  notHelpfulCount: number;
+  languageCode: string;
+  status?: string;
+  myVote?: "HELPFUL" | "NOT_HELPFUL" | null;
+  images: ReviewImage[];
+}
+
+export interface RatingDistribution { rating: number; count: number; }
+export interface RatingHighlight { tag: string; count: number; sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE"; }
+export interface LanguageSummary { languageCode: string; count: number; }
+export interface AggregateRating { ratingValue: number; reviewCount: number; bestRating: number; worstRating: number; }
+
+export interface ProductRatingSummary {
+  averageRating: number;
+  totalReviews: number;
+  distribution: RatingDistribution[];
+  highlights: RatingHighlight[];
+  topPositiveReview: ReviewItem | null;
+  topCriticalReview: ReviewItem | null;
+  languageSummary: LanguageSummary[];
+  aggregateRating: AggregateRating;
+}
+
+export interface ProductRatingSummaryData { productRatingSummaryBySlug: ProductRatingSummary | null; }
+export interface ProductReviewsData { productReviewsBySlug: { totalItems: number; items: ReviewItem[] } | null; }
+export interface GetProductReviewsData {
+  productRatingSummaryBySlug: ProductRatingSummary | null;
+  productReviewsBySlug: { totalItems: number; items: ReviewItem[] } | null;
+}
+export type ReviewSortOrder = "MOST_RELEVANT" | "NEWEST" | "HIGHEST_RATED" | "LOWEST_RATED" | "MOST_HELPFUL";
+export interface SubmitReviewData { submitProductReview: { id: string; status: string } }
+export interface VoteOnReviewData {
+  voteOnReview: { id: string; helpfulCount: number; notHelpfulCount: number; myVote: "HELPFUL" | "NOT_HELPFUL" | null };
+}
+
+// ── Product detail page — single combined query (summary + first 5 reviews) ──
+export const GET_PRODUCT_REVIEWS_QUERY = `
+  query GetProductReviews($slug: String!, $sort: ReviewSortOrder) {
+    productRatingSummaryBySlug(slug: $slug) {
+      averageRating
+      totalReviews
+      distribution { rating count }
+      highlights { tag count sentiment }
+      languageSummary { languageCode count }
+      aggregateRating { ratingValue reviewCount bestRating worstRating }
+      topPositiveReview {
+        id rating title body authorName authorLocation
+        isVerifiedPurchase helpfulCount createdAt
+        images { url }
+      }
+      topCriticalReview {
+        id rating title body authorName authorLocation
+        isVerifiedPurchase helpfulCount createdAt
+      }
+    }
+    productReviewsBySlug(slug: $slug, options: { sort: $sort, take: 5 }) {
+      totalItems
+      items {
+        id rating title body authorName authorLocation
+        isVerifiedPurchase helpfulCount notHelpfulCount
+        languageCode status myVote createdAt
+        images { id url sortOrder }
+      }
+    }
+  }
+`;
+
+// ── Reviews page — paginated with dynamic filters ─────────────────────────────
+export const PRODUCT_RATING_SUMMARY_QUERY = `
+  query ProductRatingSummaryBySlug($slug: String!) {
+    productRatingSummaryBySlug(slug: $slug) {
+      averageRating totalReviews
+      distribution { rating count }
+      highlights { tag count sentiment }
+      languageSummary { languageCode count }
+      aggregateRating { ratingValue reviewCount bestRating worstRating }
+    }
+  }
+`;
+
+export const PRODUCT_REVIEWS_QUERY = `
+  query ProductReviewsBySlug(
+    $slug: String! $take: Int $skip: Int $sort: ReviewSortOrder
+    $ratingFilter: Int $languageCode: String $verifiedOnly: Boolean $withImagesOnly: Boolean
+  ) {
+    productReviewsBySlug(slug: $slug, options: {
+      take: $take skip: $skip sort: $sort ratingFilter: $ratingFilter
+      languageCode: $languageCode verifiedOnly: $verifiedOnly withImagesOnly: $withImagesOnly
+    }) {
+      totalItems
+      items {
+        id rating title body authorName authorLocation
+        isVerifiedPurchase helpfulCount notHelpfulCount
+        languageCode status myVote createdAt
+        images { id url sortOrder }
+      }
+    }
+  }
+`;
+
+export const SUBMIT_REVIEW_MUTATION = `
+  mutation SubmitProductReview($input: SubmitProductReviewInput!) {
+    submitProductReview(input: $input) {
+      id rating title body authorName authorLocation isVerifiedPurchase languageCode status createdAt
+      images { id url sortOrder }
+    }
+  }
+`;
+
+export const VOTE_ON_REVIEW_MUTATION = `
+  mutation VoteOnReview($reviewId: ID!, $vote: ReviewVoteType!) {
+    voteOnReview(reviewId: $reviewId, vote: $vote) { id helpfulCount notHelpfulCount myVote }
   }
 `;

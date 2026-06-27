@@ -10,6 +10,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
 import { CART_COUNT_QUERY } from "./graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
+import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -22,16 +23,32 @@ export const links: Route.LinksFunction = () => [
 
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
-	const [megaMenuResult, cartCountResult, customerResult] = await Promise.allSettled([
+	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult] = await Promise.allSettled([
 		graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
 		graphqlRequest<{ activeOrder: { totalQuantity: number } | null }>(env, CART_COUNT_QUERY, undefined, { request }),
 		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
+		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, undefined, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
+
+	const rawSections = pageSectionsResult.status === "fulfilled"
+		? (pageSectionsResult.value.data.getPageSections?.items ?? [])
+		: [];
+
+	const pageSections: PageSection[] = rawSections
+		.filter((s) => s.position === "DEFAULT")
+		.sort((a, b) => a.orderId - b.orderId)
+		.map((section) => ({
+			...section,
+			pages: section.pages
+				.filter((p) => p.active)
+				.sort((a, b) => a.orderId - b.orderId),
+		}));
 
 	return {
 		megaMenu: megaMenuResult.status === "fulfilled" ? megaMenuResult.value.data.getMegaMenu : null,
 		cartCount: cartCountResult.status === "fulfilled" ? (cartCountResult.value.data.activeOrder?.totalQuantity ?? 0) : 0,
 		activeCustomer: customerResult.status === "fulfilled" ? (customerResult.value.data.activeCustomer ?? null) : null,
+		pageSections,
 	};
 }
 
@@ -57,7 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { megaMenu, cartCount, activeCustomer } = useLoaderData<typeof loader>();
+	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
 	const location = useLocation();
 	const isCheckoutRoute =
 		location.pathname.startsWith("/checkout") ||
@@ -70,7 +87,7 @@ export default function App() {
 					{isCheckoutRoute ? (
 						<Outlet />
 					) : (
-						<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer}>
+						<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
 							<Outlet />
 						</MainLayout>
 					)}

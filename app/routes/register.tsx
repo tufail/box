@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useFetcher } from "react-router";
 import type { Route } from "./+types/register";
+
+export function loader({ request }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  return { redirect: url.searchParams.get("redirect") ?? "/" };
+}
 import { CheckCircle2, Check, Eye, EyeOff, UserPlus } from "lucide-react";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
 
@@ -45,7 +50,9 @@ function PasswordInput({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function RegisterPage() {
+export default function RegisterPage({ loaderData }: Route.ComponentProps) {
+  const returnTo = loaderData.redirect;
+  const safeReturn = returnTo.startsWith("/") ? returnTo : "/";
   const [newsletter, setNewsletter] = useState(true);
   const [registered, setRegistered] = useState(false);
   const [email, setEmail] = useState("");
@@ -108,10 +115,10 @@ export default function RegisterPage() {
             Please check your inbox and click the link to activate your account.
           </p>
           <Link
-            to="/"
+            to={`/login${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
             className="inline-block bg-primary text-white px-8 py-3 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            Back to Home
+            Sign In
           </Link>
         </div>
       </div>
@@ -237,7 +244,10 @@ export default function RegisterPage() {
           {/* Sign in link */}
           <p className="text-center text-sm text-gray-500 mt-5">
             Already have an account?{" "}
-            <Link to="/" className="text-primary font-medium hover:underline">
+            <Link
+              to={`/login${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
+              className="text-primary font-medium hover:underline"
+            >
               Sign in
             </Link>
           </p>

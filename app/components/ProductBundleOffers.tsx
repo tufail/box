@@ -217,10 +217,15 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 					</div>
 					<div>
 						<div className="text-sm mt-2 font-semibold text-black">Combo with:</div>
-						<Link to={`/products/${bundle.items[0].productSlug}`} className="text-sm text-blue-700 hover:text-black transition-colors line-clamp-2 leading-snug block">
+						<Link to={`/products/${bundle.items[0].productSlug}`} className="text-sm text-blue-700 hover:underline transition-colors line-clamp-2 leading-snug block">
 							{bundle.items[0].productName}
 						</Link>
-						<div className="text-sm text-gray-500 mt-0.5 bg-stone-100 p-2 rounded">{bundle.description}</div>
+						<div className="text-xs text-black mt-0.5 bg-stone-100 mt-1 mb-2 p-2 rounded">
+							{bundle.description}
+							<p className="text-xs mt-2 text-gray-500">
+								<em>AI generated. Not medical advice.</em>
+							</p>
+						</div>
 						<div className="text-lg font-bold text-black mt-0.5">Combo Price: {discountedTotal}</div>
 					</div>
 				</div>

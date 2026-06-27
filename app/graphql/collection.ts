@@ -85,7 +85,7 @@ export interface CollectionPageVariables {
     collectionSlug: string;
     take: number;
     skip: number;
-    sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC" };
+    sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC"; avgRating?: "ASC" | "DESC" };
     facetValueIds?: string[];
     facetValueOperator?: "AND" | "OR";
   };
@@ -166,8 +166,8 @@ export const COLLECTION_PAGE_QUERY = `
           ... on PriceRange { min max }
           ... on SinglePrice { value }
         }
-        customProductVariantMappings { isOnSale stockQty discount }
-        customProductMappings { variantCount salesCount }
+        customProductVariantMappings { isOnSale stockQty discount rrp }
+        customProductMappings { variantCount salesCount avgRating reviewCount isBundle }
       }
       facetValues {
         count

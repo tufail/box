@@ -31,7 +31,7 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 
       <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
 
-      <Footer />
+      <Footer pageSections={[]} />
     </div>
   );
 }

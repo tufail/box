@@ -40,7 +40,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // ── login ───────────────────────────────────────────────────────────────────
   if (intent === "login") {
-    const { username, password } = body as { username: string; password: string };
+    const { username, password, redirect: returnTo } = body as { username: string; password: string; redirect?: string };
+    const safeRedirect = returnTo && returnTo.startsWith("/") ? returnTo : "/";
     try {
       const { data, token } = await graphqlRequest<{
         login: { __typename: string; id?: string; identifier?: string; errorCode?: string; message?: string };
@@ -52,7 +53,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (token) {
           headers.append("Set-Cookie", `vendure-auth-token=${token}; Path=/; HttpOnly; SameSite=Lax`);
         }
-        return redirect("/", { headers });
+        return redirect(safeRedirect, { headers });
       }
       return Response.json(
         { error: result.message ?? "Login failed. Check your credentials." },

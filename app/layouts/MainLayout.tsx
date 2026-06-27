@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import type { MegaMenuData } from "~/graphql/megamenu";
 import type { ActiveCustomer } from "~/graphql/checkout";
+import type { PageSection } from "~/graphql/pages";
 import MegaMenu from "../components/MegaMenu";
 import SearchBox from "../components/SearchBox";
 import CartSidePanel from "../components/CartSidePanel";
@@ -15,6 +16,7 @@ interface MainLayoutProps {
 	children: React.ReactNode;
 	megaMenu: MegaMenuData["getMegaMenu"];
 	activeCustomer: ActiveCustomer | null;
+	pageSections: PageSection[];
 }
 
 // â"€â"€ Auth Modal â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -462,7 +464,7 @@ function BrandsDropdown() {
 	);
 }
 
-export default function MainLayout({ children, megaMenu, activeCustomer }: MainLayoutProps) {
+export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
 	const { wishlistCount } = useWishlist();
 	const [accountOpen, setAccountOpen] = useState(false);
@@ -628,7 +630,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer }: MainL
 
 			<main>{children}</main>
 
-			<Footer />
+			<Footer pageSections={pageSections} />
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
 

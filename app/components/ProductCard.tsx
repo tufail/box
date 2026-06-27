@@ -107,11 +107,15 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 					</div>
 
 					{/* Star rating badge */}
-					<div className="absolute bottom-0 left-0 z-10 flex items-center gap-1 bg-orange-50 rounded-tr-lg px-2 py-0.5 shadow-sm">
-						<span className="text-[11px] font-semibold text-gray-800">4.4</span>
-						<Star size={10} className="text-amber-400" fill="currentColor" />
-						<span className="text-[11px] text-gray-500">(23)</span>
-					</div>
+					{(product.customProductMappings?.avgRating ?? 0) > 0 && (
+						<div className="absolute bottom-0 left-0 z-10 flex items-center gap-1 bg-orange-50 rounded-tr-lg px-2 py-0.5 shadow-sm">
+							<span className="text-[11px] font-semibold text-gray-800">{product.customProductMappings!.avgRating!.toFixed(1)}</span>
+							<Star size={10} className="text-amber-400" fill="currentColor" />
+							{(product.customProductMappings?.reviewCount ?? 0) > 0 && (
+								<span className="text-[11px] text-gray-500">({product.customProductMappings!.reviewCount!.toLocaleString()})</span>
+							)}
+						</div>
+					)}
 
 					{!product.inStock && (
 						<div className="absolute inset-0 bg-black/20 flex items-end justify-center pb-4">

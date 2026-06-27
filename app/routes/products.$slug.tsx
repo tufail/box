@@ -1,13 +1,19 @@
 import type { Route } from "./+types/products.$slug";
-import { useState, useEffect } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useState, useEffect, useRef } from "react";
+import { useFetcher, useNavigate, Link, useRouteLoaderData } from "react-router";
+import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
-import { PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, type ProductDetailData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables } from "~/graphql/product";
+import {
+	PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY,
+	type ProductDetailData, type ProductDetailVariant,
+	type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables,
+	type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder,
+} from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -109,21 +115,26 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug }, { request });
 		if (!data.product) throw new Response("Not Found", { status: 404 });
 
-		const activeVariant = selectedVariantId ? (data.product.variants.find((v) => v.id === selectedVariantId) ?? data.product.variants[0]) : data.product.variants[0];
+		const product = data.product;
+		const activeVariant = selectedVariantId ? (product.variants.find((v) => v.id === selectedVariantId) ?? product.variants[0]) : product.variants[0];
 		const canonicalUrl = activeVariant ? `${url.origin}/products/${slug}?variant=${activeVariant.id}` : `${url.origin}/products/${slug}`;
 
-		let similarProducts: SearchProductItem[] = [];
-		const collectionSlug = data.product.collections[0]?.slug;
-		if (collectionSlug) {
-			try {
-				const { data: simData } = await graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request });
-				similarProducts = simData.search.items.filter((p) => p.slug !== slug).slice(0, 8);
-			} catch {
-				// non-critical
-			}
-		}
+		const collectionSlug = product.collections[0]?.slug;
+		const [simResult, summaryResult] = await Promise.allSettled([
+			collectionSlug
+				? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request })
+				: Promise.resolve(null),
+			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug }, { request }),
+		]);
 
-		return { product: data.product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null };
+		const similarProducts: SearchProductItem[] = simResult.status === "fulfilled" && simResult.value
+			? simResult.value.data.search.items.filter((p) => p.slug !== slug).slice(0, 8)
+			: [];
+		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled"
+			? (summaryResult.value.data.productRatingSummaryBySlug ?? null)
+			: null;
+
+		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null, ratingSummary };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -131,7 +142,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export function shouldRevalidate({ nextUrl, currentUrl, defaultShouldRevalidate }: { nextUrl: URL; currentUrl: URL; defaultShouldRevalidate: boolean }) {
-	// Variant switches update only ?variant= on the same path — all data is already loaded
+	// Variant switches stay on the same path — skip full revalidation
 	if (nextUrl.pathname === currentUrl.pathname) return false;
 	return defaultShouldRevalidate;
 }
@@ -263,7 +274,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl } = loaderData;
+	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary } = loaderData;
 
 	const optionGroups = getOptionGroups(product.variants);
 	const initialSelected = (() => {
@@ -340,6 +351,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const videoUrl = product.customFields?.videoUrl ?? null;
 	const additionalInfo = product.customFields?.additionalInfo ?? null;
 
+	const ar = ratingSummary?.aggregateRating;
 	const jsonLd = {
 		"@context": "https://schema.org",
 		"@type": "Product",
@@ -350,6 +362,15 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			image: resolveImage(product.featuredAsset.preview, vendureBase),
 		}),
 		...(brand && { brand: { "@type": "Brand", name: brand } }),
+		...(ar && {
+			aggregateRating: {
+				"@type": "AggregateRating",
+				ratingValue: String(ar.ratingValue),
+				reviewCount: String(ar.reviewCount),
+				bestRating: String(ar.bestRating),
+				worstRating: String(ar.worstRating),
+			},
+		}),
 		offers: product.variants.map((v) => ({
 			"@type": "Offer",
 			price: (v.price / 100).toFixed(2),
@@ -404,6 +425,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										<p className="text-sm text-gray-500">
 											by <span className="text-primary font-medium">{brand}</span>
 										</p>
+									)}
+									{ratingSummary && ratingSummary.totalReviews > 0 && (
+										<div className="mt-1.5">
+											<RatingSummaryBadge summary={ratingSummary} productSlug={product.slug} />
+										</div>
 									)}
 								</div>
 
@@ -570,6 +596,18 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					</div>
 				)}
 			</div>
+			{/* ── Ratings & Reviews ── */}
+			<div className="container mx-auto px-4 mt-12">
+				{ratingSummary && ratingSummary.totalReviews > 0 ? (
+					<RatingPanel
+						summary={ratingSummary}
+						productSlug={product.slug}
+					/>
+				) : (
+					<NoReviews productSlug={product.slug} />
+				)}
+			</div>
+
 			{similarProducts.length > 0 && (
 				<HomeTopSelling
 					products={similarProducts}
@@ -582,5 +620,346 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				/>
 			)}
 		</>
+	);
+}
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+function Stars({ value, size = 14 }: { value: number; size?: number }) {
+	return (
+		<span className="flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
+			{[1, 2, 3, 4, 5].map((s) => {
+				const fill = value >= s ? 1 : value >= s - 0.5 ? 0.5 : 0;
+				return (
+					<span key={s} className="relative inline-block" style={{ width: size, height: size }}>
+						<Star size={size} className="text-gray-200" fill="currentColor" />
+						{fill > 0 && (
+							<span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+								<Star size={size} className="text-amber-400" fill="currentColor" />
+							</span>
+						)}
+					</span>
+				);
+			})}
+		</span>
+	);
+}
+
+function formatDate(iso: string) {
+	return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function ReviewCard({ review, compact = false, onVote, isLoggedIn }: {
+	review: ReviewItem;
+	compact?: boolean;
+	onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void;
+	isLoggedIn?: boolean;
+}) {
+	return (
+		<div className={`border border-gray-100 rounded-xl p-4 md:p-5 bg-white ${compact ? "" : "shadow-sm"}`}>
+			<div className="flex items-start justify-between gap-3 mb-2">
+				<div>
+					<Stars value={review.rating} size={13} />
+					{review.title && <p className="font-semibold text-sm text-gray-900 mt-1">{review.title}</p>}
+				</div>
+				{review.isVerifiedPurchase && (
+					<span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5 shrink-0">
+						<BadgeCheck size={11} />
+						Verified
+					</span>
+				)}
+			</div>
+			<p className={`text-sm text-gray-700 leading-relaxed ${compact ? "line-clamp-4" : ""}`}>{review.body}</p>
+			{review.images.length > 0 && (
+				<div className="flex gap-2 mt-3 flex-wrap">
+					{review.images.slice(0, 4).map((img, i) => (
+						<img key={i} src={img.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100" loading="lazy" />
+					))}
+				</div>
+			)}
+			<div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 flex-wrap gap-2">
+				<div className="text-xs text-gray-400">
+					<span className="font-medium text-gray-600">{review.authorName}</span>
+					{review.authorLocation && <span> · {review.authorLocation}</span>}
+					<span> · {formatDate(review.createdAt)}</span>
+				</div>
+				{onVote && isLoggedIn ? (
+					<div className="flex items-center gap-3 text-xs text-gray-400">
+						<span>Helpful?</span>
+						<button onClick={() => onVote(review.id, "HELPFUL")} className={`flex items-center gap-1 hover:text-green-600 transition-colors ${review.myVote === "HELPFUL" ? "text-green-600 font-medium" : ""}`}>
+							<ThumbsUp size={12} /> {review.helpfulCount}
+						</button>
+						<button onClick={() => onVote(review.id, "NOT_HELPFUL")} className={`flex items-center gap-1 hover:text-red-500 transition-colors ${review.myVote === "NOT_HELPFUL" ? "text-red-500 font-medium" : ""}`}>
+							<ThumbsDown size={12} /> {review.notHelpfulCount}
+						</button>
+					</div>
+				) : review.helpfulCount > 0 ? (
+					<span className="text-xs text-gray-400 flex items-center gap-1">
+						<ThumbsUp size={11} /> {review.helpfulCount} helpful
+					</span>
+				) : null}
+			</div>
+		</div>
+	);
+}
+
+// ── No Reviews ───────────────────────────────────────────────────────────────
+
+// ── Rating Summary Badge (hover dropdown) ────────────────────────────────────
+
+function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSummary; productSlug: string }) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
+
+	useEffect(() => {
+		function onClickOutside(e: MouseEvent) {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		}
+		document.addEventListener("mousedown", onClickOutside);
+		return () => document.removeEventListener("mousedown", onClickOutside);
+	}, []);
+
+	return (
+		<div ref={ref} className="relative inline-block" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+			<button
+				onClick={() => setOpen((v) => !v)}
+				className="flex items-center gap-1.5 cursor-pointer"
+				aria-expanded={open}
+				aria-haspopup="true"
+			>
+				<Stars value={summary.averageRating} size={14} />
+				<span className="text-sm text-gray-600 font-medium">{summary.totalReviews.toLocaleString()} Reviews</span>
+				<ChevronDown size={13} className={`text-gray-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+			</button>
+
+			{open && (
+				<div className="absolute left-0 top-full z-30 w-64 pt-1" role="dialog" aria-label="Rating summary">
+				<div className="bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+					{/* Score row */}
+					<div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
+						<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
+						<div>
+							<Stars value={summary.averageRating} size={14} />
+							<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} reviews</p>
+						</div>
+					</div>
+
+					{/* Distribution bars */}
+					<div className="space-y-1.5 mb-4">
+						{[5, 4, 3, 2, 1].map((star) => {
+							const count = summary.distribution.find((d) => d.rating === star)?.count ?? 0;
+							const pct = Math.round((count / maxCount) * 100);
+							return (
+								<div key={star} className="flex items-center gap-2">
+									<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+									<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
+									<div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+										<div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+									</div>
+									<span className="text-xs text-gray-400 w-10 shrink-0 text-right">{count.toLocaleString()}</span>
+								</div>
+							);
+						})}
+					</div>
+
+					<Link
+						to={`/products/${productSlug}/reviews`}
+						onClick={() => setOpen(false)}
+						className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors"
+					>
+						See customer reviews
+					</Link>
+				</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ── No Reviews ───────────────────────────────────────────────────────────────
+
+function NoReviews({ productSlug }: { productSlug: string }) {
+	return (
+		<section aria-label="Customer reviews">
+			<h2 className="text-xl font-bold text-gray-900 mb-6">Customer Reviews</h2>
+			<div className="border border-dashed border-amber-300 rounded-2xl px-6 py-10 flex flex-col items-center text-center gap-5 bg-amber-50/40">
+				<div className="flex items-center gap-1">
+					{[1, 2, 3, 4, 5].map((s) => (
+						<Star key={s} size={28} className="text-amber-300" strokeWidth={1.5} />
+					))}
+				</div>
+				<p className="text-gray-500 text-sm">Looks like no one reviewed this product yet.</p>
+				<Link
+					to={`/products/${productSlug}/reviews#write`}
+					className="bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors"
+				>
+					Write a Review
+				</Link>
+			</div>
+		</section>
+	);
+}
+
+// ── Rating Panel ────────────────────────────────────────────────────────────
+
+const SORT_OPTIONS: { value: ReviewSortOrder; label: string }[] = [
+	{ value: "MOST_RELEVANT", label: "Most Relevant" },
+	{ value: "NEWEST", label: "Newest" },
+	{ value: "HIGHEST_RATED", label: "Highest Rated" },
+	{ value: "LOWEST_RATED", label: "Lowest Rated" },
+	{ value: "MOST_HELPFUL", label: "Most Helpful" },
+];
+
+function RatingPanel({ summary, productSlug }: {
+	summary: ProductRatingSummary;
+	productSlug: string;
+}) {
+	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
+
+	// Auth
+	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
+	const isLoggedIn = !!rootData?.activeCustomer;
+
+	const [sort, setSort] = useState<ReviewSortOrder>("MOST_RELEVANT");
+	const reviewsFetcher = useFetcher<{ reviews: ReviewItem[]; totalItems: number }>();
+
+	// Load reviews on mount
+	useEffect(() => {
+		reviewsFetcher.load(`/api/product-reviews?slug=${productSlug}&sort=MOST_RELEVANT&take=5`);
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+	function handleSortChange(newSort: ReviewSortOrder) {
+		setSort(newSort);
+		reviewsFetcher.load(`/api/product-reviews?slug=${productSlug}&sort=${newSort}&take=5`);
+	}
+
+	const reviews: ReviewItem[] = reviewsFetcher.data?.reviews ?? [];
+	const totalReviews = reviewsFetcher.data?.totalItems ?? summary.totalReviews;
+	const loading = reviewsFetcher.state !== "idle";
+
+	// Optimistic vote overrides: reviewId → patched fields
+	const [voteOverrides, setVoteOverrides] = useState<Record<string, Partial<ReviewItem>>>({});
+
+	const voteFetcher = useFetcher<{ ok: boolean }>();
+	function handleVote(reviewId: string, vote: "HELPFUL" | "NOT_HELPFUL") {
+		const base = reviews.find((x) => x.id === reviewId);
+		if (!base) return;
+		const current = { ...base, ...voteOverrides[reviewId] };
+		const toggling = current.myVote === vote;
+		const nextVote = toggling ? null : vote;
+		const hDelta = vote === "HELPFUL" ? (toggling ? -1 : 1) : (current.myVote === "HELPFUL" ? -1 : 0);
+		const nhDelta = vote === "NOT_HELPFUL" ? (toggling ? -1 : 1) : (current.myVote === "NOT_HELPFUL" ? -1 : 0);
+		setVoteOverrides((prev) => ({
+			...prev,
+			[reviewId]: { myVote: nextVote, helpfulCount: current.helpfulCount + hDelta, notHelpfulCount: current.notHelpfulCount + nhDelta },
+		}));
+		voteFetcher.submit({ _intent: "vote", reviewId, vote }, { method: "POST", action: "/api/reviews", encType: "application/json" });
+	}
+
+	const displayReviews = reviews.map((r) => voteOverrides[r.id] ? { ...r, ...voteOverrides[r.id] } : r);
+
+	return (
+		<section aria-label="Customer reviews">
+			{/* Header */}
+			<div className="flex items-center justify-between gap-4 mb-6">
+				<h2 className="text-xl font-bold text-gray-900">Customer Reviews</h2>
+				<Link
+					to={`/products/${productSlug}/reviews#write`}
+					className="shrink-0 border-2 border-primary text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary hover:text-white transition-colors"
+				>
+					Write a Review
+				</Link>
+			</div>
+
+			<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+
+				{/* Left sidebar */}
+				<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+					<div className="flex flex-col items-center py-2">
+						<span className="text-5xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
+						<Stars value={summary.averageRating} size={18} />
+						<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} reviews</span>
+					</div>
+
+					<div className="space-y-1.5">
+						{[5, 4, 3, 2, 1].map((star) => {
+							const count = summary.distribution.find((d) => d.rating === star)?.count ?? 0;
+							const pct = Math.round((count / maxCount) * 100);
+							return (
+								<Link key={star} to={`/products/${productSlug}/reviews?rating=${star}`} className="flex items-center gap-2 group rounded-lg px-1 py-0.5 hover:bg-gray-50 transition-colors">
+									<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+									<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
+									<div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+										<div className="h-full bg-amber-400 rounded-full group-hover:bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+									</div>
+									<span className="text-xs text-gray-400 w-12 shrink-0 text-right">{count.toLocaleString()}</span>
+								</Link>
+							);
+						})}
+					</div>
+
+					<div>
+						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Filter</p>
+						<div className="space-y-1">
+							<Link to={`/products/${productSlug}/reviews?verified=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+								<BadgeCheck size={13} />
+								Verified only
+							</Link>
+							<Link to={`/products/${productSlug}/reviews?images=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+								<ImagePlus size={13} />
+								With photos
+							</Link>
+						</div>
+					</div>
+				</div>
+
+				{/* Right — sort + reviews */}
+				<div id="reviews" className="space-y-3">
+					<div className="flex items-center justify-between gap-3 pb-1">
+						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} reviews</span>
+						<div className="flex items-center gap-2">
+							<span className="text-sm text-gray-500 hidden sm:inline">Sort:</span>
+							<select
+								value={sort}
+								onChange={(e) => handleSortChange(e.target.value as ReviewSortOrder)}
+								className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+							>
+								{SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+							</select>
+						</div>
+					</div>
+
+					{loading && reviews.length === 0 ? (
+						<div className="space-y-3">
+							{[1, 2, 3].map((i) => (
+								<div key={i} className="border border-gray-100 rounded-xl p-5 bg-white shadow-sm animate-pulse">
+									<div className="h-3 bg-gray-100 rounded w-24 mb-3" />
+									<div className="h-3 bg-gray-100 rounded w-full mb-2" />
+									<div className="h-3 bg-gray-100 rounded w-3/4" />
+								</div>
+							))}
+						</div>
+					) : displayReviews.length > 0 ? (
+						displayReviews.map((r) => (
+							<ReviewCard key={r.id} review={r} onVote={handleVote} isLoggedIn={isLoggedIn} />
+						))
+					) : (
+						<p className="text-sm text-gray-400 py-4">No reviews yet.</p>
+					)}
+
+					{totalReviews > 5 && (
+						<div className="pt-2">
+							<Link
+								to={`/products/${productSlug}/reviews`}
+								className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors"
+							>
+								More Reviews ({totalReviews.toLocaleString()})
+							</Link>
+						</div>
+					)}
+				</div>
+			</div>
+		</section>
 	);
 }
