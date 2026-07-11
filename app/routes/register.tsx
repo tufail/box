@@ -11,8 +11,8 @@ import SocialAuthButtons from "~/components/SocialAuthButtons";
 
 export function meta(): ReturnType<Route.MetaFunction> {
   return [
-    { title: "Create Account | PHQ" },
-    { name: "description", content: "Join PHQ and enjoy exclusive offers, fast checkout, and order tracking." },
+    { title: "Create Account | NutriBox" },
+    { name: "description", content: "Join NutriBox and enjoy exclusive offers, fast checkout, and order tracking." },
   ];
 }
 
@@ -137,7 +137,7 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 leading-tight">Create an account</h1>
-              <p className="text-xs text-gray-500">Join PHQ for faster checkout & order tracking</p>
+              <p className="text-xs text-gray-500">Join NutriBox for faster checkout & order tracking</p>
             </div>
           </div>
 

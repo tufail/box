@@ -56,7 +56,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-  return [{ title: "My Orders | PHQ" }, { name: "robots", content: "noindex" }];
+  return [{ title: "My Orders | NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
 const ORDER_STATES: Record<string, { label: string; color: string }> = {

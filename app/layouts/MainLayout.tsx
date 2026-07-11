@@ -8,8 +8,9 @@ import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher } from "react-router";
-import { CircleUser, Globe, Heart, Menu, ShoppingCart, X, Check, ChevronDown, Search } from "lucide-react";
+import { CircleUser, Globe, Heart, Menu, ShoppingCart, X, Check, Search } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
+import SearchOverlay from "../components/SearchOverlay";
 import { useWishlist } from "../context/WishlistContext";
 
 interface MainLayoutProps {
@@ -178,12 +179,12 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	return (
 		<div className="fixed inset-0 z-50 overflow-y-auto">
 			{/* Backdrop */}
-			<div className="fixed inset-0 bg-black/50" onClick={onClose} />
+			<div className="fixed inset-0 bg-black/50 animate-fade-in" onClick={onClose} />
 
 			{/* Centering wrapper â€" scrolls when card is taller than viewport */}
 			<div className="flex min-h-full items-center justify-center p-4">
 				{/* Card */}
-				<div className="relative bg-white rounded shadow-xl w-full max-w-md p-6 z-10">
+				<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10 animate-drop-in">
 					<button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
 						<X size={20} />
 					</button>
@@ -210,8 +211,12 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 						</div>
 					) : (
 						<>
-							{/* Tab bar */}
-							<div className="flex gap-1 mb-5 bg-gray-100 rounded p-1">
+							{/* Tab bar — sliding pill indicator */}
+							<div className="relative flex mb-5 bg-gray-100 rounded-full p-1">
+								<div
+									className="absolute top-1 bottom-1 left-1 rounded-full bg-white shadow-sm transition-transform duration-300 ease-out"
+									style={{ width: "calc(50% - 4px)", transform: tab === "register" ? "translateX(100%)" : "translateX(0)" }}
+								/>
 								{(["login", "register"] as const).map((t) => (
 									<button
 										key={t}
@@ -220,7 +225,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 											setTab(t);
 											setError(null);
 										}}
-										className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+										className={`relative z-10 flex-1 py-2 text-sm font-medium rounded-full transition-colors ${tab === t ? "text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
 									>
 										{t === "login" ? "Login" : "Register"}
 									</button>
@@ -249,7 +254,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 											<input name="password" type="password" required className={inputCls} />
 										</div>
 										{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm">{error}</div>}
-										<button type="submit" disabled={loading} className="w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+										<button type="submit" disabled={loading} className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
 											{loading ? "Signing in…" : "Login"}
 										</button>
 									</form>
@@ -294,7 +299,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 										{/* Newsletter consent */}
 										<div>
 											<label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => setNewsletter((v) => !v)}>
-												<div className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white ${newsletter ? "border-primary" : "border-gray-300"}`}>{newsletter && <Check size={12} strokeWidth={3} className="text-primary" />}</div>
+												<div className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border flex items-center justify-center transition-colors ${newsletter ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300"}`}>{newsletter && <Check size={12} strokeWidth={3} className="text-black" />}</div>
 												<input type="hidden" name="emailOffers" value={newsletter ? "true" : "false"} />
 												<span className="text-sm text-gray-700">Email me with news and offers</span>
 											</label>
@@ -308,7 +313,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 										</div>
 
 										{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm">{error}</div>}
-										<button type="submit" disabled={loading} className="w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+										<button type="submit" disabled={loading} className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
 											{loading ? "Creating account…" : "Create Account"}
 										</button>
 										<p className="text-center text-xs text-gray-400">
@@ -333,145 +338,17 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	);
 }
 
-const ALL_BRANDS = [
-	{ name: "Allmax", slug: "allmax" },
-	{ name: "AS-IT-IS Nutrition", slug: "as-it-is-nutrition" },
-	{ name: "Avvatar", slug: "avvatar" },
-	{ name: "Beast Life", slug: "beast-life" },
-	{ name: "BPI Sports", slug: "bpi-sports" },
-	{ name: "BSN", slug: "bsn" },
-	{ name: "Cellucor", slug: "cellucor" },
-	{ name: "Dymatize", slug: "dymatize" },
-	{ name: "GAT Sport", slug: "gat-sport" },
-	{ name: "GNC", slug: "gnc" },
-	{ name: "MuscleTech", slug: "muscletech" },
-	{ name: "MusclePharm", slug: "musclepharm" },
-	{ name: "MyProtein", slug: "myprotein" },
-	{ name: "Optimum Nutrition", slug: "optimum-nutrition" },
-	{ name: "Scitec Nutrition", slug: "scitec-nutrition" },
-	{ name: "Universal Nutrition", slug: "universal-nutrition" },
-];
-
-const TOP_BRANDS = [
-	{ name: "Optimum Nutrition", slug: "optimum-nutrition" },
-	{ name: "MuscleTech", slug: "muscletech" },
-	{ name: "BSN", slug: "bsn" },
-	{ name: "MyProtein", slug: "myprotein" },
-	{ name: "Dymatize", slug: "dymatize" },
-	{ name: "GNC", slug: "gnc" },
-];
-
-function BrandsDropdown() {
-	const [open, setOpen] = useState(false);
-	const [search, setSearch] = useState("");
-	const ref = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		function handleClick(e: MouseEvent) {
-			if (ref.current && !ref.current.contains(e.target as Node)) {
-				setOpen(false);
-				setSearch("");
-			}
-		}
-		document.addEventListener("mousedown", handleClick);
-		return () => document.removeEventListener("mousedown", handleClick);
-	}, []);
-
-	const filtered = search.trim()
-		? ALL_BRANDS.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
-		: ALL_BRANDS;
-
-	const grouped = filtered.reduce<Record<string, typeof ALL_BRANDS>>((acc, brand) => {
-		const key = /^[0-9]/.test(brand.name) ? "#" : brand.name[0].toUpperCase();
-		if (!acc[key]) acc[key] = [];
-		acc[key].push(brand);
-		return acc;
-	}, {});
-
-	const close = () => { setOpen(false); setSearch(""); };
-
-	return (
-		<div ref={ref} className="relative hidden md:block flex-shrink-0 ml-2 lg:ml-10 mr-[-8px]" onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setSearch(""); }}>
-			<button
-				className="flex items-center gap-1 text-sm font-semibold px-3 py-1.5 rounded text-primary transition-colors"
-				aria-expanded={open}
-			>
-				Brands
-				<ChevronDown size={15} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-			</button>
-
-			{open && (
-				<div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 shadow-2xl rounded-lg z-50 flex w-[580px] overflow-hidden">
-					{/* Left — searchable alphabetical list */}
-					<div className="w-[240px] flex-shrink-0 border-r border-gray-100 flex flex-col">
-						<div className="p-3 border-b border-gray-100">
-							<div className="flex items-center gap-2 border border-gray-300 rounded px-3 py-1.5 bg-white">
-								<Search size={14} className="text-gray-400 flex-shrink-0" />
-								<input
-									type="text"
-									placeholder="Search for brands"
-									value={search}
-									onChange={(e) => setSearch(e.target.value)}
-									className="text-sm flex-1 outline-none bg-transparent placeholder-gray-400"
-									autoComplete="off"
-								/>
-							</div>
-						</div>
-						<div className="overflow-y-auto max-h-[340px]">
-							{Object.keys(grouped).sort().map((letter) => (
-								<div key={letter}>
-									<div className="px-4 py-1 text-xs font-bold text-gray-400 bg-gray-50">{letter}</div>
-									{grouped[letter].map((brand) => (
-										<Link
-											key={brand.slug}
-											to={`/collections?brand=${brand.slug}`}
-											className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-stone-50 transition-colors"
-											onClick={close}
-										>
-											{brand.name}
-											<ChevronDown size={13} className="-rotate-90 text-gray-300" />
-										</Link>
-									))}
-								</div>
-							))}
-							{filtered.length === 0 && (
-								<p className="px-4 py-6 text-sm text-gray-400 text-center">No brands found</p>
-							)}
-						</div>
-					</div>
-
-					{/* Right — top brands grid */}
-					<div className="flex-1 p-4 bg-stone-100">
-						<p className="text-sm font-bold text-gray-800 mb-3">Top Brands</p>
-						<div className="grid grid-cols-3 gap-3">
-							{TOP_BRANDS.map((brand) => (
-								<Link
-									key={brand.slug}
-									to={`/collections?brand=${brand.slug}`}
-									className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group"
-									onClick={close}
-								>
-									<div className="w-full h-14 rounded flex items-center justify-center bg-gray-50 text-xs font-bold text-gray-400 group-hover:text-primary transition-colors text-center px-1">
-										{brand.name}
-									</div>
-								</Link>
-							))}
-						</div>
-					</div>
-				</div>
-			)}
-		</div>
-	);
-}
-
 export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
 	const { wishlistCount } = useWishlist();
 	const [accountOpen, setAccountOpen] = useState(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [searchOpen, setSearchOpen] = useState(false);
 	const [currentLang, setCurrentLang] = useState<"en" | "ar">("en");
 	const [profilePromptDismissed, setProfilePromptDismissed] = useState(false);
+	const [headerVisible, setHeaderVisible] = useState(true);
+	const lastScrollY = useRef(0);
 
 	// Show profile completion prompt when user is logged in but name is missing
 	// (common after social OAuth where provider didn't supply name fields)
@@ -494,6 +371,29 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
+	// Hide the sticky header on scroll-down, reveal it again on scroll-up.
+	useEffect(() => {
+		let ticking = false;
+		function handleScroll() {
+			if (ticking) return;
+			ticking = true;
+			requestAnimationFrame(() => {
+				const currentY = window.scrollY;
+				if (currentY < 80) {
+					setHeaderVisible(true);
+				} else if (currentY > lastScrollY.current) {
+					setHeaderVisible(false);
+				} else if (currentY < lastScrollY.current) {
+					setHeaderVisible(true);
+				}
+				lastScrollY.current = currentY;
+				ticking = false;
+			});
+		}
+		window.addEventListener("scroll", handleScroll, { passive: true });
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, []);
+
 	function toggleLanguage() {
 		const nextLang = currentLang === "en" ? "ar" : "en";
 		const expiredDate = "expires=Thu, 01 Jan 1970 00:00:00 UTC";
@@ -512,10 +412,16 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 
 	return (
 		<div className="min-h-screen flex flex-col">
-			<div className="bg-[#3b8578] py-2 relative">
-				<p className="text-xs font-semibold text-white text-center tracking-wide uppercase px-16">FREE DELIVERY ON ORDERS OVER QAR 99&nbsp;&nbsp;|&nbsp;&nbsp;100% Authentic Products&nbsp;&nbsp;|&nbsp;&nbsp;Fast Shipping Across Qatar</p>
-				<button onClick={toggleLanguage} translate="no" className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-white/70 hover:text-white transition-colors text-xs">
-					<Globe size={12} />
+			<div className="bg-black py-2 relative">
+				<p className="flex items-center justify-center gap-2.5 text-[10px] font-semibold text-white text-center tracking-wide uppercase px-16">
+					<span>FREE DELIVERY ON ORDERS OVER QAR 99</span>
+					<span className="w-1 h-1 rounded-full bg-lime-300 flex-shrink-0" aria-hidden="true" />
+					<span>100% Authentic Products</span>
+					<span className="w-1 h-1 rounded-full bg-lime-300 flex-shrink-0" aria-hidden="true" />
+					<span>Fast Shipping Across Qatar</span>
+				</p>
+				<button onClick={toggleLanguage} translate="no" className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-white/70 hover:text-white transition-colors text-sm">
+					<Globe size={16} strokeWidth={1.5} />
 					{currentLang === "en" ? (
 						<span lang="ar" className="font-arabic">
 							العربية
@@ -525,64 +431,36 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 					)}
 				</button>
 			</div>
-			<header className="bg-stone-100 border-b border-stone-200 sticky top-0 z-40">
-				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4">
+			<header
+				className={`bg-white border-b border-stone-200 sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}
+			>
+				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4 relative">
 					<div className="flex items-center gap-2 flex-shrink-0">
 						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
-							<Menu size={22} />
+							<Menu size={22} strokeWidth={1.5} />
 						</button>
 						<Link to="/" className="font-bold text-xl md:ml-0">
-							<img src="/images/logo.png" alt="PHQ Logo" width={772} height={223} className="h-7 md:h-12 w-auto inline-block" />
+							<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-10 w-auto inline-block" />
 						</Link>
 					</div>
-					<BrandsDropdown />
-					<Link
-						to="/collections?offers=true"
-						className="hidden md:relative md:inline-flex items-center px-[26px] py-[5px] text-gray-900 text-sm font-bold capitalize hover:opacity-90 transition-opacity flex-shrink-0"
-						style={{ transform: "rotate(-3deg)" }}
-					>
-						<svg
-							className="absolute inset-0 w-full h-full overflow-visible"
-							viewBox="0 0 100 34"
-							preserveAspectRatio="none"
-							aria-hidden="true"
-						>
-							<defs>
-								<filter id="brush-rough" x="-15%" y="-40%" width="130%" height="180%">
-									<feTurbulence type="fractalNoise" baseFrequency="0.055 0.25" numOctaves="4" seed="5" result="noise" />
-									<feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-								</filter>
-								<linearGradient id="brush-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-									<stop offset="0%" stopColor="#d97706" />
-									<stop offset="50%" stopColor="#f59e0b" />
-									<stop offset="100%" stopColor="#fcd34d" />
-								</linearGradient>
-							</defs>
-							<path
-								d="M4,17 C6,9 16,2 36,3 C53,4 66,2 80,3 C91,4 98,8 97,17 C96,25 89,30 80,31 C66,32 53,29 36,31 C16,32 6,25 4,17 Z"
-								fill="url(#brush-grad)"
-								filter="url(#brush-rough)"
-							/>
-						</svg>
-						<span className="relative">offers</span>
-					</Link>
-					<div className="flex-1 hidden md:block mr-2 lg:mr-20">
-						<SearchBox />
-					</div>
+					<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
 					<div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
-						<Link to="/wishlist" className="text-gray-600 relative hover:text-primary transition-colors" aria-label="Wishlist">
-							<Heart size={24} />
+						<button onClick={() => setSearchOpen(true)} className="hidden md:inline-flex text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label="Search">
+							<Search size={22} strokeWidth={1.5} />
+						</button>
+						<Link to="/wishlist" className="text-gray-600 relative hover:text-primary hover:scale-110 transition-all duration-200 inline-block" aria-label="Wishlist">
+							<Heart size={24} strokeWidth={1.5} />
 							{wishlistCount > 0 && <span className="absolute bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1.5 -right-1.5 pointer-events-none">{wishlistCount > 99 ? "99+" : wishlistCount}</span>}
 						</Link>
-						<button onClick={openCart} className="text-gray-600 relative hover:text-primary transition-colors cursor-pointer" aria-label="Open cart">
-							<ShoppingCart size={24} />
-							<span className="absolute bg-amber-500 text-gray-900 text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1.5 -right-1.5 pointer-events-none">{cartCount > 99 ? "99+" : cartCount}</span>
+						<button onClick={openCart} className="relative flex items-center justify-center w-9 h-9 rounded-full bg-lime-300 text-black hover:brightness-95 hover:scale-110 transition-all duration-200 cursor-pointer" aria-label="Open cart">
+							<ShoppingCart size={20} strokeWidth={1.5} />
+							<span className="absolute bg-black text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1 -right-1 pointer-events-none">{cartCount > 99 ? "99+" : cartCount}</span>
 						</button>
 
 						{activeCustomer ? (
 							<div className="relative" ref={accountRef}>
-								<button onClick={() => setAccountOpen((o) => !o)} className="flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors cursor-pointer" aria-label="Account">
-									<CircleUser size={24} />
+								<button onClick={() => setAccountOpen((o) => !o)} className="flex items-center gap-1.5 text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label="Account">
+									<CircleUser size={24} strokeWidth={1.5} />
 									<span className="hidden md:inline text-sm font-medium">{activeCustomer.firstName || "Account"}</span>
 								</button>
 
@@ -612,8 +490,8 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 								)}
 							</div>
 						) : (
-							<button onClick={() => setAuthModalOpen(true)} className="flex items-center gap-1.5 text-gray-600 hover:text-primary transition-colors cursor-pointer" aria-label="Login">
-								<CircleUser size={24} />
+							<button onClick={() => setAuthModalOpen(true)} className="flex items-center gap-1.5 text-black hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label="Login">
+								<CircleUser size={24} strokeWidth={1.5} />
 								<span className="hidden md:inline text-sm font-medium">Login</span>
 							</button>
 						)}
@@ -624,8 +502,6 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 				<div className="md:hidden px-4 pb-3">
 					<SearchBox />
 				</div>
-
-				<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
 			</header>
 
 			<main>{children}</main>
@@ -633,6 +509,8 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			<Footer pageSections={pageSections} />
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
+
+			<SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
 			{authModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
 

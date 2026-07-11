@@ -6,8 +6,8 @@ import SocialAuthButtons from "~/components/SocialAuthButtons";
 
 export function meta(): ReturnType<Route.MetaFunction> {
   return [
-    { title: "Sign In | PHQ" },
-    { name: "description", content: "Sign in to your PHQ account to track orders, manage your wishlist and write reviews." },
+    { title: "Sign In | NutriBox" },
+    { name: "description", content: "Sign in to your NutriBox account to track orders, manage your wishlist and write reviews." },
   ];
 }
 
@@ -64,7 +64,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 leading-tight">Sign in</h1>
-              <p className="text-xs text-gray-500">Welcome back to PHQ</p>
+              <p className="text-xs text-gray-500">Welcome back to NutriBox</p>
             </div>
           </div>
 

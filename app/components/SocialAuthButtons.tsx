@@ -109,7 +109,7 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers
   const facebookBusy = active === "facebook";
 
   const btnCls =
-    "flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+    "flex items-center justify-center gap-2 border border-gray-200 rounded-full py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
   const dividerBg = bg === "white" ? "bg-white" : "bg-gray-50";
 

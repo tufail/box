@@ -2,13 +2,13 @@ import type { Route } from "./+types/about";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "About PHQ — Premium Health & Quality" },
+    { title: "About NutriBox — Premium Health & Quality" },
     {
       name: "description",
       content:
-        "Learn about PHQ's mission to deliver 100% authentic health and sports nutrition products in Qatar and beyond.",
+        "Learn about NutriBox's mission to deliver 100% authentic health and sports nutrition products in Qatar and beyond.",
     },
-    { property: "og:title", content: "About PHQ — Premium Health & Quality" },
+    { property: "og:title", content: "About NutriBox — Premium Health & Quality" },
     { property: "og:type", content: "website" },
   ];
 }
@@ -16,9 +16,9 @@ export function meta({}: Route.MetaArgs) {
 export default function About() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-6">About PHQ</h1>
+      <h1 className="text-3xl font-bold mb-6">About NutriBox</h1>
       <p className="text-gray-700 mb-4">
-        PHQ is your trusted destination for premium health and sports nutrition products in Qatar.
+        NutriBox is your trusted destination for premium health and sports nutrition products in Qatar.
         We guarantee 100% authentic products sourced directly from certified distributors.
       </p>
       <p className="text-gray-700 mb-4">

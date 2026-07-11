@@ -24,7 +24,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export function meta() {
   return [
-    { title: "Social Accounts | PHQ" },
+    { title: "Social Accounts | NutriBox" },
     { name: "robots", content: "noindex" },
   ];
 }

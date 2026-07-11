@@ -4,7 +4,7 @@ import { useWishlist } from "~/context/WishlistContext";
 import VendureImage from "~/components/VendureImage";
 
 export function meta() {
-	return [{ title: "My Wishlist — PHQ" }, { name: "description", content: "Products you've saved to your wishlist." }];
+	return [{ title: "My Wishlist — NutriBox" }, { name: "description", content: "Products you've saved to your wishlist." }];
 }
 
 function formatQAR(cents: number) {
@@ -27,7 +27,7 @@ export default function WishlistPage() {
 				</p>
 				<Link
 					to="/collections"
-					className="inline-block bg-primary text-white font-semibold px-8 py-3 rounded hover:bg-primary/90 transition-colors"
+					className="inline-block bg-black text-white font-bold px-8 py-3 rounded-full hover:bg-gray-800 transition-colors"
 				>
 					Browse Products
 				</Link>
@@ -46,9 +46,16 @@ export default function WishlistPage() {
 
 			<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
 				{items.map((item) => (
-					<div key={item.variantId} className="group border border-gray-200 bg-white overflow-hidden flex flex-col">
-						<div className="relative aspect-square bg-white">
-							<Link to={`/products/${item.productSlug}?variant=${item.variantId}`}>
+					<div key={item.variantId} className="group bg-white rounded-2xl p-3 sm:p-4 flex flex-col h-full border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+						<div className="relative aspect-square flex items-center justify-center px-2">
+							<button
+								onClick={() => toggle(item)}
+								className="absolute top-0 right-0 z-10 w-7 h-7 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-colors"
+								aria-label="Remove from wishlist"
+							>
+								<Heart size={13} fill="currentColor" />
+							</button>
+							<Link to={`/products/${item.productSlug}?variant=${item.variantId}`} className="block w-full h-full">
 								<VendureImage
 									src={item.image}
 									vendureBase={item.vendureBase}
@@ -56,27 +63,24 @@ export default function WishlistPage() {
 									width={300}
 									height={300}
 									objectFit="contain"
+									imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
 								/>
 							</Link>
-							<button
-								onClick={() => toggle(item)}
-								className="absolute top-2 right-2 w-8 h-8 rounded bg-white/90 border border-red-200 shadow-sm flex items-center justify-center text-red-500 hover:border-red-400 transition-colors"
-								aria-label="Remove from wishlist"
-							>
-								<Heart size={14} fill="currentColor" />
-							</button>
 						</div>
 
-						<div className="flex flex-col flex-1 p-3 gap-2">
+						<div className="flex flex-col items-center text-center flex-1 mt-1">
 							<Link to={`/products/${item.productSlug}?variant=${item.variantId}`}>
-								<p className="text-sm font-semibold text-gray-900 line-clamp-2 hover:text-primary transition-colors leading-snug">
+								<p className="text-sm font-light text-gray-900 line-clamp-2 leading-snug hover:text-primary hover:underline transition-colors">
 									{item.name}
 								</p>
 							</Link>
-							<p className="text-base font-bold text-gray-900">{formatQAR(item.price)}</p>
+							<p className="text-base font-bold text-black mt-2">{formatQAR(item.price)}</p>
+						</div>
+
+						<div className="mt-3">
 							<Link
 								to={`/products/${item.productSlug}?variant=${item.variantId}`}
-								className="mt-auto text-center text-sm font-semibold py-2 px-4 rounded bg-cart text-white hover:bg-[#d47800] transition-colors"
+								className="w-full block text-center font-bold text-sm py-2.5 rounded-full bg-[#3b8578] text-white hover:bg-[#2e6b61] transition-colors"
 							>
 								View Product
 							</Link>

@@ -1,10 +1,11 @@
 import type { Route } from "./+types/collections";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, Check } from "lucide-react";
 import Breadcrumb from "~/components/Breadcrumb";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
+import SortDropdown from "~/components/SortDropdown";
 import {
   SEARCH_PAGE_QUERY,
   type SearchPageData,
@@ -50,11 +51,11 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 export function meta({ loaderData }: Route.MetaArgs) {
   const canonicalUrl = loaderData?.canonicalUrl ?? "/collections";
   return [
-    { title: "All Products — PHQ" },
+    { title: "All Products — NutriBox" },
     { name: "description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar." },
     { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
     { property: "og:type", content: "website" },
-    { property: "og:title", content: "All Products — PHQ" },
+    { property: "og:title", content: "All Products — NutriBox" },
     { property: "og:description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products." },
     { property: "og:url", content: canonicalUrl },
   ];
@@ -129,22 +130,28 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
             {group.facetName}
           </div>
           <ul className="space-y-2">
-            {group.values.map((v) => (
-              <li key={v.id}>
-                <label className="flex items-center gap-2.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={activeFv.includes(v.id)}
-                    onChange={() => onToggle(v.id)}
-                    className="accent-primary w-4 h-4 rounded flex-shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-gray-700 group-hover:text-primary transition-colors">
-                    {v.name}
-                  </span>
-                  <span className="text-xs text-gray-400">{v.count}</span>
-                </label>
-              </li>
-            ))}
+            {group.values.map((v) => {
+              const isActive = activeFv.includes(v.id);
+              return (
+                <li key={v.id}>
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={() => onToggle(v.id)}
+                      className="sr-only"
+                    />
+                    <span className={`flex items-center justify-center w-5 h-5 rounded-md border flex-shrink-0 transition-colors ${isActive ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300 group-hover:border-gray-400"}`}>
+                      {isActive && <Check size={13} strokeWidth={3} className="text-black" />}
+                    </span>
+                    <span className={`flex-1 text-sm transition-colors ${isActive ? "text-gray-900 font-semibold" : "text-gray-700 group-hover:text-gray-900"}`}>
+                      {v.name}
+                    </span>
+                    <span className="text-xs text-gray-400">{v.count}</span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
@@ -202,15 +209,7 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
             )}
           </button>
 
-          <select
-            value={sort as string}
-            onChange={(e) => updateParam("sort", e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <SortDropdown options={SORT_OPTIONS} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
         </div>
       </div>
 
@@ -251,7 +250,7 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === 1}
                 onClick={() => updateParam("page", String((page as number) - 1))}
-                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ← Prev
               </button>
@@ -259,7 +258,7 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === totalPages}
                 onClick={() => updateParam("page", String((page as number) + 1))}
-                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next →
               </button>

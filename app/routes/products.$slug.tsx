@@ -3,11 +3,13 @@ import { useState, useEffect, useRef } from "react";
 import { useFetcher, useNavigate, Link, useRouteLoaderData } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Flame } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
+import SortDropdown from "~/components/SortDropdown";
+import ProductHighlights, { type HighlightItem } from "~/components/ProductHighlights";
 import { PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
@@ -16,6 +18,17 @@ import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 
 const WHATSAPP_NUMBER = "97412345678"; // replace with business WhatsApp number (country code + number, no +)
+
+// TODO: placeholder data — replace with real values once the "highlights" custom
+// field is confirmed on the backend and mapped from `product.customFields`.
+const DUMMY_HIGHLIGHTS: HighlightItem[] = [
+	{ type: "gauge", label: "Potency", value: 75, displayValue: "High" },
+	{ type: "icon", label: "Best Time to Take", icon: <Sun size={24} className="text-amber-600" />, value: "Morning", iconBg: "#fef3c7" },
+	{ type: "icon", label: "Dietary Type", icon: <Leaf size={24} className="text-green-600" />, value: "Vegan", iconBg: "#dcfce7" },
+	{ type: "tags", label: "Certifications", tags: [{ text: "GMP Certified", color: "#3b8578" }, { text: "Non-GMO", color: "#224d53" }] },
+	{ type: "gauge", label: "Absorption Speed", value: 85, displayValue: "Fast" },
+	{ type: "icon", label: "Serving Form", icon: <Droplet size={24} className="text-blue-600" />, value: "Powder", iconBg: "#dbeafe" },
+];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -67,10 +80,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const vendureBase = loaderData?.vendureBase ?? "";
 	const variantName = loaderData?.activeVariantName ?? null;
 
-	if (!product) return [{ title: "Product — PHQ" }];
+	if (!product) return [{ title: "Product — NutriBox" }];
 
 	const baseTitle = product.customFields?.metaTitle ?? product.name;
-	const title = variantName ? `${baseTitle} — ${variantName} — PHQ` : `${baseTitle} — PHQ`;
+	const title = variantName ? `${baseTitle} — ${variantName} — NutriBox` : `${baseTitle} — NutriBox`;
 	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
 	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
@@ -85,7 +98,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:title", content: title },
 		{ property: "og:description", content: description },
 		{ property: "og:url", content: canonicalUrl },
-		{ property: "og:site_name", content: "PHQ" },
+		{ property: "og:site_name", content: "NutriBox" },
 		...(image ? [{ property: "og:image", content: image }] : []),
 		// Twitter
 		{ name: "twitter:card", content: "summary_large_image" },
@@ -215,16 +228,16 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 		<div className="flex flex-col gap-3">
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
 			<div className="relative">
-				<div className="relative aspect-square rounded-xl overflow-hidden bg-stone-100">
-					<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={600} height={600} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
+				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-sm">
+					<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={900} height={900} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
 
 					{/* Carousel prev/next */}
 					{resolved.length > 1 && (
 						<>
-							<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Previous image">
+							<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Previous image">
 								<ChevronLeft size={16} />
 							</button>
-							<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Next image">
+							<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Next image">
 								<ChevronRight size={16} />
 							</button>
 						</>
@@ -233,17 +246,17 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 
 				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
 				<div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded backdrop-blur-sm border shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white border-red-200 text-red-500" : "bg-white/80 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"}`} aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}>
+					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}>
 						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
 					<div className="relative">
-						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-primary" : "bg-primary/90 hover:bg-primary"}`} aria-label="Share">
+						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-gray-800" : "bg-black hover:bg-gray-800"}`} aria-label="Share">
 							<Share2 size={15} />
 						</button>
 
 						{/* Share dropdown — absolute from the button, so it never widens the parent */}
 						{showShare && (
-							<div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-20">
+							<div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-20">
 								{shareLinks.map((link) => (
 									<a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setShowShare(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}>
 										{link.icon}
@@ -264,7 +277,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 			{resolved.length > 1 && (
 				<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
 					{resolved.map((src, i) => (
-						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-primary" : "border-stone-200 hover:border-gray-400"}`}>
+						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-black" : "border-stone-200 hover:border-gray-400"}`}>
 							<img src={vendureImageUrl(src, vendureBase, { w: 64, h: 64, format: "webp", mode: "resize" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
 						</button>
 					))}
@@ -273,6 +286,55 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 		</div>
 	);
 }
+
+// ── Product info tabs (Description / Full Specs / Warnings) ────────────────
+
+function ProductInfoTabs({ description, fullSpecs, warnings, qa = "" }: { description: string; fullSpecs: string; warnings: string; qa?: string }) {
+	const TABS = [
+		{ key: "description", label: "Description", content: description, emptyText: "No description available for this product." },
+		{ key: "specs", label: "Full Specs", content: fullSpecs, emptyText: "No full specs available for this product." },
+		{ key: "warnings", label: "Disclaimer", content: warnings, emptyText: "No disclaimer available for this product." },
+		{ key: "qa", label: "Q & A", content: qa, emptyText: "No questions have been asked about this product yet." },
+	] as const;
+	const [active, setActive] = useState<(typeof TABS)[number]["key"]>("description");
+	const activeIndex = TABS.findIndex((t) => t.key === active);
+	const activeTab = TABS[activeIndex];
+	// Fixed pixel width (not percentage) so the pill always lines up exactly with its
+	// button, regardless of how much the label text varies in length between tabs.
+	const TAB_WIDTH = 128;
+
+	return (
+		<div className="flex flex-col items-center text-center">
+			{/* Sliding pill tab bar */}
+			<div className="relative inline-flex bg-white border border-gray-200 shadow-sm rounded-full p-1 mb-6">
+				<div
+					className="absolute top-1 bottom-1 left-1 rounded-full bg-black transition-transform duration-300 ease-out"
+					style={{ width: TAB_WIDTH, transform: `translateX(${activeIndex * TAB_WIDTH}px)` }}
+				/>
+				{TABS.map((t) => (
+					<button
+						key={t.key}
+						type="button"
+						onClick={() => setActive(t.key)}
+						style={{ width: TAB_WIDTH }}
+						className={`relative z-10 py-2.5 text-sm font-bold rounded-full transition-colors whitespace-nowrap text-center ${active === t.key ? "text-white" : "text-gray-600 hover:text-black"}`}
+					>
+						{t.label}
+					</button>
+				))}
+			</div>
+
+			<div className="prose prose-sm max-w-2xl w-full mx-auto text-left text-gray-600 prose-ul:pl-5 prose-ol:pl-5 prose-li:my-1">
+				{activeTab.content ? (
+					<div dangerouslySetInnerHTML={{ __html: activeTab.content }} />
+				) : (
+					<p className="text-gray-400 italic text-center">{activeTab.emptyText}</p>
+				)}
+			</div>
+		</div>
+	);
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
@@ -436,7 +498,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							<div className="flex flex-col gap-4">
 								{/* Title */}
 								<div>
-									<h1 className="text-xl font-bold text-gray-900 leading-snug">{product.name}</h1>
+									<h1 className="font-heading text-2xl font-extrabold text-black leading-snug">{product.name}</h1>
 									{brand && (
 										<p className="text-sm text-gray-500">
 											by <span className="text-primary font-medium">{brand}</span>
@@ -450,7 +512,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								</div>
 
 								{/* Stock status */}
-								<div className="border-t border-b border-gray-200 py-2.5 flex items-center justify-between">
+								<div className="rounded-xl border border-gray-100 px-4 py-2.5 flex items-center justify-between">
 									<div className="flex items-center gap-1.5">
 										{inStock ? (
 											<>
@@ -511,7 +573,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								})}
 
 								{/* Quality Promise */}
-								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded px-4 py-3">
+								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
 									<ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
 									<div>
 										<p className="text-sm font-semibold text-green-700">Quality Promise</p>
@@ -521,8 +583,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 								{/* Product-level additional info */}
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
-								{/* Key info — full width below the 2-col grid */}
-								{activeVariant?.customFields?.keyInfo && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.keyInfo }} />}
 								{/* ── Sales & Rankings ── */}
 								{variantRankings.length > 0 && (
 									<div className="mt-2">
@@ -541,14 +601,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
-								<div className="border border-gray-200 rounded-md p-5 bg-white flex flex-col gap-4">
+								<div className="border border-gray-100 rounded-2xl shadow-sm p-5 bg-white flex flex-col gap-4">
 									{/* Price */}
 									<div>
-										<div className="text-2xl font-bold text-gray-900">{price !== null ? formatQAR(price) : "—"}</div>
+										<div className="text-2xl font-black text-black">{price !== null ? formatQAR(price) : "—"}</div>
 										{hasDiscount && rrp !== null && (
 											<div className="flex items-center gap-2 mt-1 flex-wrap">
 												<span className="text-sm text-gray-400 line-through">{formatQAR(rrp)}</span>
-												<span className="bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded">{discountPct}% Off</span>
+												<span className="bg-lime-300 text-black text-xs font-bold px-2 py-0.5 rounded-full">{discountPct}% Off</span>
 											</div>
 										)}
 									</div>
@@ -606,30 +666,26 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					{/* end detail column */}
 				</div>
 
-				{/* ── Description + variant details ── */}
-				{(product.description || videoUrl || activeVariant?.customFields?.additionalInfo || activeVariant?.customFields?.keyInfo) && (
+				{/* ── Highlights (placeholder data — see DUMMY_HIGHLIGHTS) ── */}
+				<ProductHighlights title={product.name} items={DUMMY_HIGHLIGHTS} />
+
+				{/* ── Description / Full Specs / Warnings tabs ── */}
+				{(product.description || activeVariant?.customFields?.additionalInfo || activeVariant?.customFields?.keyInfo) && (
+					<div className="mt-12 max-w-[1200px] mx-auto">
+						<ProductInfoTabs
+							description={product.description ?? ""}
+							fullSpecs={activeVariant?.customFields?.additionalInfo ?? ""}
+							warnings={activeVariant?.customFields?.keyInfo ?? ""}
+						/>
+					</div>
+				)}
+
+				{/* ── Product video ── */}
+				{videoUrl && (
 					<div className="mt-12">
-						<div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
-							{/* Left — product description + details + video */}
-							<div className="space-y-10">
-								{product.description && <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: product.description }} />}
-
-								{videoUrl && (
-									<div>
-										<h2 className="text-xl font-bold text-gray-900 mb-4">Product Video</h2>
-										<div className="aspect-video rounded overflow-hidden bg-gray-100">
-											<iframe src={videoUrl} title={`${product.name} video`} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
-										</div>
-									</div>
-								)}
-							</div>
-
-							{/* Right — variant additionalInfo beside product description */}
-							{activeVariant?.customFields?.additionalInfo && (
-								<div className="lg:sticky lg:top-6">
-									<div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.additionalInfo }} />
-								</div>
-							)}
+						<h2 className="font-heading text-xl font-extrabold text-black mb-4">Product Video</h2>
+						<div className="aspect-video rounded-2xl overflow-hidden bg-gray-100 shadow-sm max-w-2xl">
+							<iframe src={videoUrl} title={`${product.name} video`} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
 						</div>
 					</div>
 				)}
@@ -754,7 +810,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 
 			{open && (
 				<div className="absolute left-0 top-full z-30 w-64 pt-1" role="dialog" aria-label="Rating summary">
-					<div className="bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+					<div className="bg-white border border-gray-100 rounded-2xl shadow-xl p-4">
 						{/* Score row */}
 						<div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
 							<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
@@ -797,7 +853,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 function NoReviews({ productSlug }: { productSlug: string }) {
 	return (
 		<section aria-label="Customer reviews">
-			<h2 className="text-xl font-bold text-gray-900 mb-6">Customer Reviews</h2>
+			<h2 className="font-heading text-xl font-extrabold text-black mb-6">Customer Reviews</h2>
 			<div className="border border-dashed border-amber-300 rounded-2xl px-6 py-10 flex flex-col items-center text-center gap-5 bg-amber-50/40">
 				<div className="flex items-center gap-1">
 					{[1, 2, 3, 4, 5].map((s) => (
@@ -872,8 +928,8 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 		<section aria-label="Customer reviews">
 			{/* Header */}
 			<div className="flex items-center justify-between gap-4 mb-6">
-				<h2 className="text-xl font-bold text-gray-900">Customer Reviews</h2>
-				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 border-2 border-primary text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary hover:text-white transition-colors">
+				<h2 className="font-heading text-xl font-extrabold text-black">Customer Reviews</h2>
+				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 border-2 border-black text-black font-semibold text-sm px-5 py-2 rounded-full hover:bg-black hover:text-white transition-colors">
 					Write a Review
 				</Link>
 			</div>
@@ -923,16 +979,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 				<div id="reviews" className="space-y-3">
 					<div className="flex items-center justify-between gap-3 pb-1">
 						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} reviews</span>
-						<div className="flex items-center gap-2">
-							<span className="text-sm text-gray-500 hidden sm:inline">Sort:</span>
-							<select value={sort} onChange={(e) => handleSortChange(e.target.value as ReviewSortOrder)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
-								{SORT_OPTIONS.map((o) => (
-									<option key={o.value} value={o.value}>
-										{o.label}
-									</option>
-								))}
-							</select>
-						</div>
+						<SortDropdown options={SORT_OPTIONS} value={sort} onChange={handleSortChange} />
 					</div>
 
 					{loading && reviews.length === 0 ? (

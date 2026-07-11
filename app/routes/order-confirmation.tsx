@@ -4,7 +4,7 @@ import CheckoutLayout from "~/layouts/CheckoutLayout";
 
 export function meta() {
   return [
-    { title: "Order Confirmed — PHQ" },
+    { title: "Order Confirmed — NutriBox" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }

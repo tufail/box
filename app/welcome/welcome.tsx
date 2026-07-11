@@ -10,7 +10,7 @@ import { ChevronRight } from "lucide-react";
 
 function StackBanner() {
 	return (
-		<div className="flex-1 rounded-xl overflow-hidden bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+		<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
 				<img
 					src="/images/stack.png"
@@ -47,6 +47,8 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 		mobileImage: item.mobileAssetPreview,
 		label: item.title,
 		href: item.url || undefined,
+		hideTitle: item.hideTitle,
+		titlePosition: item.titlePosition,
 	}));
 
 	return (
@@ -60,15 +62,15 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					</div>
 
 					{/* Side banners — row below on tablet, column beside on desktop */}
-					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-2 mt-2 lg:mt-0 lg:pl-2 self-stretch">
+					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:pl-6 self-stretch">
 						{/* NutriQuick delivery banner */}
-						<div className="flex-1 rounded-xl overflow-hidden bg-gradient-to-r from-violet-100 via-purple-50 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+						<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
 								<img src="/images/clock-3d.png" alt="Fast Delivery" className="w-full h-full object-contain animate-vibrate" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<div className="flex items-center gap-1 mb-0.5">
-									<span className="text-cart font-extrabold text-xl tracking-widest italic">NutriQuick</span>
+									<span className="font-heading text-cart font-black text-xl tracking-widest italic">NutriQuick</span>
 								</div>
 								<p className="text-gray-600 text-xs leading-tight italic">Fast Delivery from</p>
 								<p className="text-primary font-extrabold text-sm leading-tight italic">2 Hours to Next Day!!</p>

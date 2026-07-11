@@ -3,6 +3,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, 
 import type { Route } from "./+types/root";
 import "./app.css";
 import MainLayout from "./layouts/MainLayout";
+import NavigationProgress from "./components/NavigationProgress";
 import { CartProvider } from "./context/CartContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { WishlistProvider } from "./context/WishlistContext";
@@ -17,7 +18,7 @@ export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@700;800;900&family=Noto+Sans+Arabic:wght@400;500&display=swap",
 	},
 ];
 
@@ -84,6 +85,7 @@ export default function App() {
 		<NotificationProvider>
 			<WishlistProvider>
 				<CartProvider initialCount={cartCount}>
+					<NavigationProgress />
 					{isCheckoutRoute ? (
 						<Outlet />
 					) : (

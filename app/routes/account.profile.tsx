@@ -27,7 +27,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-  return [{ title: "My Profile | PHQ" }, { name: "robots", content: "noindex" }];
+  return [{ title: "My Profile | NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
 const inputCls =
@@ -168,7 +168,7 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
 function ReferralCard({ customer }: { customer: CustomerProfile }) {
   const [copied, setCopied] = useState(false);
 
-  const referralCode = `PHQ${customer.id.toString().padStart(8, "0").toUpperCase()}`;
+  const referralCode = `NB${customer.id.toString().padStart(8, "0").toUpperCase()}`;
   const referralLink =
     typeof window !== "undefined"
       ? `${window.location.origin}?ref=${referralCode}`

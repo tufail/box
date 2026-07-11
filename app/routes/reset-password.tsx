@@ -5,7 +5,7 @@ import { KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowLeft } from "luc
 
 export function meta(): ReturnType<Route.MetaFunction> {
   return [
-    { title: "Reset Password | PHQ" },
+    { title: "Reset Password | NutriBox" },
     { name: "robots", content: "noindex" },
   ];
 }

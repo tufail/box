@@ -4,7 +4,7 @@ import type { Route } from "./+types/forgot-password";
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 
 export function meta(): ReturnType<Route.MetaFunction> {
-	return [{ title: "Forgot Password | PHQ" }, { name: "description", content: "Reset your PHQ account password." }];
+	return [{ title: "Forgot Password | NutriBox" }, { name: "description", content: "Reset your NutriBox account password." }];
 }
 
 export default function ForgotPasswordPage() {

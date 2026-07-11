@@ -32,7 +32,7 @@ export default function HomeTrendingBanners({ title = "Trending Products", vendu
 
 function Shimmer() {
   return (
-    <section className="py-8 container mx-auto px-4">
+    <section className="py-8 md:py-10 container mx-auto px-4">
       <div className="h-6 w-48 bg-gray-200 rounded mb-5 animate-pulse" />
       <div className="flex gap-4">
         {[...Array(4)].map((_, i) => (
@@ -74,9 +74,9 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
   }, [emblaApi, onSelect]);
 
   return (
-    <section className="py-8 container mx-auto px-4">
-      <div className="mb-5">
-        <h2 className="text-xl font-medium">{title}</h2>
+    <section className="py-8 md:py-10 container mx-auto px-4">
+      <div className="mb-8 md:mb-10">
+        <h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{title}</h2>
       </div>
 
       <div className="relative">
@@ -89,11 +89,11 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
           <ChevronLeft size={14} />
         </button>
 
-        <div className="overflow-hidden" ref={emblaRef}>
+        <div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
           <div className="flex -mx-2">
             {items.map((item) => (
               <div key={item.id} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2">
-                <a href={item.url} className="border border-gray-200 bg-white overflow-hidden flex flex-col h-full group block rounded-xl">
+                <a href={item.url} className="border border-gray-100 bg-white overflow-hidden flex flex-col h-full group block rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                   <div className="aspect-square overflow-hidden bg-white">
                     <VendureImage
                       src={item.assetPreview}
@@ -102,6 +102,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
                       width={300}
                       height={300}
                       objectFit="contain"
+                      imgClassName="group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   <div className="px-3 pt-2 pb-4 text-center">

@@ -51,7 +51,7 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 
 export function meta({ data }: Route.MetaArgs) {
   const q = (data as { q?: string } | undefined)?.q ?? "";
-  return [{ title: q ? `Search: ${q} — PHQ` : "Search — PHQ" }];
+  return [{ title: q ? `Search: ${q} — NutriBox` : "Search — NutriBox" }];
 }
 
 // ── Loader ─────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import type { BannerItem } from "~/graphql/banner";
 
 function BannerShimmer() {
 	return (
-		<div className="container mx-auto px-4 mt-4">
+		<div className="container mx-auto px-4 py-8 md:py-10">
 			<svg className="w-full" style={{ aspectRatio: "1440/280" }} xmlns="http://www.w3.org/2000/svg">
 				<defs>
 					<linearGradient id="banner-shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -50,13 +50,21 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	const picture = (
 		<picture>
 			{state.mobileAssetPreview && <source media="(max-width: 767px)" srcSet={state.mobileAssetPreview} />}
-			<img src={state.assetPreview} alt={state.title} className="w-full border border-gray-200 h-auto block rounded-xl" loading="lazy" />
+			<img src={state.assetPreview} alt={state.title} className="w-full h-auto block group-hover:scale-105 transition-transform duration-300" loading="lazy" />
 		</picture>
 	);
 
+	const wrapperClass = "block overflow-hidden rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow";
+
 	return (
-		<div className="container mx-auto px-4 mt-4">
-			{state.url ? <a href={state.url}>{picture}</a> : picture}
+		<div className="container mx-auto px-4 py-8 md:py-10">
+			{state.url ? (
+				<a href={state.url} className={`group ${wrapperClass}`}>
+					{picture}
+				</a>
+			) : (
+				<div className={wrapperClass}>{picture}</div>
+			)}
 		</div>
 	);
 }

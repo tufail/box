@@ -46,7 +46,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 	}, [emblaApi, onSelect]);
 
 	return (
-		<section className="pt-8 pb-5 container mx-auto px-4">
+		<section className="py-8 md:py-10 container mx-auto px-4">
 			<div className="relative">
 				<button
 					onClick={() => emblaApi?.scrollPrev()}
@@ -61,33 +61,42 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 					<div className="flex -mx-2">
 						{collections.map((col) => (
 							<div key={col.id} className="flex-none w-[120px] md:w-[140px] px-2">
-								<Link
-									to={`/collections/${col.slug}`}
-									className="group block overflow-hidden rounded-xl bg-white"
+								{/* 1px gradient "border" — solid for the top 70% of the card, fading to
+								    transparent over the bottom 30% so it merges into the page background. */}
+								<div
+									className="rounded-xl p-px"
+									style={{ background: "linear-gradient(to bottom, rgba(209,213,219,0.3) 0%, rgba(209,213,219,0.3) 70%, transparent 100%)" }}
 								>
-									<div className="aspect-square overflow-hidden bg-gradient-to-b from-amber-100 to-white">
-										{col.featuredAsset ? (
-											<VendureImage
-												src={col.featuredAsset.preview}
-												vendureBase={vendureBase}
-												alt={col.name}
-												width={400}
-												height={400}
-												objectFit="contain"
-												imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
-											/>
-										) : (
-											<div className="w-full h-full flex items-center justify-center">
-												<span className="text-4xl font-bold text-amber-200">{col.name[0]}</span>
+									<Link
+										to={`/collections/${col.slug}`}
+										className="group block rounded-xl"
+									>
+										<div className="overflow-hidden rounded-xl bg-stone-100">
+											<div className="aspect-square overflow-hidden bg-gradient-to-b from-white via-white via-40% to-stone-100 to-70%">
+												{col.featuredAsset ? (
+													<VendureImage
+														src={col.featuredAsset.preview}
+														vendureBase={vendureBase}
+														alt={col.name}
+														width={400}
+														height={400}
+														objectFit="contain"
+														imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+													/>
+												) : (
+													<div className="w-full h-full flex items-center justify-center">
+														<span className="text-4xl font-bold text-amber-200">{col.name[0]}</span>
+													</div>
+												)}
 											</div>
-										)}
-									</div>
-									<div className="py-1 text-center px-1 bg-white -mt-5 relative z-10">
-										<span className="text-xs font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200 leading-tight">
-											{col.name}
-										</span>
-									</div>
-								</Link>
+											<div className="pt-3 pb-1 text-center px-1 bg-stone-100 -mt-5 relative z-10">
+												<span className="block text-xs font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200 leading-[0.9]">
+													{col.name}
+												</span>
+											</div>
+										</div>
+									</Link>
+								</div>
 							</div>
 						))}
 					</div>

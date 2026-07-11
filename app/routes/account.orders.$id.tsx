@@ -46,7 +46,7 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
 export function meta({ data }: Route.MetaArgs) {
   const code = data?.order?.code ?? "";
   return [
-    { title: `Order #${code} | PHQ` },
+    { title: `Order #${code} | NutriBox` },
     { name: "robots", content: "noindex" },
   ];
 }

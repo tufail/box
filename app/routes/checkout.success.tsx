@@ -8,7 +8,7 @@ import type { VendurePayment } from "~/types/sadad";
 
 export function meta() {
   return [
-    { title: "Order Confirmed — PHQ" },
+    { title: "Order Confirmed — NutriBox" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }

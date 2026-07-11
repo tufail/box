@@ -67,7 +67,7 @@ export default function Footer({ pageSections }: FooterProps) {
 		<>
 			<footer>
 				{/* Trust badges */}
-				<div className="border-t border-stone-200 bg-stone-100 py-5">
+				<div className="border-t border-stone-200 bg-white py-5">
 					<div className="container mx-auto px-4">
 						<div className="grid grid-cols-2 md:grid-cols-4">
 							{trustBadges.map(({ icon: Icon, title, desc }, i) => (

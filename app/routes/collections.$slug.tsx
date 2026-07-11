@@ -1,10 +1,11 @@
 import type { Route } from "./+types/collections.$slug";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, Check } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
+import SortDropdown from "~/components/SortDropdown";
 import {
   COLLECTION_PAGE_QUERY,
   COLLECTION_FACETS_QUERY,
@@ -41,6 +42,31 @@ interface FacetGroup {
   values: { id: string; name: string; count: number }[];
 }
 
+// ── Marquee hero (shown when the collection has no banner image) ────────────
+
+function CollectionMarqueeHero({ title }: { title: string }) {
+  const REPEAT = 4;
+  const track = Array.from({ length: REPEAT * 2 }, (_, i) => (
+    <span key={i} className="flex items-center gap-6 flex-shrink-0">
+      <span className="font-heading text-2xl sm:text-4xl font-black uppercase bg-gradient-to-r from-lime-600 via-gray-900 to-[#224d53] bg-clip-text text-transparent">
+        {title}
+      </span>
+      <span className="w-2 h-2 rounded-full bg-lime-300 flex-shrink-0" />
+    </span>
+  ));
+
+  return (
+    <div className="relative w-full h-14 sm:h-20 rounded-2xl overflow-hidden mb-4" aria-hidden="true">
+      <div className="absolute -top-8 left-1/4 w-28 h-28 rounded-full bg-lime-400/25 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 right-1/4 w-32 h-32 rounded-full bg-[#3b8578]/30 blur-3xl pointer-events-none" />
+
+      <div className="absolute inset-0 flex items-center">
+        <div className="flex items-center gap-6 w-max animate-marquee">{track}</div>
+      </div>
+    </div>
+  );
+}
+
 function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
   const map = new Map<string, FacetGroup>();
   for (const { facetValue, count } of facetValues) {
@@ -61,7 +87,7 @@ function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const name = loaderData?.collection?.name ?? "Collection";
-  return [{ title: `${name} — PHQ` }];
+  return [{ title: `${name} — NutriBox` }];
 }
 
 // ── Loader ─────────────────────────────────────────────────────────────────
@@ -160,9 +186,12 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
                       type="checkbox"
                       checked={isActive}
                       onChange={() => onToggle(v.id)}
-                      className="accent-primary w-4 h-4 rounded flex-shrink-0"
+                      className="sr-only"
                     />
-                    <span className={`flex-1 text-sm transition-colors ${isActive ? "text-primary font-medium" : "text-gray-700 group-hover:text-primary"}`}>
+                    <span className={`flex items-center justify-center w-5 h-5 rounded-md border flex-shrink-0 transition-colors ${isActive ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300 group-hover:border-gray-400"}`}>
+                      {isActive && <Check size={13} strokeWidth={3} className="text-black" />}
+                    </span>
+                    <span className={`flex-1 text-sm transition-colors ${isActive ? "text-gray-900 font-semibold" : "text-gray-700 group-hover:text-gray-900"}`}>
                       {v.name}
                     </span>
                     <span className="text-xs text-gray-400">{v.count}</span>
@@ -232,7 +261,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       {/* ── Collection header ── */}
       {collection && (
         <div className="mb-6">
-          {collection.customFields?.banner?.source && (
+          {collection.customFields?.banner?.source ? (
             <div className="w-full rounded overflow-hidden mb-4 bg-gray-100">
               <img
                 src={collection.customFields.banner.source}
@@ -242,8 +271,10 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
                 fetchPriority="high"
               />
             </div>
+          ) : (
+            <CollectionMarqueeHero title={collection.name} />
           )}
-          <h1 className="text-2xl font-bold text-gray-900">{collection.name}</h1>
+          <h1 className={`text-2xl font-bold text-gray-900 ${collection.customFields?.banner?.source ? "" : "sr-only"}`}>{collection.name}</h1>
           {collection.description && (
             <p className="text-sm text-gray-500 mt-1 max-w-2xl">{collection.description}</p>
           )}
@@ -268,15 +299,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             )}
           </button>
 
-          <select
-            value={sort as string}
-            onChange={(e) => updateParam("sort", e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <SortDropdown options={SORT_OPTIONS} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
         </div>
       </div>
 
@@ -315,7 +338,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === 1}
                 onClick={() => updateParam("page", String((page as number) - 1))}
-                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ← Prev
               </button>
@@ -323,7 +346,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
               <button
                 disabled={page === totalPages}
                 onClick={() => updateParam("page", String((page as number) + 1))}
-                className="px-4 py-2 rounded border border-gray-300 text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next →
               </button>

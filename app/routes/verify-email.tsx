@@ -5,7 +5,7 @@ import { CheckCircle2, AlertCircle, Loader2, MailCheck } from "lucide-react";
 
 export function meta(): ReturnType<Route.MetaFunction> {
   return [
-    { title: "Verify Email | PHQ" },
+    { title: "Verify Email | NutriBox" },
     { name: "robots", content: "noindex" },
   ];
 }
@@ -135,7 +135,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2 text-emerald-600">
             <MailCheck size={22} />
-            <span className="text-sm font-semibold uppercase tracking-widest">PHQ</span>
+            <span className="text-sm font-semibold uppercase tracking-widest">NutriBox</span>
           </div>
         </div>
         {children}

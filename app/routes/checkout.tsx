@@ -30,7 +30,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-	return [{ title: "Checkout — PHQ" }, { name: "robots", content: "noindex, nofollow" }];
+	return [{ title: "Checkout — NutriBox" }, { name: "robots", content: "noindex, nofollow" }];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

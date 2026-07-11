@@ -19,16 +19,16 @@ import {
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "PHQ — Premium Health & Quality Supplements" },
+    { title: "NutriBox — Premium Health & Quality Supplements" },
     {
       name: "description",
       content:
-        "Shop authentic protein powders, vitamins, and sports nutrition at PHQ. 100% genuine products, fast delivery in Qatar.",
+        "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox. 100% genuine products, fast delivery in Qatar.",
     },
-    { property: "og:title", content: "PHQ — Premium Health & Quality Supplements" },
+    { property: "og:title", content: "NutriBox — Premium Health & Quality Supplements" },
     {
       property: "og:description",
-      content: "Shop authentic protein powders, vitamins, and sports nutrition at PHQ.",
+      content: "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox.",
     },
     { property: "og:type", content: "website" },
   ];
