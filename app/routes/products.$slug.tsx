@@ -1,9 +1,10 @@
 import type { Route } from "./+types/products.$slug";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useFetcher, useNavigate, Link, useRouteLoaderData } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet, Maximize2, X, Truck, Info } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -25,7 +26,7 @@ const DUMMY_HIGHLIGHTS: HighlightItem[] = [
 	{ type: "gauge", label: "Potency", value: 75, displayValue: "High" },
 	{ type: "icon", label: "Best Time to Take", icon: <Sun size={24} className="text-amber-600" />, value: "Morning", iconBg: "#fef3c7" },
 	{ type: "icon", label: "Dietary Type", icon: <Leaf size={24} className="text-green-600" />, value: "Vegan", iconBg: "#dcfce7" },
-	{ type: "tags", label: "Certifications", tags: [{ text: "GMP Certified", color: "#3b8578" }, { text: "Non-GMO", color: "#224d53" }] },
+	{ type: "tags", label: "Certifications", tags: [{ text: "GMP Certified", color: "#0ea5e9" }, { text: "Non-GMO", color: "#8b5cf6" }] },
 	{ type: "gauge", label: "Absorption Speed", value: 85, displayValue: "Fast" },
 	{ type: "icon", label: "Serving Form", icon: <Droplet size={24} className="text-blue-600" />, value: "Powder", iconBg: "#dbeafe" },
 ];
@@ -168,8 +169,22 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 	const [active, setActive] = useState(0);
 	const [showShare, setShowShare] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [lightboxOpen, setLightboxOpen] = useState(false);
+	const shareRef = useRef<HTMLDivElement>(null);
 	const { toggle, isWishlisted } = useWishlist();
 	const wishlisted = isWishlisted(wishlistItem.variantId);
+
+	// Close the share dropdown on outside click
+	useEffect(() => {
+		if (!showShare) return;
+		const onClickOutside = (e: MouseEvent) => {
+			if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+				setShowShare(false);
+			}
+		};
+		document.addEventListener("mousedown", onClickOutside);
+		return () => document.removeEventListener("mousedown", onClickOutside);
+	}, [showShare]);
 
 	// Merge: variant images first, then product images (dedup by url)
 	const combined = [...variantImages, ...images].filter((src, i, arr) => arr.indexOf(src) === i);
@@ -228,7 +243,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 		<div className="flex flex-col gap-3">
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
 			<div className="relative">
-				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-sm">
+				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white">
 					<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={900} height={900} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
 
 					{/* Carousel prev/next */}
@@ -246,11 +261,14 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 
 				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
 				<div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+					<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label="View full screen">
+						<Maximize2 size={15} />
+					</button>
 					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}>
 						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
-					<div className="relative">
-						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm text-white shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-gray-800" : "bg-black hover:bg-gray-800"}`} aria-label="Share">
+					<div className="relative" ref={shareRef}>
+						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-white text-primary" : "bg-white/90 text-gray-600 hover:text-primary"}`} aria-label="Share">
 							<Share2 size={15} />
 						</button>
 
@@ -283,16 +301,126 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 					))}
 				</div>
 			)}
+
+			{lightboxOpen && (
+				<GalleryLightbox images={resolved} vendureBase={vendureBase} name={name} initialIndex={currentIdx} onClose={() => setLightboxOpen(false)} />
+			)}
 		</div>
+	);
+}
+
+// ── Full-screen gallery lightbox with prev/next + click-to-zoom ────────────
+function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: { images: string[]; vendureBase: string; name: string; initialIndex: number; onClose: () => void }) {
+	const [index, setIndex] = useState(initialIndex);
+	const [zoomed, setZoomed] = useState(false);
+	const [origin, setOrigin] = useState("50% 50%");
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	const goPrev = useCallback(() => {
+		setZoomed(false);
+		setIndex((i) => (i - 1 + images.length) % images.length);
+	}, [images.length]);
+
+	const goNext = useCallback(() => {
+		setZoomed(false);
+		setIndex((i) => (i + 1) % images.length);
+	}, [images.length]);
+
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") onClose();
+			else if (e.key === "ArrowLeft") goPrev();
+			else if (e.key === "ArrowRight") goNext();
+		};
+		window.addEventListener("keydown", onKey);
+		const prevOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			window.removeEventListener("keydown", onKey);
+			document.body.style.overflow = prevOverflow;
+		};
+	}, [goPrev, goNext, onClose]);
+
+	const updateOrigin = (e: React.MouseEvent<HTMLDivElement>) => {
+		const rect = e.currentTarget.getBoundingClientRect();
+		const x = ((e.clientX - rect.left) / rect.width) * 100;
+		const y = ((e.clientY - rect.top) / rect.height) * 100;
+		setOrigin(`${x}% ${y}%`);
+	};
+
+	if (!mounted) return null;
+
+	return createPortal(
+		<div className="fixed inset-0 z-[999] bg-stone-100 flex flex-col animate-fade-in">
+			<div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
+				<span className="text-gray-500 text-sm font-medium">
+					{index + 1} / {images.length}
+				</span>
+				<button onClick={onClose} className="w-9 h-9 rounded-full bg-black hover:bg-gray-800 flex items-center justify-center text-white transition-colors" aria-label="Close">
+					<X size={18} />
+				</button>
+			</div>
+
+			<div className="relative flex-1 flex items-center justify-center px-4 sm:px-10 min-h-0">
+				{images.length > 1 && (
+					<button onClick={goPrev} className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label="Previous image">
+						<ChevronLeft size={20} />
+					</button>
+				)}
+
+				<div
+					className={`relative w-full h-full max-w-5xl max-h-[88vh] overflow-hidden ${zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+					onClick={(e) => {
+						updateOrigin(e);
+						setZoomed((z) => !z);
+					}}
+					onMouseMove={(e) => zoomed && updateOrigin(e)}
+				>
+					<img
+						src={vendureImageUrl(images[index], vendureBase, { w: 1200, h: 1200, format: "webp", mode: "resize" })}
+						alt={name}
+						className="w-full h-full object-contain select-none transition-transform duration-300 ease-out"
+						style={{ transform: zoomed ? "scale(2.2)" : "scale(1)", transformOrigin: origin }}
+						draggable={false}
+					/>
+				</div>
+
+				{images.length > 1 && (
+					<button onClick={goNext} className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label="Next image">
+						<ChevronRight size={20} />
+					</button>
+				)}
+			</div>
+
+			{images.length > 1 && (
+				<div className="flex items-center justify-center gap-1.5 py-2 flex-shrink-0">
+					{images.map((_, i) => (
+						<button
+							key={i}
+							onClick={() => {
+								setZoomed(false);
+								setIndex(i);
+							}}
+							className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-black" : "w-1.5 bg-gray-300 hover:bg-gray-400"}`}
+							aria-label={`Go to image ${i + 1}`}
+						/>
+					))}
+				</div>
+			)}
+		</div>,
+		document.body
 	);
 }
 
 // ── Product info tabs (Description / Full Specs / Warnings) ────────────────
 
-function ProductInfoTabs({ description, fullSpecs, warnings, qa = "" }: { description: string; fullSpecs: string; warnings: string; qa?: string }) {
+function ProductInfoTabs({ description, warnings, qa = "" }: { description: string; warnings: string; qa?: string }) {
 	const TABS = [
 		{ key: "description", label: "Description", content: description, emptyText: "No description available for this product." },
-		{ key: "specs", label: "Full Specs", content: fullSpecs, emptyText: "No full specs available for this product." },
 		{ key: "warnings", label: "Disclaimer", content: warnings, emptyText: "No disclaimer available for this product." },
 		{ key: "qa", label: "Q & A", content: qa, emptyText: "No questions have been asked about this product yet." },
 	] as const;
@@ -492,27 +620,27 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 					{/* Detail column — 2/3 */}
 					<div className="flex flex-col">
-						{/* Inner 2-col: [title + stock + options] | price card */}
-						<div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 items-start">
-							{/* Left — Title + Stock + Option selectors + Quality Promise */}
-							<div className="flex flex-col gap-4">
-								{/* Title */}
-								<div>
-									<h1 className="font-heading text-2xl font-extrabold text-black leading-snug">{product.name}</h1>
-									{brand && (
-										<p className="text-sm text-gray-500">
-											by <span className="text-primary font-medium">{brand}</span>
-										</p>
-									)}
-									{ratingSummary && ratingSummary.totalReviews > 0 && (
-										<div className="mt-1.5">
-											<RatingSummaryBadge summary={ratingSummary} productSlug={product.slug} />
-										</div>
-									)}
+						{/* Title — full width */}
+						<div className="mb-4">
+							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{product.name}</h1>
+							{brand && (
+								<p className="text-sm text-gray-500">
+									by <span className="text-primary font-medium">{brand}</span>
+								</p>
+							)}
+							{ratingSummary && ratingSummary.totalReviews > 0 && (
+								<div className="mt-1.5">
+									<RatingSummaryBadge summary={ratingSummary} productSlug={product.slug} />
 								</div>
+							)}
+						</div>
 
+						{/* Inner 2-col: [stock + options] | price card */}
+						<div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 items-start">
+							{/* Left — Stock + Option selectors + Quality Promise */}
+							<div className="flex flex-col gap-4">
 								{/* Stock status */}
-								<div className="rounded-xl border border-gray-100 px-4 py-2.5 flex items-center justify-between">
+								<div className="border-t border-b border-gray-200 py-2.5 flex items-center justify-between">
 									<div className="flex items-center gap-1.5">
 										{inStock ? (
 											<>
@@ -560,10 +688,19 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																	navigate(`/products/${product.slug}?variant=${newVariant.id}`, { replace: true, preventScrollReset: true });
 																}
 															}}
-															className={`px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-gray-900 font-semibold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"}`}
+															className={`relative px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50"}`}
 														>
 															<span className="block">{val}</span>
-															{showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : available ? "text-gray-500" : "text-gray-300"}`}>{available && matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>}
+															{!available ? (
+																<>
+																	<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+																		<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
+																	</span>
+																	<span className="absolute -top-1.5 right-1 bg-gray-700 text-white text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shadow-sm leading-none">Sold Out</span>
+																</>
+															) : (
+																showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>
+															)}
 														</button>
 													);
 												})}
@@ -601,7 +738,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
-								<div className="border border-gray-100 rounded-2xl shadow-sm p-5 bg-white flex flex-col gap-4">
+								<div className="bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
 									{/* Price */}
 									<div>
 										<div className="text-2xl font-black text-black">{price !== null ? formatQAR(price) : "—"}</div>
@@ -613,10 +750,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										)}
 									</div>
 
-									<div className="flex flex-row gap-3">
-										{/* Quantity stepper */}
-										<div className="flex items-center justify-between gap-2">
-											<div className="flex items-center border border-gray-300 rounded-full overflow-hidden">
+									<div className="flex flex-col gap-3">
+										{/* Quantity stepper + shipping info */}
+										<div className="flex items-center justify-between gap-3">
+											<div className="flex items-center border border-gray-300 bg-white rounded-full overflow-hidden">
 												<button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Decrease">
 													<Minus size={13} />
 												</button>
@@ -624,6 +761,18 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												<button onClick={() => setQty((q) => q + 1)} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Increase">
 													<Plus size={13} />
 												</button>
+											</div>
+
+											{/* TODO: placeholder copy — replace with real shipping/free-shipping-threshold config once available from the backend */}
+											<div className="relative group">
+												<button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors cursor-default">
+													<Truck size={15} />
+													Shipping Info
+													<Info size={13} className="text-gray-400" />
+												</button>
+												<div className="absolute right-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-20">
+													Free shipping on orders over <span className="font-bold text-black">QAR 150</span>. Standard delivery within Qatar in 2–4 business days.
+												</div>
 											</div>
 										</div>
 
@@ -669,14 +818,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── Highlights (placeholder data — see DUMMY_HIGHLIGHTS) ── */}
 				<ProductHighlights title={product.name} items={DUMMY_HIGHLIGHTS} />
 
-				{/* ── Description / Full Specs / Warnings tabs ── */}
+				{/* ── Description / Disclaimer / Q&A tabs + Nutrition Facts ── */}
 				{(product.description || activeVariant?.customFields?.additionalInfo || activeVariant?.customFields?.keyInfo) && (
-					<div className="mt-12 max-w-[1200px] mx-auto">
-						<ProductInfoTabs
-							description={product.description ?? ""}
-							fullSpecs={activeVariant?.customFields?.additionalInfo ?? ""}
-							warnings={activeVariant?.customFields?.keyInfo ?? ""}
-						/>
+					<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
+						<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+							<ProductInfoTabs
+								description={product.description ?? ""}
+								warnings={activeVariant?.customFields?.keyInfo ?? ""}
+							/>
+						</div>
+
+						{/* Nutrition Facts */}
+						{activeVariant?.customFields?.additionalInfo && (
+							<div className="lg:sticky lg:top-6">
+								<div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.additionalInfo }} />
+							</div>
+						)}
 					</div>
 				)}
 

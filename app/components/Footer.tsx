@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Headphones, Lock, Truck, ShieldCheck, MapPin, Phone, Mail } from "lucide-react";
+import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function WhatsAppIcon() {
 
 const trustBadges = [
 	{ icon: Headphones, title: "24/7 Support", desc: "Dedicated Support" },
-	{ icon: Lock, title: "100% Secure Payments", desc: "Secure Checkout" },
+	{ icon: RotateCcw, title: "Easy returns and refunds", desc: "Hassle-free returns" },
 	{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours" },
 	{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
 ];
@@ -72,7 +72,7 @@ export default function Footer({ pageSections }: FooterProps) {
 						<div className="grid grid-cols-2 md:grid-cols-4">
 							{trustBadges.map(({ icon: Icon, title, desc }, i) => (
 								<div key={title} className={`flex items-center gap-3 py-4 px-4 md:py-3 ${i !== 0 ? "md:border-l md:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-100 md:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-gray-100 md:border-l md:border-gray-200" : ""}`}>
-									<Icon size={30} strokeWidth={1.5} className="text-gray-800 shrink-0" aria-hidden="true" />
+									<Icon size={30} strokeWidth={1.5} className={`shrink-0 ${title === "Easy returns and refunds" ? "text-primary" : "text-gray-800"}`} aria-hidden="true" />
 									<div>
 										<p className="font-semibold text-xs md:text-sm text-gray-900 leading-tight">{title}</p>
 										<p className="text-xs text-gray-500 mt-0.5">{desc}</p>
@@ -84,7 +84,7 @@ export default function Footer({ pageSections }: FooterProps) {
 				</div>
 
 				{/* Main dark section */}
-				<div className="bg-primary text-white">
+				<div className="bg-gradient-to-b from-[#08191c] to-primary text-white">
 					<div className="container mx-auto px-4 py-10">
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
 							{/* Col 1 — Company info */}

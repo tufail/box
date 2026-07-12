@@ -43,18 +43,76 @@ function resolveImg(preview: string, base: string) {
 	return preview.startsWith("http") ? preview : `${base}${preview}`;
 }
 
+// Maps an order shipping address or a customer address-book entry to the Shipping step's
+// form shape — both share the same field names, just from different API sources.
+function addressToShippingValues(addr: { fullName?: string | null; streetLine1: string | null; streetLine2?: string | null; city?: string | null; postalCode?: string | null; phoneNumber?: string | null } | null | undefined): ShippingAddressValues | null {
+	if (!addr?.streetLine1) return null;
+	const [firstName = "", ...rest] = (addr.fullName ?? "").trim().split(" ");
+	return {
+		firstName,
+		lastName: rest.join(" "),
+		streetLine1: addr.streetLine1,
+		streetLine2: addr.streetLine2 ?? undefined,
+		city: addr.city ?? "",
+		postalCode: addr.postalCode ?? "",
+		phoneNumber: addr.phoneNumber ?? undefined,
+	};
+}
+
+// Pre-fills the Shipping step from whatever address the active order already has saved
+// server-side (e.g. a returning/refreshed checkout session), instead of starting blank.
+function deriveShippingDraft(order: ActiveOrder): ShippingAddressValues | null {
+	return addressToShippingValues(order.shippingAddress);
+}
+
+// Resumes the checkout wherever the order's own state already left off. Customer info can
+// safely auto-complete (it's already confirmed on the order). Shipping stays open and arrives
+// pre-filled from order.shippingAddress UNLESS Vendure's own order.state already says shipping
+// is finalized (ArrangingPayment) — in that case Payment becomes the active card immediately.
+function deriveCheckoutState(order: ActiveOrder, activeCustomer: ActiveCustomer | null) {
+	const orderCustomer = activeCustomer ?? (order.customer ? { firstName: order.customer.firstName, lastName: order.customer.lastName, emailAddress: order.customer.emailAddress } : null);
+	const customerSummary = orderCustomer ? `${orderCustomer.firstName} ${orderCustomer.lastName} — ${orderCustomer.emailAddress}` : null;
+
+	const addressDraft = deriveShippingDraft(order);
+	const shippingLine = order.shippingLines[0] ?? null;
+	const shippingConfirmed = order.state === "ArrangingPayment";
+
+	const completed: number[] = [];
+	if (orderCustomer) completed.push(1);
+	if (shippingConfirmed) completed.push(2);
+
+	const shippingSummary =
+		shippingConfirmed && addressDraft && shippingLine
+			? `${addressDraft.firstName} ${addressDraft.lastName} · ${addressDraft.streetLine1}, ${addressDraft.city}, Zone ${addressDraft.postalCode} · ${shippingLine.shippingMethod.name} — ${shippingLine.priceWithTax === 0 ? "Free" : fmt(shippingLine.priceWithTax, order.currencyCode)}`
+			: null;
+
+	const step = shippingConfirmed ? 3 : orderCustomer ? 2 : 1;
+
+	return {
+		step,
+		completed,
+		orderCustomer,
+		customerSummary,
+		shippingSummary,
+		shippingAddressDraft: addressDraft,
+		shippingMethodDraft: shippingLine?.shippingMethod.id ?? null,
+	};
+}
+
 // ── Step wrapper ──────────────────────────────────────────────────────────────
 
 function StepPanel({ num, title, isActive, isCompleted, canOpen, onOpen, summary, children }: { num: number; title: string; isActive: boolean; isCompleted: boolean; canOpen: boolean; onOpen: () => void; summary?: string; children: React.ReactNode }) {
 	return (
-		<div className={`rounded border-2 bg-white overflow-hidden transition-all ${isActive ? "border-primary shadow-sm" : "border-gray-200"}`}>
+		<div className={`rounded-2xl border-2 bg-white overflow-hidden transition-all ${isActive ? "border-primary shadow-sm" : "border-gray-200"}`}>
 			<button type="button" onClick={isCompleted && !isActive && canOpen ? onOpen : undefined} className={`w-full flex items-center gap-4 p-5 text-left ${isCompleted && !isActive ? "cursor-pointer hover:bg-gray-50" : "cursor-default"}`}>
-				<div className={`flex-shrink-0 w-8 h-8 rounded flex items-center justify-center text-sm font-bold ${isCompleted ? "bg-green-500 text-white" : isActive ? "bg-primary text-white" : "bg-gray-200 text-gray-400"}`}>{isCompleted ? <Check size={14} /> : num}</div>
+				<div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isCompleted ? "bg-lime-300 text-black" : isActive ? "bg-primary text-white" : "bg-gray-200 text-gray-400"}`}>{isCompleted ? <Check size={14} /> : num}</div>
 				<div className="flex-1 min-w-0">
 					<p className={`font-semibold ${isActive || isCompleted ? "text-gray-900" : "text-gray-400"}`}>{title}</p>
 					{isCompleted && !isActive && summary && <p className="text-sm text-gray-500 truncate mt-0.5">{summary}</p>}
 				</div>
-				{isCompleted && !isActive && <ChevronDown size={16} className="flex-shrink-0 text-gray-400" />}
+				<div className="flex-shrink-0 w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center">
+					<ChevronDown size={16} className={`text-gray-400 transition-transform ${isActive ? "rotate-180" : ""}`} />
+				</div>
 			</button>
 			{isActive && <div className="px-5 pb-6 border-t border-gray-100 pt-4">{children}</div>}
 		</div>
@@ -67,33 +125,43 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 	return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>;
 }
 
-function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2" }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string }) {
+function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2", defaultValue }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string; defaultValue?: string }) {
 	return (
 		<div className={className}>
 			<label className="block text-sm font-medium text-gray-700 mb-1">
 				{label}
 				{required && <span className="text-red-500 ml-1">*</span>}
 			</label>
-			<input name={name} type={type} required={required} placeholder={placeholder} className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
+			<input name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue} className="w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
 		</div>
 	);
 }
 
-function Select({ label, name, autoComplete, placeholder, required, className = "sm:col-span-2", onChange, children }: { label: string; name: string; autoComplete?: string; placeholder?: string; required?: boolean; className?: string; onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }) {
+function Select({ label, name, autoComplete, placeholder, required, className = "sm:col-span-2", defaultValue = "", onChange, children }: { label: string; name: string; autoComplete?: string; placeholder?: string; required?: boolean; className?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }) {
 	return (
 		<div className={className}>
 			<label className="block text-sm font-medium text-gray-700 mb-1">
 				{label}
 				{required && <span className="text-red-500 ml-1">*</span>}
 			</label>
-			<select name={name} autoComplete={autoComplete} required={required} defaultValue="" onChange={onChange} className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white">
-				{placeholder && (
-					<option value="" disabled>
-						{placeholder}
-					</option>
-				)}
-				{children}
-			</select>
+			<div className="relative">
+				<select
+					name={name}
+					autoComplete={autoComplete}
+					required={required}
+					defaultValue={defaultValue}
+					onChange={onChange}
+					className="w-full appearance-none border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+				>
+					{placeholder && (
+						<option value="" disabled>
+							{placeholder}
+						</option>
+					)}
+					{children}
+				</select>
+				<ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+			</div>
 		</div>
 	);
 }
@@ -137,9 +205,9 @@ function ErrorBox({ message }: { message: string }) {
 	return <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm mt-4">{message}</div>;
 }
 
-function SubmitBtn({ label, loading }: { label: string; loading: boolean }) {
+function SubmitBtn({ label, loading, disabled }: { label: string; loading: boolean; disabled?: boolean }) {
 	return (
-		<button type="submit" disabled={loading} className="mt-5 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+		<button type="submit" disabled={loading || disabled} className="mt-5 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
 			{loading ? "Processing…" : label}
 		</button>
 	);
@@ -152,7 +220,7 @@ interface CustomerSummary {
 	email: string;
 }
 
-function CustomerStep({ onComplete }: { onComplete: (s: CustomerSummary) => void }) {
+function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstName: string; lastName: string; emailAddress: string } | null; onComplete: (s: CustomerSummary) => void }) {
 	const [tab, setTab] = useState<"guest" | "login" | "register">("guest");
 	const [error, setError] = useState<string | null>(null);
 	const [newsletterChecked, setNewsletterChecked] = useState(true);
@@ -242,11 +310,16 @@ function CustomerStep({ onComplete }: { onComplete: (s: CustomerSummary) => void
 		{ id: "login" as const, label: "Login" },
 		{ id: "register" as const, label: "Register" },
 	];
+	const activeTabIndex = tabs.findIndex((t) => t.id === tab);
 
 	return (
 		<div className="pt-2">
-			{/* Tab bar */}
-			<div className="flex gap-1 mb-6 bg-gray-100 rounded p-1">
+			{/* Tab bar — sliding pill */}
+			<div className="relative flex bg-gray-100 rounded-full p-1 mb-6">
+				<div
+					className="absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-white shadow-sm transition-transform duration-300 ease-out"
+					style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
+				/>
 				{tabs.map((t) => (
 					<button
 						key={t.id}
@@ -255,7 +328,7 @@ function CustomerStep({ onComplete }: { onComplete: (s: CustomerSummary) => void
 							setTab(t.id);
 							setError(null);
 						}}
-						className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${tab === t.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+						className={`relative z-10 flex-1 py-2 text-sm font-medium rounded-full transition-colors ${tab === t.id ? "text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
 					>
 						{t.label}
 					</button>
@@ -265,9 +338,9 @@ function CustomerStep({ onComplete }: { onComplete: (s: CustomerSummary) => void
 			{tab === "guest" && (
 				<form onSubmit={handleGuest}>
 					<FieldGroup>
-						<Field label="First Name" name="firstName" required className="sm:col-span-1" />
-						<Field label="Last Name" name="lastName" required className="sm:col-span-1" />
-						<Field label="Email Address" name="emailAddress" type="email" required />
+						<Field label="First Name" name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName} />
+						<Field label="Last Name" name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName} />
+						<Field label="Email Address" name="emailAddress" type="email" required defaultValue={initialValues?.emailAddress} />
 					</FieldGroup>
 					<NewsletterConsent checked={newsletterChecked} onChange={setNewsletterChecked} />
 					{error && <ErrorBox message={error} />}
@@ -312,101 +385,7 @@ function CustomerStep({ onComplete }: { onComplete: (s: CustomerSummary) => void
 	);
 }
 
-// ── Step 2: Shipping Address ──────────────────────────────────────────────────
-
-function ShippingAddressStep({ onComplete }: { onComplete: (summary: string) => void }) {
-	const [error, setError] = useState<string | null>(null);
-	const [zoneList, setZoneList] = useState<number[]>([]);
-	const fetcher = useFetcher<{
-		error?: string;
-		setOrderShippingAddress?: Record<string, unknown>;
-	}>();
-	const summaryRef = useRef<string | null>(null);
-	const loading = fetcher.state !== "idle";
-
-	useEffect(() => {
-		if (fetcher.state !== "idle" || !fetcher.data) return;
-		const d = fetcher.data;
-		if (d.error) {
-			setError(d.error);
-			return;
-		}
-		if (d.setOrderShippingAddress) {
-			const r = d.setOrderShippingAddress;
-			if (r.__typename === "Order") {
-				onComplete(summaryRef.current!);
-			} else {
-				setError((r.message as string) || "Could not save shipping address.");
-			}
-		}
-	}, [fetcher.data, fetcher.state]);
-
-	function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
-		const zone = qatarZones.find((z) => z.municipality === e.target.value);
-		setZoneList(zone ? zone.zoneCodes : []);
-	}
-
-	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-		const fd = new FormData(e.currentTarget);
-		const first = fd.get("firstName") as string;
-		const last = fd.get("lastName") as string;
-		const street = fd.get("streetLine1") as string;
-		const city = fd.get("city") as string;
-		const postalCode = fd.get("postalCode") as string;
-		summaryRef.current = `${first} ${last} · ${street}, ${city}, Zone ${postalCode}`;
-		const body: Record<string, string> = {
-			_intent: "setShippingAddress",
-			firstName: first,
-			lastName: last,
-			streetLine1: street,
-			city,
-			countryCode: "QA",
-			province: "Doha",
-		};
-		const streetLine2 = fd.get("streetLine2") as string;
-		const phoneNumber = fd.get("phoneNumber") as string;
-		if (streetLine2) body.streetLine2 = streetLine2;
-		if (postalCode) body.postalCode = postalCode;
-		if (phoneNumber) body.phoneNumber = phoneNumber;
-		setError(null);
-		fetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
-	}
-
-	return (
-		<form onSubmit={handleSubmit} className="pt-2">
-			{/* Hidden fields */}
-			<input type="hidden" name="countryCode" value="QA" />
-			<input type="hidden" name="province" value="Doha" />
-
-			<FieldGroup>
-				<Field label="First Name" name="firstName" required className="sm:col-span-1" />
-				<Field label="Last Name" name="lastName" required className="sm:col-span-1" />
-				<Field label="Address (villa, flat, building & block, etc.)" name="streetLine1" required />
-				<Field label="Street" name="streetLine2" className="sm:col-span-2" />
-				<Select name="city" autoComplete="locality" placeholder="Select Municipality..." required label="Municipality" className="sm:col-span-1" onChange={handleCityChange}>
-					{qatarZones.map((z, index) => (
-						<option key={index} value={z.municipality}>
-							{z.municipality}
-						</option>
-					))}
-				</Select>
-				<Select name="postalCode" autoComplete="postal-code" placeholder="Select Zone..." required label="Zone" className="sm:col-span-1">
-					{zoneList.map((zone, index) => (
-						<option key={index} value={`${zone}`}>
-							Zone {zone}
-						</option>
-					))}
-				</Select>
-				<Field label="Phone Number" name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" />
-			</FieldGroup>
-			{error && <ErrorBox message={error} />}
-			<SubmitBtn label="Continue to Shipping" loading={loading} />
-		</form>
-	);
-}
-
-// ── Step 3: Shipping Method ───────────────────────────────────────────────────
+// ── Step 2: Shipping (address + method, merged so rates update live once a zone is picked) ──
 
 interface UpdatedOrderTotals {
 	shippingWithTax: number;
@@ -414,38 +393,144 @@ interface UpdatedOrderTotals {
 	subTotalWithTax: number;
 }
 
-function ShippingMethodStep({ isActive, currency, onComplete }: { isActive: boolean; currency: string; onComplete: (method: ShippingMethod, totals: UpdatedOrderTotals) => void }) {
-	const [methods, setMethods] = useState<ShippingMethod[]>([]);
-	const [selected, setSelected] = useState<string | null>(null);
+interface ShippingAddressValues {
+	firstName: string;
+	lastName: string;
+	streetLine1: string;
+	streetLine2?: string;
+	city: string;
+	postalCode: string;
+	phoneNumber?: string;
+}
+
+function ShippingStep({
+	currency,
+	initialValues,
+	initialMethodId,
+	onDraftChange,
+	onMethodChange,
+	onComplete,
+}: {
+	currency: string;
+	initialValues?: ShippingAddressValues | null;
+	initialMethodId?: string | null;
+	onDraftChange?: (values: ShippingAddressValues) => void;
+	onMethodChange?: (methodId: string) => void;
+	onComplete: (summary: string, method: ShippingMethod, totals: UpdatedOrderTotals) => void;
+}) {
 	const [error, setError] = useState<string | null>(null);
-	const loadFetcher = useFetcher<{ shippingMethods?: ShippingMethod[]; error?: string }>();
-	const saveFetcher = useFetcher<{
-		setOrderShippingMethod?: Record<string, unknown>;
-		error?: string;
-	}>();
-	const loading = saveFetcher.state !== "idle";
-	const loadingMethods = loadFetcher.state !== "idle";
+	const [zoneList, setZoneList] = useState<number[]>(() => {
+		if (!initialValues?.city) return [];
+		const zone = qatarZones.find((z) => z.municipality === initialValues.city);
+		return zone ? zone.zoneCodes : [];
+	});
+	const [addressSaved, setAddressSaved] = useState(false);
+	const [methods, setMethods] = useState<ShippingMethod[]>([]);
+	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId ?? null);
+	const formRef = useRef<HTMLFormElement>(null);
+	const addressSummaryRef = useRef<string>("");
 
+	const addressFetcher = useFetcher<{ error?: string; setOrderShippingAddress?: Record<string, unknown> }>();
+	const methodsFetcher = useFetcher<{ shippingMethods?: ShippingMethod[]; error?: string }>();
+	const saveMethodFetcher = useFetcher<{ setOrderShippingMethod?: Record<string, unknown>; error?: string }>();
+
+	const savingAddress = addressFetcher.state !== "idle";
+	const loadingMethods = methodsFetcher.state !== "idle";
+	const savingMethod = saveMethodFetcher.state !== "idle";
+	const busy = savingAddress || loadingMethods || savingMethod;
+
+	// Reads the form's current values and saves the shipping address — used both by the
+	// explicit submit button and automatically the moment a zone is picked, so shipping
+	// rates can appear without an extra step/click.
+	function saveAddress() {
+		if (!formRef.current || savingAddress) return;
+		const fd = new FormData(formRef.current);
+		const values: ShippingAddressValues = {
+			firstName: (fd.get("firstName") as string) ?? "",
+			lastName: (fd.get("lastName") as string) ?? "",
+			streetLine1: (fd.get("streetLine1") as string) ?? "",
+			streetLine2: (fd.get("streetLine2") as string) || undefined,
+			city: (fd.get("city") as string) ?? "",
+			postalCode: (fd.get("postalCode") as string) ?? "",
+			phoneNumber: (fd.get("phoneNumber") as string) || undefined,
+		};
+		onDraftChange?.(values);
+		// Only the zone is required to kick off a live rate quote — name/street can still be
+		// blank at this point and get filled in (and re-saved) before the final submit.
+		if (!values.postalCode.trim()) return false;
+
+		addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, Zone ${values.postalCode}`;
+		const body: Record<string, string> = { _intent: "setShippingAddress", firstName: values.firstName, lastName: values.lastName, streetLine1: values.streetLine1, city: values.city, countryCode: "QA", province: "Doha", postalCode: values.postalCode };
+		if (values.streetLine2) body.streetLine2 = values.streetLine2;
+		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
+		setError(null);
+		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
+		return true;
+	}
+
+	function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
+		const zone = qatarZones.find((z) => z.municipality === e.target.value);
+		setZoneList(zone ? zone.zoneCodes : []);
+		// Municipality changed — any previously fetched rates are stale
+		setAddressSaved(false);
+		setMethods([]);
+		setSelectedMethod(null);
+	}
+
+	function handleZoneChange() {
+		setMethods([]);
+		setSelectedMethod(null);
+		saveAddress();
+	}
+
+	// If we already have a zone on mount — whether from the order's own saved address (guest)
+	// or the logged-in customer's address book — (re)save it to THIS order first, then fetch
+	// rates. A book address isn't attached to the order yet, so we can't just trust it and
+	// skip straight to fetching methods; saveAddress() confirms it against the order for real.
 	useEffect(() => {
-		if (isActive && methods.length === 0 && loadFetcher.state === "idle") {
-			loadFetcher.load("/api/checkout?intent=shippingMethods");
+		if (initialValues?.postalCode) {
+			saveAddress();
 		}
-	}, [isActive]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	useEffect(() => {
-		if (!loadFetcher.data) return;
-		if (loadFetcher.data.shippingMethods) {
-			setMethods(loadFetcher.data.shippingMethods);
-			if (loadFetcher.data.shippingMethods.length > 0) {
-				setSelected(loadFetcher.data.shippingMethods[0].id);
+		if (addressFetcher.state !== "idle" || !addressFetcher.data) return;
+		const d = addressFetcher.data;
+		if (d.error) {
+			setError(d.error);
+			return;
+		}
+		if (d.setOrderShippingAddress) {
+			const r = d.setOrderShippingAddress;
+			if (r.__typename === "Order") {
+				setAddressSaved(true);
+				methodsFetcher.load("/api/checkout?intent=shippingMethods");
+			} else {
+				setError((r.message as string) || "Could not save shipping address.");
 			}
 		}
-		if (loadFetcher.data.error) setError(loadFetcher.data.error);
-	}, [loadFetcher.data]);
+	}, [addressFetcher.data, addressFetcher.state]);
 
 	useEffect(() => {
-		if (saveFetcher.state !== "idle" || !saveFetcher.data) return;
-		const d = saveFetcher.data;
+		if (!methodsFetcher.data) return;
+		if (methodsFetcher.data.shippingMethods) {
+			const list = methodsFetcher.data.shippingMethods;
+			setMethods(list);
+			if (list.length > 0) {
+				setSelectedMethod((prev) => {
+					const next = prev && list.some((m) => m.id === prev) ? prev : list[0].id;
+					onMethodChange?.(next);
+					return next;
+				});
+			}
+		}
+		if (methodsFetcher.data.error) setError(methodsFetcher.data.error);
+	}, [methodsFetcher.data]);
+
+	useEffect(() => {
+		if (saveMethodFetcher.state !== "idle" || !saveMethodFetcher.data) return;
+		const d = saveMethodFetcher.data;
 		if (d.error) {
 			setError(d.error);
 			return;
@@ -453,57 +538,112 @@ function ShippingMethodStep({ isActive, currency, onComplete }: { isActive: bool
 		if (d.setOrderShippingMethod) {
 			const r = d.setOrderShippingMethod;
 			if (r.__typename === "Order") {
-				const method = methods.find((m) => m.id === selected)!;
-				onComplete(method, {
-					shippingWithTax: r.shippingWithTax as number,
-					totalWithTax: r.totalWithTax as number,
-					subTotalWithTax: r.subTotalWithTax as number,
-				});
+				const method = methods.find((m) => m.id === selectedMethod)!;
+				const totals: UpdatedOrderTotals = { shippingWithTax: r.shippingWithTax as number, totalWithTax: r.totalWithTax as number, subTotalWithTax: r.subTotalWithTax as number };
+				const methodLabel = `${method.name} — ${method.priceWithTax === 0 ? "Free" : fmt(method.priceWithTax, currency)}`;
+				onComplete(`${addressSummaryRef.current} · ${methodLabel}`, method, totals);
 			} else {
 				setError((r.message as string) || "Could not set shipping method.");
 			}
 		}
-	}, [saveFetcher.data, saveFetcher.state]);
+	}, [saveMethodFetcher.data, saveMethodFetcher.state]);
 
-	function handleContinue() {
-		if (!selected) return;
+	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		if (!addressSaved || !selectedMethod) return;
 		setError(null);
-		saveFetcher.submit({ _intent: "setShippingMethod", shippingMethodId: selected }, { method: "post", encType: "application/json", action: "/api/checkout" });
+		saveMethodFetcher.submit({ _intent: "setShippingMethod", shippingMethodId: selectedMethod }, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
 
+	// Safety net: if the zone was picked before the other required fields were filled in
+	// (so the auto-save on zone change had nothing to submit), retry once those fields are
+	// blurred — keeps rate-fetching fully automatic without a manual "Get Rates" step.
+	function handleFieldBlur(e: React.FocusEvent<HTMLFormElement>) {
+		const name = (e.target as unknown as { name?: string }).name;
+		if (!name) return;
+		if (!["firstName", "lastName", "streetLine1", "city"].includes(name)) return;
+		if (addressSaved || savingAddress) return;
+		if (!(formRef.current?.elements.namedItem("postalCode") as HTMLSelectElement | null)?.value) return;
+		saveAddress();
+	}
+
+	const noMethodsAvailable = addressSaved && !loadingMethods && methods.length === 0;
+
 	return (
-		<div className="pt-2">
-			{loadingMethods && (
-				<div className="flex items-center gap-3 py-6 text-gray-500 text-sm">
-					<div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-					Loading shipping options…
-				</div>
-			)}
+		<form ref={formRef} onSubmit={handleSubmit} onBlur={handleFieldBlur} className="pt-2">
+			<input type="hidden" name="countryCode" value="QA" />
+			<input type="hidden" name="province" value="Doha" />
 
-			{!loadingMethods && methods.length === 0 && !error && <p className="text-gray-500 text-sm py-4">No shipping methods available.</p>}
-
-			{methods.length > 0 && (
-				<div className="space-y-3">
-					{methods.map((m) => (
-						<label key={m.id} className={`flex items-center gap-4 p-4 rounded border-2 cursor-pointer transition-colors ${selected === m.id ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
-							<input type="radio" name="shippingMethod" value={m.id} checked={selected === m.id} onChange={() => setSelected(m.id)} className="accent-primary flex-shrink-0" />
-							<Truck size={20} className="text-gray-400 flex-shrink-0" />
-							<div className="flex-1 min-w-0">
-								<p className="font-medium text-gray-900">{m.name}</p>
-								{m.description && <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>}
-							</div>
-							<p className="font-semibold text-gray-900 flex-shrink-0">{m.priceWithTax === 0 ? <span className="text-green-600">Free</span> : fmt(m.priceWithTax, currency)}</p>
-						</label>
+			<FieldGroup>
+				<Field label="First Name" name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName} />
+				<Field label="Last Name" name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName} />
+				<Field label="Address (villa, flat, building & block, etc.)" name="streetLine1" required defaultValue={initialValues?.streetLine1} />
+				<Field label="Street" name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} />
+				<Select name="city" autoComplete="locality" placeholder="Select Municipality..." required label="Municipality" className="sm:col-span-1" defaultValue={initialValues?.city} onChange={handleCityChange}>
+					{qatarZones.map((z, index) => (
+						<option key={index} value={z.municipality}>
+							{z.municipality}
+						</option>
 					))}
+				</Select>
+				<Select name="postalCode" autoComplete="postal-code" placeholder="Select Zone..." required label="Zone" className="sm:col-span-1" defaultValue={initialValues?.postalCode} onChange={handleZoneChange}>
+					{zoneList.map((zone, index) => (
+						<option key={index} value={`${zone}`}>
+							Zone {zone}
+						</option>
+					))}
+				</Select>
+				<Field label="Phone Number" name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" defaultValue={initialValues?.phoneNumber} />
+			</FieldGroup>
+
+			{/* Shipping rates — appear inline as soon as the zone is picked, no extra step needed */}
+			{(loadingMethods || methods.length > 0 || noMethodsAvailable) && (
+				<div className="mt-5 pt-5 border-t border-gray-100">
+					<p className="text-sm font-semibold text-gray-700 mb-3">Shipping Method</p>
+
+					{loadingMethods && (
+						<div className="flex items-center gap-3 py-4 text-gray-500 text-sm">
+							<div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+							Calculating shipping rates…
+						</div>
+					)}
+
+					{noMethodsAvailable && !error && <p className="text-gray-500 text-sm py-2">No shipping methods available for this address.</p>}
+
+					{!loadingMethods && methods.length > 0 && (
+						<div className="space-y-3">
+							{methods.map((m) => (
+								<label key={m.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selectedMethod === m.id ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+									<input
+										type="radio"
+										name="shippingMethod"
+										value={m.id}
+										checked={selectedMethod === m.id}
+										onChange={() => {
+											setSelectedMethod(m.id);
+											onMethodChange?.(m.id);
+										}}
+										className="accent-lime-400 flex-shrink-0"
+									/>
+									<Truck size={20} className="text-gray-400 flex-shrink-0" />
+									<div className="flex-1 min-w-0">
+										<p className="font-medium text-gray-900">{m.name}</p>
+										{m.description && <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>}
+									</div>
+									<p className="font-semibold text-gray-900 flex-shrink-0">{m.priceWithTax === 0 ? <span className="text-green-600">Free</span> : fmt(m.priceWithTax, currency)}</p>
+								</label>
+							))}
+						</div>
+					)}
 				</div>
 			)}
 
 			{error && <ErrorBox message={error} />}
 
-			<button type="button" onClick={handleContinue} disabled={!selected || loading} className="mt-5 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-				{loading ? "Processing…" : "Continue to Payment"}
-			</button>
-		</div>
+			{!addressSaved && !savingAddress && <p className="text-center text-xs text-gray-400 mt-4">Select your delivery zone above to see shipping rates.</p>}
+
+			<SubmitBtn label="Continue to Payment" loading={busy} disabled={!selectedMethod || noMethodsAvailable} />
+		</form>
 	);
 }
 
@@ -589,8 +729,8 @@ function PaymentStep({ isActive, total, currency, onComplete }: { isActive: bool
 			{methods.length > 0 && (
 				<div className="space-y-3 mb-2">
 					{methods.map((m) => (
-						<label key={m.code} className={`flex items-center gap-4 p-4 rounded border-2 cursor-pointer transition-colors ${selected === m.code ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
-							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} onChange={() => setSelected(m.code)} className="accent-primary flex-shrink-0" />
+						<label key={m.code} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selected === m.code ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} onChange={() => setSelected(m.code)} className="accent-lime-400 flex-shrink-0" />
 							{paymentIcons[m.code] ?? paymentIcons.default}
 							<div className="flex-1">
 								<p className="font-medium text-gray-900">{m.name}</p>
@@ -678,9 +818,9 @@ function CouponForm({ orderState, onApplied }: { orderState: string; onApplied: 
 			<form onSubmit={handleSubmit} className="flex gap-2">
 				<div className="relative flex-1">
 					<Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-					<input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Coupon code" className="w-full border border-gray-300 rounded pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase placeholder:normal-case" />
+					<input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Coupon code" className="w-full border border-gray-300 rounded-full pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase placeholder:normal-case" />
 				</div>
-				<button type="submit" disabled={!code.trim() || isBusy} className="bg-primary text-white text-sm font-medium px-4 py-2 rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+				<button type="submit" disabled={!code.trim() || isBusy} className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
 					{isBusy ? "…" : "Apply"}
 				</button>
 			</form>
@@ -694,7 +834,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 	const discounts = order.discounts?.filter((d) => d.amountWithTax < 0) ?? [];
 
 	return (
-		<div className="bg-white rounded border border-gray-200 overflow-hidden lg:sticky lg:top-6">
+		<div className="bg-white rounded-2xl border border-gray-200 overflow-hidden lg:sticky lg:top-6">
 			<div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center gap-2">
 				<Package size={18} className="text-gray-500" />
 				<h2 className="font-semibold text-gray-900">Order Summary</h2>
@@ -770,12 +910,14 @@ export default function CheckoutPage() {
 	const navigate = useNavigate();
 	const { setCartCount } = useCart();
 
-	const [step, setStep] = useState(activeCustomer ? 2 : 1);
-	const [completed, setCompleted] = useState<number[]>(activeCustomer ? [1] : []);
+	const [initialState] = useState(() => deriveCheckoutState(initialOrder!, activeCustomer));
+	const [step, setStep] = useState(initialState.step);
+	const [completed, setCompleted] = useState<number[]>(initialState.completed);
 	const [order, setOrder] = useState(initialOrder!);
-	const [customerSummary, setCustomerSummary] = useState<string | null>(activeCustomer ? `${activeCustomer.firstName} ${activeCustomer.lastName} — ${activeCustomer.emailAddress}` : null);
-	const [addressSummary, setAddressSummary] = useState<string | null>(null);
-	const [shippingSummary, setShippingSummary] = useState<string | null>(null);
+	const [customerSummary, setCustomerSummary] = useState<string | null>(initialState.customerSummary);
+	const [shippingSummary, setShippingSummary] = useState<string | null>(initialState.shippingSummary);
+	const [shippingAddressDraft, setShippingAddressDraft] = useState<ShippingAddressValues | null>(initialState.shippingAddressDraft);
+	const [shippingMethodDraft, setShippingMethodDraft] = useState<string | null>(initialState.shippingMethodDraft);
 
 	function complete(n: number) {
 		setCompleted((prev) => [...new Set([...prev, n])]);
@@ -797,6 +939,7 @@ export default function CheckoutPage() {
 					</Link>
 					<StepPanel num={1} title="Customer Information" isActive={step === 1} isCompleted={completed.includes(1)} canOpen onOpen={() => goTo(1)} summary={customerSummary ?? undefined}>
 						<CustomerStep
+							initialValues={initialState.orderCustomer}
 							onComplete={(s) => {
 								setCustomerSummary(s.name ? `${s.name} — ${s.email}` : s.email);
 								complete(1);
@@ -804,34 +947,28 @@ export default function CheckoutPage() {
 						/>
 					</StepPanel>
 
-					<StepPanel num={2} title="Shipping Address" isActive={step === 2} isCompleted={completed.includes(2)} canOpen={completed.includes(1)} onOpen={() => goTo(2)} summary={addressSummary ?? undefined}>
-						<ShippingAddressStep
-							onComplete={(summary) => {
-								setAddressSummary(summary);
+					<StepPanel num={2} title="Shipping" isActive={step === 2} isCompleted={completed.includes(2)} canOpen={completed.includes(1)} onOpen={() => goTo(2)} summary={shippingSummary ?? undefined}>
+						<ShippingStep
+							currency={order.currencyCode}
+							initialValues={shippingAddressDraft}
+							initialMethodId={shippingMethodDraft}
+							onDraftChange={setShippingAddressDraft}
+							onMethodChange={setShippingMethodDraft}
+							onComplete={(summary, _method, totals) => {
+								setShippingSummary(summary);
+								setOrder((prev) => ({ ...prev, ...totals }));
 								complete(2);
 							}}
 						/>
 					</StepPanel>
 
-					<StepPanel num={3} title="Shipping Method" isActive={step === 3} isCompleted={completed.includes(3)} canOpen={completed.includes(2)} onOpen={() => goTo(3)} summary={shippingSummary ?? undefined}>
-						<ShippingMethodStep
-							isActive={step === 3}
-							currency={order.currencyCode}
-							onComplete={(method, totals) => {
-								setShippingSummary(`${method.name} — ${method.priceWithTax === 0 ? "Free" : fmt(method.priceWithTax, order.currencyCode)}`);
-								setOrder((prev) => ({ ...prev, ...totals }));
-								complete(3);
-							}}
-						/>
-					</StepPanel>
-
-					<StepPanel num={4} title="Payment" isActive={step === 4} isCompleted={completed.includes(4)} canOpen={completed.includes(3)} onOpen={() => goTo(4)}>
+					<StepPanel num={3} title="Payment" isActive={step === 3} isCompleted={completed.includes(3)} canOpen={completed.includes(2)} onOpen={() => goTo(3)}>
 						<PaymentStep
-							isActive={step === 4}
+							isActive={step === 3}
 							total={order.totalWithTax}
 							currency={order.currencyCode}
 							onComplete={(orderCode) => {
-								complete(4);
+								complete(3);
 								setCartCount(0);
 								navigate(`/order-confirmation?code=${orderCode}`);
 							}}

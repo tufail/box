@@ -36,6 +36,26 @@ export interface OrderDiscount {
   amountWithTax: number;
 }
 
+export interface OrderShippingAddress {
+  fullName: string | null;
+  streetLine1: string | null;
+  streetLine2: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  phoneNumber: string | null;
+}
+
+export interface OrderShippingLine {
+  price: number;
+  priceWithTax: number;
+  shippingMethod: {
+    id: string;
+    name: string;
+    description: string;
+  };
+}
+
 export interface ActiveOrder {
   id: string;
   code: string;
@@ -48,6 +68,9 @@ export interface ActiveOrder {
   lines: OrderLineItem[];
   discounts: OrderDiscount[];
   couponCodes: string[];
+  customer: { firstName: string; lastName: string; emailAddress: string } | null;
+  shippingAddress: OrderShippingAddress | null;
+  shippingLines: OrderShippingLine[];
 }
 
 export interface ActiveOrderData {
@@ -301,7 +324,30 @@ export const ACTIVE_ORDER_QUERY = `
       shippingWithTax
       totalWithTax
       couponCodes
-      discounts { 
+      customer {
+        firstName
+        lastName
+        emailAddress
+      }
+      shippingAddress {
+        fullName
+        streetLine1
+        streetLine2
+        city
+        province
+        postalCode
+        phoneNumber
+      }
+      shippingLines {
+        price
+        priceWithTax
+        shippingMethod {
+          id
+          name
+          description
+        }
+      }
+      discounts {
         description
         amount
         amountWithTax

@@ -254,12 +254,6 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
 							<span className="font-semibold">{formatPrice(order.subTotalWithTax, order.currencyCode)}</span>
 						</div>
 
-						{order.shippingWithTax > 0 && (
-							<div className="flex justify-between text-sm">
-								<span className="text-gray-600">Shipping</span>
-								<span className="font-semibold">{formatPrice(order.shippingWithTax, order.currencyCode)}</span>
-							</div>
-						)}
 						<div className="flex justify-between text-base font-bold border-t border-gray-200 pt-3">
 							<span>Total</span>
 							<span>{formatPrice(order.totalWithTax, order.currencyCode)}</span>
