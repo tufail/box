@@ -6,6 +6,7 @@ import MegaMenu from "../components/MegaMenu";
 import SearchBox from "../components/SearchBox";
 import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
+import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher } from "react-router";
 import { CircleUser, Globe, Heart, Menu, ShoppingCart, X, Check, Search } from "lucide-react";
@@ -507,6 +508,8 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			<main>{children}</main>
 
 			<Footer pageSections={pageSections} />
+
+			<SeoFooterContent />
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
 

@@ -89,7 +89,7 @@ export default function Footer({ pageSections }: FooterProps) {
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
 							{/* Col 1 — Company info */}
 							<address className="not-italic">
-								<h3 className="font-bold text-white mb-4 text-sm">Protein House Qatar</h3>
+								<h3 className="font-bold text-white mb-4 text-sm">NutriBox</h3>
 								<div className="space-y-3 text-sm text-white/70">
 									<div className="flex items-start gap-2">
 										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" aria-hidden="true" />
@@ -176,7 +176,7 @@ export default function Footer({ pageSections }: FooterProps) {
 					{/* Bottom bar */}
 					<div className="border-t border-white/20">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-sm text-white/70">Copyright &copy; {new Date().getFullYear()} Protein House Qatar</p>
+							<p className="text-sm text-white/70">Copyright &copy; {new Date().getFullYear()} NutriBox</p>
 							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label="Accepted payment methods">
 								{paymentMethods.map((m) => (
 									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">

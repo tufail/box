@@ -63,7 +63,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 export function meta({ data }: Route.MetaArgs) {
 	const name = data?.productName ?? "Product";
 	return [
-		{ title: `Reviews — ${name} — Protein House Qatar` },
+		{ title: `Reviews — ${name} — NutriBox` },
 		{ name: "robots", content: "noindex, follow" },
 	];
 }

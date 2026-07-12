@@ -34,5 +34,6 @@ export default [
     route("review-images/upload", "routes/review-images.upload.ts"),
     route("api/product-reviews", "routes/api.product-reviews.ts"),
     route("api/variant-rankings", "routes/api.variant-rankings.ts"),
+    route("api/concern-products", "routes/api.concern-products.ts"),
     route("pages/:slug", "routes/pages.$slug.tsx"),
 ] satisfies RouteConfig; 

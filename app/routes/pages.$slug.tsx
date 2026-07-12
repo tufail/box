@@ -36,12 +36,12 @@ export function meta({ data }: Route.MetaArgs) {
 	const { translation, page } = data;
 	const plainText = translation.description
 		? translation.description.replace(/<[^>]+>/g, "").slice(0, 160).trim()
-		: `${translation.title} — Protein House Qatar`;
+		: `${translation.title} — NutriBox`;
 
 	return [
-		{ title: `${translation.title} — Protein House Qatar` },
+		{ title: `${translation.title} — NutriBox` },
 		{ name: "description", content: plainText },
-		{ property: "og:title", content: `${translation.title} — Protein House Qatar` },
+		{ property: "og:title", content: `${translation.title} — NutriBox` },
 		{ property: "og:description", content: plainText },
 		...(page.assetPreview ? [{ property: "og:image", content: page.assetPreview }] : []),
 		{ property: "og:type", content: "article" },
