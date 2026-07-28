@@ -27,7 +27,7 @@ export default function About() {
       </p>
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-3">Contact Us</h2>
-        <p className="text-gray-700">Customer Care: +974 77689275</p>
+        <p className="text-gray-700">Customer Care: +974 7015 7900</p>
       </div>
     </div>
   );

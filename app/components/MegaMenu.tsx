@@ -1,40 +1,38 @@
-import { Link } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import type { MegaMenuData, MegaMenuItem } from "../graphql/megamenu";
+import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "../graphql/megamenu";
+import type { BrandValue } from "../graphql/brand";
 import { ChevronDown, Search, X } from "lucide-react";
 
-function itemHref(item: Pick<MegaMenuItem, "url" | "collectionSlug">): string {
-	if (item.collectionSlug) return `/c/${item.collectionSlug}`;
+function itemHref(item: Pick<MegaMenuItem, "url">): string {
 	return item.url ?? "#";
 }
 
-const ALL_BRANDS = [
-	{ name: "Allmax", slug: "allmax" },
-	{ name: "AS-IT-IS Nutrition", slug: "as-it-is-nutrition" },
-	{ name: "Avvatar", slug: "avvatar" },
-	{ name: "Beast Life", slug: "beast-life" },
-	{ name: "BPI Sports", slug: "bpi-sports" },
-	{ name: "BSN", slug: "bsn" },
-	{ name: "Cellucor", slug: "cellucor" },
-	{ name: "Dymatize", slug: "dymatize" },
-	{ name: "GAT Sport", slug: "gat-sport" },
-	{ name: "GNC", slug: "gnc" },
-	{ name: "MuscleTech", slug: "muscletech" },
-	{ name: "MusclePharm", slug: "musclepharm" },
-	{ name: "MyProtein", slug: "myprotein" },
-	{ name: "Optimum Nutrition", slug: "optimum-nutrition" },
-	{ name: "Scitec Nutrition", slug: "scitec-nutrition" },
-	{ name: "Universal Nutrition", slug: "universal-nutrition" },
-];
+function linkHref(link: Pick<MegaMenuLink, "url" | "collectionSlug">): string {
+	if (link.collectionSlug) return `/c/${link.collectionSlug}`;
+	return link.url ?? "#";
+}
 
+function sectionHref(section: Pick<MegaMenuSection, "url">): string | null {
+	return section.url || null;
+}
+
+// Same curated set shown in the footer's "Top Brands" — kept in sync by hand since
+// there's no "featured" flag on the brand facet to drive this from data.
 const TOP_BRANDS = [
-	{ name: "Optimum Nutrition", slug: "optimum-nutrition" },
-	{ name: "MuscleTech", slug: "muscletech" },
-	{ name: "BSN", slug: "bsn" },
-	{ name: "MyProtein", slug: "myprotein" },
-	{ name: "Dymatize", slug: "dymatize" },
-	{ name: "GNC", slug: "gnc" },
+	{ name: "Optimum Nutrition", code: "optimum-nutrition" },
+	{ name: "MuscleTech", code: "muscletech" },
+	{ name: "BSN", code: "bsn" },
+	{ name: "Dymatize", code: "dymatize" },
+	{ name: "GNC", code: "gnc" },
+	{ name: "Cellucor", code: "cellucor" },
+	{ name: "MusclePharm", code: "musclepharm" },
+	{ name: "Redcon1", code: "redcon1" },
+	{ name: "Ghost", code: "ghost" },
+	{ name: "Isopure", code: "isopure" },
+	{ name: "Xtend", code: "xtend" },
+	{ name: "NOW Foods", code: "now-foods" },
 ];
 
 // Styled to match the other top-nav items (same trigger button, same hover-dropdown positioning).
@@ -43,6 +41,8 @@ function BrandsDropdown() {
 	const [search, setSearch] = useState("");
 	const ref = useRef<HTMLDivElement>(null);
 	const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const fetcher = useFetcher<{ brands: BrandValue[] }>();
 
 	function cancelClose() {
 		if (closeTimer.current) {
@@ -53,6 +53,9 @@ function BrandsDropdown() {
 	function openNow() {
 		cancelClose();
 		setOpen(true);
+		// Client-side only — the full brand list isn't part of the page's SSR payload,
+		// it's fetched lazily the first time this dropdown is actually opened.
+		if (fetcher.state === "idle" && !fetcher.data) fetcher.load("/brands");
 	}
 	function scheduleClose() {
 		cancelClose();
@@ -75,11 +78,14 @@ function BrandsDropdown() {
 
 	useEffect(() => () => cancelClose(), []);
 
-	const filtered = search.trim()
-		? ALL_BRANDS.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
-		: ALL_BRANDS;
+	const allBrands = fetcher.data?.brands ?? [];
+	const loading = fetcher.state !== "idle" && !fetcher.data;
 
-	const grouped = filtered.reduce<Record<string, typeof ALL_BRANDS>>((acc, brand) => {
+	const filtered = search.trim()
+		? allBrands.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
+		: allBrands;
+
+	const grouped = filtered.reduce<Record<string, BrandValue[]>>((acc, brand) => {
 		const key = /^[0-9]/.test(brand.name) ? "#" : brand.name[0].toUpperCase();
 		if (!acc[key]) acc[key] = [];
 		acc[key].push(brand);
@@ -118,23 +124,25 @@ function BrandsDropdown() {
 							</div>
 						</div>
 						<div className="overflow-y-auto max-h-[340px]">
-							{Object.keys(grouped).sort().map((letter) => (
-								<div key={letter}>
-									<div className="px-4 py-1 text-xs font-bold text-gray-400 bg-gray-50">{letter}</div>
-									{grouped[letter].map((brand) => (
-										<Link
-											key={brand.slug}
-											to={`/collections?brand=${brand.slug}`}
-											className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:text-black hover:bg-stone-50 transition-colors"
-											onClick={close}
-										>
-											{brand.name}
-											<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 text-gray-300" />
-										</Link>
-									))}
-								</div>
-							))}
-							{filtered.length === 0 && (
+							{loading && <p className="px-4 py-6 text-sm text-gray-400 text-center">Loading brands…</p>}
+							{!loading &&
+								Object.keys(grouped).sort().map((letter) => (
+									<div key={letter}>
+										<div className="px-4 py-1 text-xs font-bold text-gray-400 bg-gray-50">{letter}</div>
+										{grouped[letter].map((brand) => (
+											<Link
+												key={brand.code}
+												to={`/brands/${brand.code}`}
+												className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:text-black hover:bg-stone-50 transition-colors"
+												onClick={close}
+											>
+												{brand.name}
+												<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 text-gray-300" />
+											</Link>
+										))}
+									</div>
+								))}
+							{!loading && filtered.length === 0 && (
 								<p className="px-4 py-6 text-sm text-gray-400 text-center">No brands found</p>
 							)}
 						</div>
@@ -146,13 +154,25 @@ function BrandsDropdown() {
 						<div className="grid grid-cols-3 gap-3">
 							{TOP_BRANDS.map((brand) => (
 								<Link
-									key={brand.slug}
-									to={`/collections?brand=${brand.slug}`}
+									key={brand.code}
+									to={`/brands/${brand.code}`}
 									className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group"
 									onClick={close}
 								>
-									<div className="w-full h-14 rounded flex items-center justify-center bg-gray-50 text-xs font-bold text-gray-400 group-hover:text-black transition-colors text-center px-1">
-										{brand.name}
+									<div className="w-full h-14 rounded relative overflow-hidden bg-gray-50">
+										<img
+											src={`/images/brands/${brand.code}.jpg`}
+											alt={brand.name}
+											className="w-full h-full object-contain p-1.5"
+											onError={(e) => {
+												e.currentTarget.style.display = "none";
+												const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+												if (fallback) fallback.style.display = "flex";
+											}}
+										/>
+										<span style={{ display: "none" }} className="absolute inset-0 items-center justify-center text-xs font-bold text-gray-400 group-hover:text-black transition-colors text-center px-1">
+											{brand.name}
+										</span>
 									</div>
 								</Link>
 							))}
@@ -268,7 +288,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 											{links.map((link, li) => (
 												<li key={li} className="border-b border-gray-100 last:border-b-0">
 													<Link
-														to={itemHref(link)}
+														to={linkHref(link)}
 														className="block text-sm text-gray-600 hover:text-black transition-colors py-2"
 														onClick={onMobileClose}
 													>
@@ -321,20 +341,35 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 												<div key={ci} className="flex flex-col gap-4 pl-8 first:pl-0">
 													{col.sections.length > 0 && (
 														<div className="flex flex-col gap-4">
-															{col.sections.map((section, si) => (
-																<div key={si}>
-																	{section.title && <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{section.title}</p>}
-																	<ul className="space-y-1">
-																		{section.links.map((link, li) => (
-																			<li key={li}>
-																				<Link to={itemHref(link)} className="text-sm text-gray-700 hover:text-black transition-colors block py-0.5" onClick={() => setDesktopOpen(null)}>
-																					{link.label}
+															{col.sections.map((section, si) => {
+																const headerHref = sectionHref(section);
+																return (
+																	<div key={si}>
+																		{section.title && (
+																			headerHref ? (
+																				<Link
+																					to={headerHref}
+																					className="block text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black transition-colors mb-2"
+																					onClick={() => setDesktopOpen(null)}
+																				>
+																					{section.title}
 																				</Link>
-																			</li>
-																		))}
-																	</ul>
-																</div>
-															))}
+																			) : (
+																				<p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{section.title}</p>
+																			)
+																		)}
+																		<ul className="space-y-1">
+																			{section.links.map((link, li) => (
+																				<li key={li}>
+																					<Link to={linkHref(link)} className="text-sm text-gray-700 hover:text-black transition-colors block py-0.5" onClick={() => setDesktopOpen(null)}>
+																						{link.label}
+																					</Link>
+																				</li>
+																			))}
+																		</ul>
+																	</div>
+																);
+															})}
 														</div>
 													)}
 													{col.promoAssetPreview && (

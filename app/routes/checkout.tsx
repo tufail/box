@@ -879,7 +879,6 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 						<span className="flex items-center gap-1 truncate">
 							<Package size={12} className="flex-shrink-0" />
 							{d.description?.replace(/__bundle_discount_auto__/i, "Combo/Bundle Discount") ?? d.description ?? "Discount"}
-							{console.log(d)}
 						</span>
 						<span className="flex-shrink-0 ml-2">−{fmt(Math.abs(d.amountWithTax), order.currencyCode)}</span>
 					</div>

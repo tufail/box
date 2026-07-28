@@ -13,6 +13,14 @@ export function meta() {
 		{ title },
 		{ name: "description", content: description },
 		{ tagName: "link" as const, rel: "canonical", href: `${SITE_URL}/brands` },
+		{ property: "og:type", content: "website" },
+		{ property: "og:title", content: title },
+		{ property: "og:description", content: description },
+		{ property: "og:url", content: `${SITE_URL}/brands` },
+		{ property: "og:site_name", content: SITE_NAME },
+		{ name: "twitter:card", content: "summary" },
+		{ name: "twitter:title", content: title },
+		{ name: "twitter:description", content: description },
 	];
 }
 
@@ -33,8 +41,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export default function BrandsPage({ loaderData }: Route.ComponentProps) {
 	const { brands } = loaderData;
 
+	const jsonLd = {
+		"@context": "https://schema.org",
+		"@type": "ItemList",
+		name: "Brands",
+		numberOfItems: brands.length,
+		itemListElement: brands.map((brand, i) => ({
+			"@type": "ListItem",
+			position: i + 1,
+			name: brand.name,
+			url: `${SITE_URL}/brands/${brand.code}`,
+		})),
+	};
+
 	return (
 		<div className="container mx-auto px-4 py-6">
+			{brands.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />}
 			<div className="mb-4">
 				<Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Brands" }]} />
 			</div>

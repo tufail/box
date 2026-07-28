@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Link } from "react-router";
-import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail } from "lucide-react";
+import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
@@ -21,10 +21,25 @@ function InstagramIcon() {
 	);
 }
 
-function ThreadsIcon() {
+function TikTokIcon() {
 	return (
 		<svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
-			<path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.028-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.29a13.495 13.495 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.583-1.317-.876-2.39-.876h-.048c-.832.01-2.415.231-2.415 2.165v.004h-2.06v-.004c0-2.734 1.87-4.097 4.475-4.115h.052c1.68 0 2.996.502 3.91 1.494.898.977 1.403 2.432 1.503 4.323.153.072.3.148.44.228 1.136.648 1.985 1.558 2.46 2.629.797 1.816.764 4.922-1.77 7.395-1.997 1.96-4.598 2.936-7.933 2.959z" />
+			<path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+		</svg>
+	);
+}
+
+// Snapchat has no exact-mark asset available in our icon set (lucide-react has no
+// brand icons) — using a generic ghost silhouette as a stand-in until we add the
+// real trademarked SVG.
+function SnapchatIcon() {
+	return <Ghost className="w-6 h-6" strokeWidth={1.75} aria-hidden="true" />;
+}
+
+function GoogleIcon() {
+	return (
+		<svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
+			<path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
 		</svg>
 	);
 }
@@ -48,10 +63,13 @@ const trustBadges = [
 
 const paymentMethods = [1, 2, 3, 4, 5];
 
+// Snapchat/TikTok hrefs are placeholders ("#") until those accounts are set up.
 const socialLinks = [
-	{ href: "https://facebook.com/proteinhouseqatar", label: "Facebook", Icon: FacebookIcon },
-	{ href: "https://instagram.com/proteinhouseqatar", label: "Instagram", Icon: InstagramIcon },
-	{ href: "https://threads.net/@proteinhouseqatar", label: "Threads", Icon: ThreadsIcon },
+	{ href: "https://www.facebook.com/nutribox.qa", label: "Facebook", Icon: FacebookIcon },
+	{ href: "https://www.instagram.com/nutribox.qa/", label: "Instagram", Icon: InstagramIcon },
+	{ href: "#", label: "TikTok", Icon: TikTokIcon },
+	{ href: "#", label: "Snapchat", Icon: SnapchatIcon },
+	{ href: "https://share.google/m4uyBRqwEYe654INv", label: "Google", Icon: GoogleIcon },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -72,7 +90,9 @@ export default function Footer({ pageSections }: FooterProps) {
 						<div className="grid grid-cols-2 md:grid-cols-4">
 							{trustBadges.map(({ icon: Icon, title, desc }, i) => (
 								<div key={title} className={`flex items-center gap-3 py-4 px-4 md:py-3 ${i !== 0 ? "md:border-l md:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-100 md:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-gray-100 md:border-l md:border-gray-200" : ""}`}>
-									<Icon size={30} strokeWidth={1.5} className={`shrink-0 ${title === "Easy returns and refunds" ? "text-primary" : "text-gray-800"}`} aria-hidden="true" />
+									<span className="flex-shrink-0 w-12 h-12 rounded-full bg-lime-100 flex items-center justify-center">
+										<Icon size={22} strokeWidth={1.5} className={`shrink-0 ${title === "Easy returns and refunds" ? "text-primary" : "text-gray-800"}`} aria-hidden="true" />
+									</span>
 									<div>
 										<p className="font-semibold text-xs md:text-sm text-gray-900 leading-tight">{title}</p>
 										<p className="text-xs text-gray-500 mt-0.5">{desc}</p>
@@ -94,26 +114,37 @@ export default function Footer({ pageSections }: FooterProps) {
 								<div className="space-y-3 text-xs text-white">
 									<div className="flex items-start gap-2">
 										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" aria-hidden="true" />
-										<span className="leading-relaxed">Al Muntazah Trading Center Building No -2, Office 6 5th Floor Hiteen Street, Doha, Qatar</span>
+										<span className="leading-relaxed">
+											AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
+											<a
+												href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7"
+												target="_blank"
+												rel="noopener noreferrer"
+												aria-label="Get directions on Google Maps"
+												className="inline-flex align-text-top text-white/70 hover:text-lime-300 transition-colors"
+											>
+												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+											</a>
+										</span>
 									</div>
 									<div className="flex items-start gap-2">
 										<Phone size={14} className="shrink-0 text-white/70 mt-0.5" aria-hidden="true" />
 										<div>
-											<a href="tel:+97477689275" className="text-white hover:text-lime-300 transition-colors">
-												+974 77689275
+											<a href="tel:+97470157900" className="text-white hover:text-lime-300 transition-colors">
+												+974 7015 7900
 											</a>
-											<p className="text-xs text-white/50 mt-0.5">Mon-Sun 8am to 8pm</p>
+											<p className="text-xs text-white/50 mt-0.5">Sat-Thu 9am to 8pm</p>
 										</div>
 									</div>
 									<div className="flex items-center gap-2">
 										<Mail size={14} className="shrink-0 text-white/70" aria-hidden="true" />
-										<a href="mailto:contact@nutribox.qa" className="text-white hover:text-lime-300 transition-colors break-all">
-											contact@nutribox.qa
+										<a href="mailto:sales@nutribox.qa" className="text-white hover:text-lime-300 transition-colors break-all">
+											sales@nutribox.qa
 										</a>
 									</div>
 								</div>
 								<div className="mt-5">
-									<h4 className="font-bold text-white mb-2 text-sm">Share it with your Community</h4>
+									<h4 className="font-bold text-white mb-2 text-sm">Follow Us</h4>
 							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-3" />
 									<div className="flex items-center gap-3">
 										{socialLinks.map(({ href, label, Icon }) => (
@@ -197,7 +228,7 @@ export default function Footer({ pageSections }: FooterProps) {
 			</footer>
 
 			{/* WhatsApp floating button */}
-			<a href="https://wa.me/97477689275" target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors">
+			<a href="https://wa.me/97470157900" target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors">
 				<WhatsAppIcon />
 			</a>
 		</>

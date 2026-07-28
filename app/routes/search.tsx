@@ -51,7 +51,14 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 
 export function meta({ data }: Route.MetaArgs) {
   const q = (data as { q?: string } | undefined)?.q ?? "";
-  return [{ title: q ? `Search: ${q} — NutriBox` : "Search — NutriBox" }];
+  return [
+    { title: q ? `Search: ${q} — NutriBox` : "Search — NutriBox" },
+    // Search-result URLs are unbounded (any query string) and mostly thin/duplicate
+    // content — kept crawlable (not blocked in robots.txt) so this tag is actually
+    // seen, but excluded from the index; "follow" still passes link equity through
+    // to the product/collection pages linked from the results.
+    { name: "robots", content: "noindex, follow" },
+  ];
 }
 
 // ── Loader ─────────────────────────────────────────────────────────────────

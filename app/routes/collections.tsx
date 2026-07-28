@@ -50,14 +50,20 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const canonicalUrl = loaderData?.canonicalUrl ?? "/collections";
+  const title = "All Products — NutriBox";
+  const description = "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar.";
   return [
-    { title: "All Products — NutriBox" },
-    { name: "description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar." },
+    { title },
+    { name: "description", content: description },
     { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
     { property: "og:type", content: "website" },
-    { property: "og:title", content: "All Products — NutriBox" },
-    { property: "og:description", content: "Browse our full catalogue of authentic health, fitness, and nutrition products." },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
     { property: "og:url", content: canonicalUrl },
+    { property: "og:site_name", content: "NutriBox" },
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
   ];
 }
 
@@ -160,7 +166,7 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
 }
 
 export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, sort, page, fv, vendureBase } = loaderData;
+  const { totalItems, items, facetValues, sort, page, fv, vendureBase, canonicalUrl } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -181,8 +187,22 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
     updateParam("fv", next.join(",") || null);
   }
 
+  const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "All Products",
+    numberOfItems: totalItems,
+    itemListElement: items.slice(0, 24).map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `${siteOrigin}/products/${item.customProductVariantMappings?.slug || item.slug}`,
+    })),
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="mb-4">
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "All Products" }]} />
       </div>

@@ -1,4 +1,5 @@
-import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useLocation } from "react-router";
+import { useEffect, useLayoutEffect } from "react";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useLocation, useNavigationType } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -12,6 +13,37 @@ import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
 import { CART_COUNT_QUERY } from "./graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
 import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
+import { SITE_NAME, SITE_URL } from "./lib/seo";
+
+// Rendered on every page — establishes NutriBox as a single consistent entity for
+// Google's Knowledge Graph and for AI systems (ChatGPT/Gemini/Claude) grounding
+// answers about the business, rather than each page describing itself in isolation.
+const ORGANIZATION_JSON_LD = {
+	"@context": "https://schema.org",
+	"@type": "Organization",
+	name: SITE_NAME,
+	url: SITE_URL,
+	logo: `${SITE_URL}/images/logo.png`,
+	address: {
+		"@type": "PostalAddress",
+		streetAddress: "AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St",
+		addressLocality: "Doha",
+		addressCountry: "QA",
+	},
+	contactPoint: {
+		"@type": "ContactPoint",
+		telephone: "+974-7015-7900",
+		email: "sales@nutribox.qa",
+		contactType: "customer service",
+		areaServed: "QA",
+	},
+	sameAs: ["https://www.facebook.com/nutribox.qa", "https://www.instagram.com/nutribox.qa/"],
+};
+
+// useLayoutEffect warns ("does nothing on the server") when it runs during SSR —
+// this falls back to useEffect there and only uses the real layout effect once
+// in the browser, the standard fix for that warning.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -77,25 +109,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
 	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
 	const location = useLocation();
+	const navigationType = useNavigationType();
 	const isCheckoutRoute =
 		location.pathname.startsWith("/checkout") ||
 		location.pathname.startsWith("/order-confirmation");
 
+	// Belt-and-suspenders alongside <ScrollRestoration /> — on a real page change
+	// (not back/forward, where preserving position is the whole point) force the
+	// scroll to the top of the new page. Without this, following a link from far
+	// down a long page (e.g. clicking the logo from the bottom of a collection
+	// page) could land you at the same scroll offset on the new page instead.
+	// useLayoutEffect (not useEffect) so this runs before paint, same timing as
+	// React Router's own <ScrollRestoration /> — otherwise there'd be a visible
+	// flash of the old scroll position before the jump to top.
+	useIsomorphicLayoutEffect(() => {
+		if (navigationType !== "POP") {
+			window.scrollTo(0, 0);
+		}
+	}, [location.pathname, navigationType]);
+
 	return (
-		<NotificationProvider>
-			<WishlistProvider>
-				<CartProvider initialCount={cartCount}>
-					<NavigationProgress />
-					{isCheckoutRoute ? (
-						<Outlet />
-					) : (
-						<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
+		<>
+			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }} />
+			<NotificationProvider>
+				<WishlistProvider>
+					<CartProvider initialCount={cartCount}>
+						<NavigationProgress />
+						{isCheckoutRoute ? (
 							<Outlet />
-						</MainLayout>
-					)}
-				</CartProvider>
-			</WishlistProvider>
-		</NotificationProvider>
+						) : (
+							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
+								<Outlet />
+							</MainLayout>
+						)}
+					</CartProvider>
+				</WishlistProvider>
+			</NotificationProvider>
+		</>
 	);
 }
 

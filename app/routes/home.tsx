@@ -16,21 +16,24 @@ import {
   HOME_COLLECTIONS_QUERY,
   type HomeCollectionsResult,
 } from "~/graphql/collection";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
+
+const HOME_TITLE = "NutriBox — Premium Health & Quality Supplements";
+const HOME_DESCRIPTION = "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox. 100% genuine products, fast delivery in Qatar.";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "NutriBox — Premium Health & Quality Supplements" },
-    {
-      name: "description",
-      content:
-        "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox. 100% genuine products, fast delivery in Qatar.",
-    },
-    { property: "og:title", content: "NutriBox — Premium Health & Quality Supplements" },
-    {
-      property: "og:description",
-      content: "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox.",
-    },
+    { title: HOME_TITLE },
+    { name: "description", content: HOME_DESCRIPTION },
+    { tagName: "link" as const, rel: "canonical", href: SITE_URL },
     { property: "og:type", content: "website" },
+    { property: "og:title", content: HOME_TITLE },
+    { property: "og:description", content: HOME_DESCRIPTION },
+    { property: "og:url", content: SITE_URL },
+    { property: "og:site_name", content: SITE_NAME },
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: HOME_TITLE },
+    { name: "twitter:description", content: HOME_DESCRIPTION },
   ];
 }
 
@@ -91,15 +94,30 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   };
 }
 
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
-    <Welcome
-      products={loaderData.products}
-      newProducts={loaderData.newProducts}
-      vendureBase={loaderData.vendureBase}
-      carouselItems={loaderData.carouselItems}
-      topLevelCollections={loaderData.topLevelCollections}
-      subCollections={loaderData.subCollections}
-    />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }} />
+      <Welcome
+        products={loaderData.products}
+        newProducts={loaderData.newProducts}
+        vendureBase={loaderData.vendureBase}
+        carouselItems={loaderData.carouselItems}
+        topLevelCollections={loaderData.topLevelCollections}
+        subCollections={loaderData.subCollections}
+      />
+    </>
   );
 }

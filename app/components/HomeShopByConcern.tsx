@@ -65,13 +65,25 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 
 	// Measure the active tab's box so the sliding pill can animate to it exactly —
 	// tabs are variable-width and horizontally scrollable, so no fixed formula works.
-	// Also scroll the active tab into view — it may be off-screen (e.g. selected via
-	// keyboard, or simply further along the row than what's currently visible).
+	// Also scroll the active tab into view if it's off-screen — done by hand against
+	// scrollRef (not el.scrollIntoView, which scrolls every scrollable ancestor,
+	// including the page itself — on mount that dragged the whole homepage down to
+	// this section since it sits below the fold).
 	useEffect(() => {
 		const el = tabRefs.current.get(activeSlug);
+		const container = scrollRef.current;
 		if (!el) return;
 		setPillRect({ left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight });
-		el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+		if (!container) return;
+		const elLeft = el.offsetLeft;
+		const elRight = elLeft + el.offsetWidth;
+		const viewLeft = container.scrollLeft;
+		const viewRight = viewLeft + container.clientWidth;
+		if (elLeft < viewLeft) {
+			container.scrollTo({ left: elLeft - 16, behavior: "smooth" });
+		} else if (elRight > viewRight) {
+			container.scrollTo({ left: elRight - container.clientWidth + 16, behavior: "smooth" });
+		}
 	}, [activeSlug, tabs.length]);
 
 	// Tab switch — client-fetch the first page for the newly selected concern

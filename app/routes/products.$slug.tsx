@@ -17,6 +17,7 @@ import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } fr
 import { getAddToCartErrorMessage } from "~/graphql/order";
 import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
+import { SITE_NAME } from "~/lib/seo";
 
 const WHATSAPP_NUMBER = "97412345678"; // replace with business WhatsApp number (country code + number, no +)
 
@@ -34,7 +35,12 @@ const DUMMY_HIGHLIGHTS: HighlightItem[] = [
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function resolveImage(preview: string, vendureBase: string) {
-	return preview.startsWith("http") ? preview : `${vendureBase}${preview}`;
+	// The local dev backend (running on Windows) sometimes returns asset preview
+	// paths with backslashes (a Node path.join artifact on that OS) — normalized
+	// defensively here regardless of environment, since a malformed image URL in
+	// JSON-LD/og:image silently breaks rich results either way.
+	const normalized = preview.replace(/\\/g, "/");
+	return normalized.startsWith("http") ? normalized : `${vendureBase}${normalized}`;
 }
 
 function formatQAR(cents: number) {
@@ -561,8 +567,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		if (!allImages.includes(a.preview)) allImages.push(a.preview);
 	}
 
-	// Brand from facetValues
+	// Brand/category from facetValues
 	const brand = product.facetValues.find((f) => f.facet.name.toLowerCase() === "brand")?.name ?? null;
+	const category = product.facetValues.find((f) => f.facet.name.toLowerCase() === "category")?.name ?? null;
 
 	// Breadcrumb
 	const breadcrumbs: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
@@ -575,17 +582,54 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const videoUrl = product.customFields?.videoUrl ?? null;
 	const additionalInfo = product.customFields?.additionalInfo ?? null;
 
-	const ar = ratingSummary?.aggregateRating;
+	// Google explicitly disallows aggregateRating markup with zero reviews (it's
+	// grounds for a manual structured-data action), so this needs an actual review
+	// count, not just a truthy summary object — the backend always returns an
+	// aggregateRating shape even when nobody's reviewed the product yet.
+	const ar = ratingSummary && Number(ratingSummary.aggregateRating?.reviewCount) > 0 ? ratingSummary.aggregateRating : null;
+
+	const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
+	const seller = { "@type": "Organization", name: SITE_NAME };
+
+	function offerFor(v: ProductDetailVariant) {
+		return {
+			"@type": "Offer",
+			url: v.customFields?.slug ? `${siteOrigin}/products/${v.customFields.slug}` : canonicalUrl,
+			price: (v.price / 100).toFixed(2),
+			priceCurrency: v.currencyCode || "QAR",
+			sku: v.sku,
+			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+			itemCondition: "https://schema.org/NewCondition",
+			seller,
+		};
+	}
+
+	// The canonical URL only points at a single variant when that variant has its
+	// own slug (customFields.slug) — in that case this page describes ONE product
+	// (that variant), so the offer list should have exactly one entry, not every
+	// flavor/size. Products without per-variant slugs fall back to a shared
+	// product-level URL where multiple offers (one per variant) are the correct
+	// representation, since the page itself covers the whole variant set.
+	const isVariantPage = !!activeVariant?.customFields?.slug;
+	const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
+	const jsonLdName = isVariantPage && activeVariantName ? `${product.name} — ${activeVariantName}` : product.name;
+	// Structured-data description should summarize the product, not reproduce the
+	// full page body — prefer the curated meta description (same one used in <meta
+	// name="description">) and fall back to a truncated plain-text product description.
+	const jsonLdDescription = (product.customFields?.metaDescription || product.description.replace(/<[^>]+>/g, "").trim()).slice(0, 300);
+
 	const jsonLd = {
 		"@context": "https://schema.org",
 		"@type": "Product",
-		name: product.name,
-		description: product.description.replace(/<[^>]+>/g, "").trim(),
+		name: jsonLdName,
+		description: jsonLdDescription,
 		url: canonicalUrl,
 		...(product.featuredAsset?.preview && {
 			image: resolveImage(product.featuredAsset.preview, vendureBase),
 		}),
+		...(activeVariant?.sku && { sku: activeVariant.sku }),
 		...(brand && { brand: { "@type": "Brand", name: brand } }),
+		...(category && { category }),
 		...(ar && {
 			aggregateRating: {
 				"@type": "AggregateRating",
@@ -595,19 +639,27 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				worstRating: String(ar.worstRating),
 			},
 		}),
-		offers: product.variants.map((v) => ({
-			"@type": "Offer",
-			price: (v.price / 100).toFixed(2),
-			priceCurrency: v.currencyCode || "QAR",
-			sku: v.sku,
-			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-			itemCondition: "https://schema.org/NewCondition",
+		offers: isVariantPage && activeVariant ? offerFor(activeVariant) : product.variants.map(offerFor),
+	};
+
+	// Breadcrumb trail as structured data too, for the same rich-result/AI-context
+	// reasons as the Product schema above (siteOrigin computed above, alongside
+	// the Product offers).
+	const breadcrumbJsonLd = {
+		"@context": "https://schema.org",
+		"@type": "BreadcrumbList",
+		itemListElement: breadcrumbs.map((crumb, i) => ({
+			"@type": "ListItem",
+			position: i + 1,
+			name: crumb.label,
+			item: crumb.href ? `${siteOrigin}${crumb.href}` : canonicalUrl,
 		})),
 	};
 
 	return (
 		<>
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 			<div className="container mx-auto px-4 py-6">
 				{/* Breadcrumb */}
 				<div className="mb-5">
@@ -641,7 +693,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					<div className="flex flex-col">
 						{/* Title — full width */}
 						<div className="mb-4">
-							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{activeVariant?.options?.length ? `${product.name} — ${activeVariant.options.map((o) => o.name).join(", ")}` : product.name}</h1>
+							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{activeVariantName ? `${product.name} — ${activeVariantName}` : product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
 									by <span className="text-primary font-medium">{brand}</span>

@@ -17,6 +17,7 @@ import {
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
 import { vendureImageUrl } from "~/components/VendureImage";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
 
 const PAGE_SIZE = 24;
 
@@ -153,8 +154,33 @@ function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const name = loaderData?.collection?.name ?? "Collection";
-  return [{ title: `${name} — NutriBox` }];
+  const collection = loaderData?.collection;
+  const name = collection?.name ?? "Collection";
+  const title = `${name} — ${SITE_NAME}`;
+  const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
+  const description = rawDescription
+    ? rawDescription.slice(0, 160)
+    : `Shop authentic ${name} products at ${SITE_NAME} — 100% genuine, fast delivery across Qatar.`;
+  const canonicalUrl = loaderData?.canonicalUrl ?? "";
+  const image = loaderData?.collectionImage ?? "";
+
+  if (!collection) return [{ title }, { name: "robots", content: "noindex, follow" }];
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: canonicalUrl },
+    { property: "og:site_name", content: SITE_NAME },
+    ...(image ? [{ property: "og:image", content: image }] : []),
+    { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    ...(image ? [{ name: "twitter:image", content: image }] : []),
+  ];
 }
 
 // ── Loader ─────────────────────────────────────────────────────────────────
@@ -210,10 +236,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       ? facetsResult.value.data.search.facetValues
       : data.search.facetValues;
 
-    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues };
+    const canonicalUrl = `${url.origin}${data.collection ? buildCollectionPath(data.collection.breadcrumbs) : `/c/${path}`}`;
+    const collectionImage = data.collection?.featuredAsset?.preview
+      ? vendureImageUrl(data.collection.featuredAsset.preview, vendureBase, { w: 1200, format: "jpg" })
+      : null;
+
+    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, collectionImage };
   } catch (e) {
     if (e instanceof Response) throw e;
-    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase };
+    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase, canonicalUrl: `${url.origin}/c/${path}`, collectionImage: null };
   }
 }
 
@@ -294,7 +325,7 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, allFacetValues, collection, sort, page, fv, vendureBase } = loaderData;
+  const { totalItems, items, facetValues, allFacetValues, collection, sort, page, fv, vendureBase, canonicalUrl, collectionImage } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -337,8 +368,42 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
     breadcrumbs.push({ label: collection.name });
   }
 
+  // JSON-LD — BreadcrumbList mirrors the visual breadcrumb trail; CollectionPage +
+  // ItemList give search engines/AI crawlers the collection's identity and a
+  // sample of what it contains without needing to parse the product grid markup.
+  const jsonLd = collection && [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: breadcrumbs.map((crumb, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: crumb.label,
+        item: crumb.href ? `${SITE_URL}${crumb.href}` : canonicalUrl,
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: collection.name,
+      url: canonicalUrl,
+      ...(collectionImage && { image: collectionImage }),
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: totalItems,
+        itemListElement: items.slice(0, 24).map((item, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: `${SITE_URL}/products/${item.customProductVariantMappings?.slug || item.slug}`,
+        })),
+      },
+    },
+  ];
+
   return (
     <div className="container mx-auto px-4 py-6">
+      {jsonLd && jsonLd.map((schema, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />)}
+
       {/* ── Breadcrumb ── */}
       <div className="mb-4">
         <Breadcrumb items={breadcrumbs} />

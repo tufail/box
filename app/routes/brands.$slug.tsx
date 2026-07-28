@@ -80,6 +80,9 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:description", content: description },
 		{ property: "og:url", content: canonicalUrl },
 		{ property: "og:site_name", content: SITE_NAME },
+		{ name: "twitter:card", content: "summary" },
+		{ name: "twitter:title", content: title },
+		{ name: "twitter:description", content: description },
 	];
 }
 
@@ -216,7 +219,7 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BrandPage({ loaderData }: Route.ComponentProps) {
-	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues } = loaderData;
+	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, canonicalUrl } = loaderData;
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -248,8 +251,39 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 		{ label: brandName },
 	];
 
+	const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
+	const jsonLd = [
+		{
+			"@context": "https://schema.org",
+			"@type": "BreadcrumbList",
+			itemListElement: breadcrumbs.map((crumb, i) => ({
+				"@type": "ListItem",
+				position: i + 1,
+				name: crumb.label,
+				item: crumb.href ? `${siteOrigin}${crumb.href}` : canonicalUrl,
+			})),
+		},
+		{
+			"@context": "https://schema.org",
+			"@type": "CollectionPage",
+			name: brandName,
+			url: canonicalUrl,
+			mainEntity: {
+				"@type": "ItemList",
+				numberOfItems: totalItems,
+				itemListElement: items.slice(0, 24).map((item, i) => ({
+					"@type": "ListItem",
+					position: i + 1,
+					url: `${siteOrigin}/products/${item.customProductVariantMappings?.slug || item.slug}`,
+				})),
+			},
+		},
+	];
+
 	return (
 		<div className="container mx-auto px-4 py-6">
+			{jsonLd.map((schema, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />)}
+
 			<div className="mb-4">
 				<Breadcrumb items={breadcrumbs} />
 			</div>

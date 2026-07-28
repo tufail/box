@@ -7,7 +7,6 @@ export const GET_MEGA_MENU = `
       items {
         label
         url
-        collectionSlug
         excludeFromNav
         columns {
           position
@@ -17,6 +16,7 @@ export const GET_MEGA_MENU = `
           promoLabel
           sections {
             title
+            url
             links {
               label
               url
@@ -37,6 +37,7 @@ export interface MegaMenuLink {
 
 export interface MegaMenuSection {
   title: string | null;
+  url: string | null;
   links: MegaMenuLink[];
 }
 
@@ -52,7 +53,6 @@ export interface MegaMenuColumn {
 export interface MegaMenuItem {
   label: string;
   url: string | null;
-  collectionSlug: string | null;
   excludeFromNav: boolean;
   columns: MegaMenuColumn[];
 }

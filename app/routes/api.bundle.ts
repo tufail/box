@@ -48,7 +48,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     const intent = body._intent as string | undefined;
 
     if (intent === "addBundle") {
-      const { bundleDefinitionId, triggerVariantId, selectedVariantIds } = body as AddBundleToCartVariables & { _intent: string };
+      const { bundleDefinitionId, triggerVariantId, selectedVariantIds } = body as unknown as AddBundleToCartVariables & { _intent: string };
       const variables: AddBundleToCartVariables = {
         bundleDefinitionId: String(bundleDefinitionId),
         triggerVariantId: String(triggerVariantId),
@@ -66,7 +66,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     if (intent === "restoreBundle") {
-      const { bundleGroupId } = body as RestoreBundleVariables & { _intent: string };
+      const { bundleGroupId } = body as unknown as RestoreBundleVariables & { _intent: string };
       const { data, token } = await graphqlRequest<RestoreBundleResult, RestoreBundleVariables>(
         env,
         RESTORE_BUNDLE_MUTATION,

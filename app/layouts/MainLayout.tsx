@@ -508,9 +508,9 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 
 			<main>{children}</main>
 
-			<Footer pageSections={pageSections} />
+			{routerLocation.pathname === "/" && <SeoFooterContent megaMenu={megaMenu} />}
 
-			{routerLocation.pathname === "/" && <SeoFooterContent />}
+			<Footer pageSections={pageSections} />
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
 
