@@ -239,7 +239,6 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
                   vendureBase={vendureBase}
                   showVariantName
                   forceAddToCart
-                  variantId={product.productVariantId}
                 />
               ))}
             </div>

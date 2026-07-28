@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { User, Package, Share2, Lock, ChevronRight } from "lucide-react";
+import { User, Package, Share2, Lock, ChevronRight, MapPin, Wallet } from "lucide-react";
 import type { CustomerProfile } from "~/graphql/account";
 
 interface NavItem {
@@ -11,6 +11,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: "/account", label: "Profile", icon: User },
   { path: "/account/orders", label: "My Orders", icon: Package },
+  { path: "/account/addresses", label: "Addresses", icon: MapPin },
+  { path: "/account/wallet", label: "My Wallet", icon: Wallet },
   { path: "/account/social", label: "Social Accounts", icon: Share2 },
   { path: "/account/reset-password", label: "Security", icon: Lock },
 ];

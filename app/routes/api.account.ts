@@ -3,8 +3,14 @@ import { graphqlRequest } from "workers/graphqlClient";
 import {
   UPDATE_CUSTOMER_MUTATION,
   UPDATE_CUSTOMER_PASSWORD_MUTATION,
+  CREATE_CUSTOMER_ADDRESS_MUTATION,
+  UPDATE_CUSTOMER_ADDRESS_MUTATION,
+  DELETE_CUSTOMER_ADDRESS_MUTATION,
   type UpdateCustomerResult,
   type UpdateCustomerPasswordResult,
+  type CreateCustomerAddressResult,
+  type UpdateCustomerAddressResult,
+  type DeleteCustomerAddressResult,
 } from "~/graphql/account";
 
 function makeHeaders(token?: string | null): Headers {
@@ -77,6 +83,81 @@ export async function action({ request, context }: Route.ActionArgs) {
       return json({ success: true }, token);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to change password";
+      return json({ error: msg }, null, 500);
+    }
+  }
+
+  if (intent === "createAddress") {
+    const { fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress } = body;
+    if (!fullName || !streetLine1) {
+      return json({ error: "Full name and street address are required." }, null, 400);
+    }
+    const input: Record<string, unknown> = { fullName, streetLine1, countryCode: "QA" };
+    if (streetLine2) input.streetLine2 = streetLine2;
+    if (city) input.city = city;
+    if (province) input.province = province;
+    if (postalCode) input.postalCode = postalCode;
+    if (phoneNumber) input.phoneNumber = phoneNumber;
+    if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
+
+    try {
+      const { data, token } = await graphqlRequest<CreateCustomerAddressResult>(
+        env,
+        CREATE_CUSTOMER_ADDRESS_MUTATION,
+        { input },
+        { request }
+      );
+      return json({ address: data.createCustomerAddress }, token);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save address";
+      return json({ error: msg }, null, 500);
+    }
+  }
+
+  if (intent === "updateAddress") {
+    const { id, fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress } = body;
+    if (!id) {
+      return json({ error: "Missing address id." }, null, 400);
+    }
+    const input: Record<string, unknown> = { id };
+    if (fullName) input.fullName = fullName;
+    if (streetLine1) input.streetLine1 = streetLine1;
+    if (streetLine2 !== undefined) input.streetLine2 = streetLine2;
+    if (city) input.city = city;
+    if (province) input.province = province;
+    if (postalCode) input.postalCode = postalCode;
+    if (phoneNumber !== undefined) input.phoneNumber = phoneNumber;
+    if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
+
+    try {
+      const { data, token } = await graphqlRequest<UpdateCustomerAddressResult>(
+        env,
+        UPDATE_CUSTOMER_ADDRESS_MUTATION,
+        { input },
+        { request }
+      );
+      return json({ address: data.updateCustomerAddress }, token);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to update address";
+      return json({ error: msg }, null, 500);
+    }
+  }
+
+  if (intent === "deleteAddress") {
+    const { id } = body;
+    if (!id) {
+      return json({ error: "Missing address id." }, null, 400);
+    }
+    try {
+      const { data, token } = await graphqlRequest<DeleteCustomerAddressResult>(
+        env,
+        DELETE_CUSTOMER_ADDRESS_MUTATION,
+        { id },
+        { request }
+      );
+      return json({ success: data.deleteCustomerAddress.success, id }, token);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to delete address";
       return json({ error: msg }, null, 500);
     }
   }

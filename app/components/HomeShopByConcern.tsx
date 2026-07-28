@@ -168,7 +168,7 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 						<p className="text-white/70 text-sm mt-2">Curated picks trusted by thousands, backed by science.</p>
 					</div>
 
-					<Link to={`/collections/${activeSlug}`} className="relative z-10 mt-6 inline-flex items-center gap-1.5 text-white text-sm font-semibold hover:gap-2.5 transition-all w-fit">
+					<Link to={`/c/${activeSlug}`} className="relative z-10 mt-6 inline-flex items-center gap-1.5 text-white text-sm font-semibold hover:gap-2.5 transition-all w-fit">
 						Explore all <ArrowRight size={15} />
 					</Link>
 				</div>

@@ -50,7 +50,6 @@ interface ProductCardProps {
 	eager?: boolean;
 	showVariantName?: boolean;
 	forceAddToCart?: boolean;
-	variantId?: string;
 	onAddToCart?: (product: SearchProductItem) => void;
 }
 
@@ -62,7 +61,7 @@ function formatQAR(value: number): string {
 	return value % 1 === 0 ? value.toFixed(0) : value.toFixed(2);
 }
 
-export default function ProductCard({ product, vendureBase, eager = false, showVariantName = false, forceAddToCart = false, variantId, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, vendureBase, eager = false, showVariantName = false, forceAddToCart = false, onAddToCart }: ProductCardProps) {
 	const priceQAR = minPrice(product.price) / 100;
 	const discount = product.customProductVariantMappings?.discount ?? 0;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
@@ -71,7 +70,13 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 	const sold30Days = product.customProductMappings?.soldCount30d ?? 0;
 	const bestSellerRank = product.customProductMappings?.bestSellerRank ?? null;
 	const bestSellerCollection = product.customProductMappings?.bestSellerCollection ?? null;
-	const productHref = variantId ? `/products/${product.slug}?variant=${variantId}` : `/products/${product.slug}`;
+	// Every search result already represents one specific (grouped or ungrouped) variant, so
+	// always link straight to it — the clean URL is just the variant's own slug (it already
+	// embeds the product slug, e.g. "whey-protein-chocolate-2kg"). Only fall back to the bare
+	// product link if that slug hasn't been indexed yet.
+	const productHref = product.customProductVariantMappings?.slug
+		? `/products/${product.customProductVariantMappings.slug}`
+		: `/products/${product.slug}`;
 	const displayName = showVariantName && product.productVariantName ? product.productVariantName : product.productName;
 
 	// Build animated message list: base messages + sold30Days + rank

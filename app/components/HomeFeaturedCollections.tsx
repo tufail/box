@@ -68,7 +68,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 									style={{ background: "linear-gradient(to bottom, rgba(209,213,219,0.3) 0%, rgba(209,213,219,0.3) 70%, transparent 100%)" }}
 								>
 									<Link
-										to={`/collections/${col.slug}`}
+										to={`/c/${col.slug}`}
 										className="group block rounded-xl"
 									>
 										<div className="overflow-hidden rounded-xl bg-stone-100">

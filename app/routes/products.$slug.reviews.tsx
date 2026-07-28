@@ -259,7 +259,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 							<h3 className="text-lg font-bold text-gray-900 mb-2">Sign in to Write a Review</h3>
 							<p className="text-sm text-gray-500 mb-6">You need to be logged in to share your experience.</p>
 							<div className="flex flex-col gap-3">
-								<Link to={`/login?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full transition-colors text-sm">
+								<Link to={`/login?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full transition-colors text-sm">
 									Sign In
 								</Link>
 								<Link to={`/register?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center border border-primary text-primary font-semibold py-3 rounded-full hover:bg-primary/5 transition-colors text-sm">
@@ -427,7 +427,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 						<h1 className="text-xl font-bold text-gray-900">Customer Reviews</h1>
 						<button
 							onClick={() => setWriteOpen(true)}
-							className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
+							className="bg-black hover:bg-gray-800 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
 						>
 							Write a Review
 						</button>
@@ -595,7 +595,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 			<div className="fixed bottom-6 right-6 z-40 lg:hidden">
 				<button
 					onClick={() => setWriteOpen(true)}
-					className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-3 rounded-full shadow-xl transition-colors"
+					className="bg-black hover:bg-gray-800 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-xl transition-colors"
 				>
 					Write a Review
 				</button>

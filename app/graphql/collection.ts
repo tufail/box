@@ -55,6 +55,14 @@ export interface CollectionBreadcrumb {
   slug: string;
 }
 
+// Builds the canonical deep URL for a collection from Vendure's breadcrumb chain
+// (root -> ... -> this collection), e.g. "/c/health-supplements/creatine". Used both
+// to link to collections and to detect when a visited /c/* path needs canonicalizing.
+export function buildCollectionPath(breadcrumbs: { name: string; slug: string }[]): string {
+  const segments = breadcrumbs.filter((b) => b.name !== "__root_collection__").map((b) => b.slug);
+  return `/c/${segments.join("/")}`;
+}
+
 export interface CollectionDetail {
   id: string;
   name: string;
@@ -63,6 +71,7 @@ export interface CollectionDetail {
   breadcrumbs: CollectionBreadcrumb[];
   featuredAsset: { preview: string } | null;
   customFields: { banner: { source: string } | null } | null;
+  children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[];
 }
 
 export interface CollectionPageFacetValue {
@@ -149,6 +158,12 @@ export const COLLECTION_PAGE_QUERY = `
       breadcrumbs { id name slug }
       featuredAsset { preview }
       customFields { banner { source } }
+      children {
+        id
+        name
+        slug
+        featuredAsset { preview }
+      }
     }
     search(input: $input) {
       totalItems
@@ -166,7 +181,7 @@ export const COLLECTION_PAGE_QUERY = `
           ... on PriceRange { min max }
           ... on SinglePrice { value }
         }
-        customProductVariantMappings { isOnSale stockQty discount rrp }
+        customProductVariantMappings { isOnSale stockQty discount rrp slug }
         customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
       facetValues {

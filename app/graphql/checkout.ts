@@ -232,3 +232,25 @@ export const LOGOUT_MUTATION = `
     }
   }
 `;
+
+export interface SadadCallbackInput {
+  params: Record<string, string>;
+}
+
+export interface SadadCallbackResult {
+  success: boolean;
+  paymentSettled: boolean;
+  orderCode: string | null;
+  errorMessage: string | null;
+}
+
+export const CONFIRM_SADAD_CALLBACK_MUTATION = `
+  mutation ConfirmSadadCallback($input: SadadCallbackInput!) {
+    confirmSadadCallback(input: $input) {
+      success
+      paymentSettled
+      orderCode
+      errorMessage
+    }
+  }
+`;

@@ -312,6 +312,62 @@ export const SOCIAL_LOGIN_MUTATION = `
   }
 `;
 
+export interface CreateCustomerAddressResult {
+  createCustomerAddress: CustomerAddress;
+}
+
+export const CREATE_CUSTOMER_ADDRESS_MUTATION = `
+  mutation CreateCustomerAddress($input: CreateAddressInput!) {
+    createCustomerAddress(input: $input) {
+      id
+      fullName
+      streetLine1
+      streetLine2
+      city
+      province
+      postalCode
+      country { name code }
+      phoneNumber
+      defaultShippingAddress
+      defaultBillingAddress
+    }
+  }
+`;
+
+export interface UpdateCustomerAddressResult {
+  updateCustomerAddress: CustomerAddress;
+}
+
+export const UPDATE_CUSTOMER_ADDRESS_MUTATION = `
+  mutation UpdateCustomerAddress($input: UpdateAddressInput!) {
+    updateCustomerAddress(input: $input) {
+      id
+      fullName
+      streetLine1
+      streetLine2
+      city
+      province
+      postalCode
+      country { name code }
+      phoneNumber
+      defaultShippingAddress
+      defaultBillingAddress
+    }
+  }
+`;
+
+export interface DeleteCustomerAddressResult {
+  deleteCustomerAddress: { success: boolean };
+}
+
+export const DELETE_CUSTOMER_ADDRESS_MUTATION = `
+  mutation DeleteCustomerAddress($id: ID!) {
+    deleteCustomerAddress(id: $id) {
+      success
+    }
+  }
+`;
+
 export const VERIFY_CUSTOMER_ACCOUNT_MUTATION = `
   mutation VerifyCustomerAccount($token: String!, $password: String) {
     verifyCustomerAccount(token: $token, password: $password) {

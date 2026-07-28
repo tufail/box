@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 
 export interface WishlistItem {
 	variantId: string;
+	variantSlug?: string | null;
 	productSlug: string;
 	name: string;
 	price: number;

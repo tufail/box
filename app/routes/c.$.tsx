@@ -1,7 +1,7 @@
-import type { Route } from "./+types/collections.$slug";
-import { useSearchParams } from "react-router";
-import { useState } from "react";
-import { SlidersHorizontal, X, Check } from "lucide-react";
+import type { Route } from "./+types/c.$";
+import { useSearchParams, Link, redirect } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { SlidersHorizontal, X, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
@@ -9,12 +9,14 @@ import SortDropdown from "~/components/SortDropdown";
 import {
   COLLECTION_PAGE_QUERY,
   COLLECTION_FACETS_QUERY,
+  buildCollectionPath,
   type CollectionPageData,
   type CollectionPageFacetValue,
   type CollectionPageVariables,
   type CollectionFacetsData,
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
+import { vendureImageUrl } from "~/components/VendureImage";
 
 const PAGE_SIZE = 24;
 
@@ -67,6 +69,71 @@ function CollectionMarqueeHero({ title }: { title: string }) {
   );
 }
 
+// ── Sub-collection nav (1st-level children as scrollable link buttons) ──────
+
+function SubCollectionNav({ children, vendureBase }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; vendureBase: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    window.addEventListener("resize", updateScrollState);
+    return () => window.removeEventListener("resize", updateScrollState);
+  }, [updateScrollState, children.length]);
+
+  function scrollByAmount(direction: "left" | "right") {
+    scrollRef.current?.scrollBy({ left: direction === "left" ? -240 : 240, behavior: "smooth" });
+  }
+
+  if (children.length === 0) return null;
+
+  return (
+    <div className="relative mb-6">
+      <div ref={scrollRef} onScroll={updateScrollState} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {children.map((child) => (
+          <Link
+            key={child.id}
+            to={`/c/${child.slug}`}
+            className="flex-shrink-0 flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
+          >
+            {child.featuredAsset ? (
+              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { w: 56, h: 56, format: "webp", mode: "crop" })} alt="" className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
+            ) : (
+              <span className="w-7 h-7 rounded-full bg-stone-100 flex-shrink-0" />
+            )}
+            {child.name}
+          </Link>
+        ))}
+      </div>
+
+      {canScrollLeft && (
+        <>
+          <div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none" />
+          <button onClick={() => scrollByAmount("left")} aria-label="Scroll left" className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={14} />
+          </button>
+        </>
+      )}
+      {canScrollRight && (
+        <>
+          <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none" />
+          <button onClick={() => scrollByAmount("right")} aria-label="Scroll right" className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+            <ChevronRight size={14} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
   const map = new Map<string, FacetGroup>();
   for (const { facetValue, count } of facetValues) {
@@ -93,7 +160,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // ── Loader ─────────────────────────────────────────────────────────────────
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-  const slug = params.slug!;
+  // "*" is everything after /c/, e.g. "health-supplements/creatine" — Vendure
+  // collection slugs are globally unique, so only the last segment is actually
+  // used to look the collection up; the rest of the path is purely for a
+  // human/SEO-readable deep URL, canonicalized below via redirect.
+  const path = params["*"] ?? "";
+  const segments = path.split("/").filter(Boolean);
+  const slug = segments[segments.length - 1] ?? "";
   const url = new URL(request.url);
   const sort = (url.searchParams.get("sort") ?? "sales_desc") as SortKey;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
@@ -122,12 +195,24 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
     if (mainResult.status === "rejected") throw mainResult.reason;
     const { data } = mainResult.value;
+
+    // Canonicalize: if the visited path doesn't match the collection's real
+    // ancestor chain, redirect to the correct deep URL (avoids duplicate-content
+    // across multiple paths reaching the same collection).
+    if (data.collection?.breadcrumbs?.length) {
+      const canonicalPath = buildCollectionPath(data.collection.breadcrumbs);
+      if (canonicalPath !== `/c/${path}`) {
+        throw redirect(`${canonicalPath}${url.search}`, 301);
+      }
+    }
+
     const allFacetValues = facetsResult.status === "fulfilled"
       ? facetsResult.value.data.search.facetValues
       : data.search.facetValues;
 
     return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues };
-  } catch {
+  } catch (e) {
+    if (e instanceof Response) throw e;
     return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase };
   }
 }
@@ -237,16 +322,17 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
     updateParam("fv", null);
   }
 
-  // Build breadcrumb from Vendure's collection.breadcrumbs
+  // Build breadcrumb from Vendure's collection.breadcrumbs — each ancestor links to
+  // its own deep path (built progressively from the same breadcrumb chain).
   const breadcrumbs: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
   if (collection?.breadcrumbs) {
-    for (const crumb of collection.breadcrumbs) {
-      if (crumb.name === "__root_collection__") continue;
+    const realCrumbs = collection.breadcrumbs.filter((c) => c.name !== "__root_collection__");
+    realCrumbs.forEach((crumb, i) => {
       breadcrumbs.push({
         label: crumb.name,
-        href: crumb.slug === collection.slug ? undefined : `/collections/${crumb.slug}`,
+        href: i === realCrumbs.length - 1 ? undefined : `/c/${realCrumbs.slice(0, i + 1).map((c) => c.slug).join("/")}`,
       });
-    }
+    });
   } else if (collection) {
     breadcrumbs.push({ label: collection.name });
   }
@@ -280,6 +366,9 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           )}
         </div>
       )}
+
+      {/* ── Sub-collections (1st-level children) ── */}
+      {collection && <SubCollectionNav children={collection.children} vendureBase={vendureBase} />}
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
@@ -327,7 +416,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((product) => (
-                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} showVariantName forceAddToCart variantId={product.productVariantId} />
+                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} showVariantName forceAddToCart />
               ))}
             </div>
           )}

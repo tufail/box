@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router";
 import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
@@ -89,30 +89,35 @@ export default function Footer({ pageSections }: FooterProps) {
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
 							{/* Col 1 — Company info */}
 							<address className="not-italic">
-								<h3 className="font-bold text-white mb-4 text-sm">NutriBox</h3>
-								<div className="space-y-3 text-sm text-white/70">
+								<h3 className="font-bold text-white mb-2 text-sm">NutriBox</h3>
+							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+								<div className="space-y-3 text-xs text-white">
 									<div className="flex items-start gap-2">
 										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" aria-hidden="true" />
 										<span className="leading-relaxed">Al Muntazah Trading Center Building No -2, Office 6 5th Floor Hiteen Street, Doha, Qatar</span>
 									</div>
-									<div className="flex items-center gap-2">
-										<Phone size={14} className="shrink-0 text-white/70" aria-hidden="true" />
-										<a href="tel:+97477689275" className="hover:text-white transition-colors">
-											+974 77689275
-										</a>
+									<div className="flex items-start gap-2">
+										<Phone size={14} className="shrink-0 text-white/70 mt-0.5" aria-hidden="true" />
+										<div>
+											<a href="tel:+97477689275" className="text-white hover:text-lime-300 transition-colors">
+												+974 77689275
+											</a>
+											<p className="text-xs text-white/50 mt-0.5">Mon-Sun 8am to 8pm</p>
+										</div>
 									</div>
 									<div className="flex items-center gap-2">
 										<Mail size={14} className="shrink-0 text-white/70" aria-hidden="true" />
-										<a href="mailto:askadmin@proteinhouseqa.com" className="hover:text-white transition-colors break-all">
-											askadmin@proteinhouseqa.com
+										<a href="mailto:contact@nutribox.qa" className="text-white hover:text-lime-300 transition-colors break-all">
+											contact@nutribox.qa
 										</a>
 									</div>
 								</div>
 								<div className="mt-5">
-									<h4 className="font-bold text-white mb-3 text-sm">Follow Us</h4>
+									<h4 className="font-bold text-white mb-2 text-sm">Share it with your Community</h4>
+							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-3" />
 									<div className="flex items-center gap-3">
 										{socialLinks.map(({ href, label, Icon }) => (
-											<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-white/70 hover:text-white transition-colors">
+											<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-white hover:text-lime-300 transition-colors">
 												<Icon />
 											</a>
 										))}
@@ -124,7 +129,8 @@ export default function Footer({ pageSections }: FooterProps) {
 							{pageSections.length > 0
 								? pageSections.slice(0, 2).map((section, idx) => (
 										<nav key={section.id} aria-label={section.name}>
-											<h3 className="font-bold text-white mb-4 text-sm">{section.name}</h3>
+											<h3 className="font-bold text-white mb-2 text-sm">{section.name}</h3>
+										<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
 											<ul className="space-y-2.5">
 												{section.pages.map((page) => {
 													const url = page.externalUrl?.trim();
@@ -133,11 +139,11 @@ export default function Footer({ pageSections }: FooterProps) {
 													return (
 														<li key={page.id}>
 															{isExternal ? (
-																<a href={url} {...(isNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="text-sm text-white/70 hover:text-white transition-colors">
+																<a href={url} {...(isNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="text-xs text-white hover:text-lime-300 transition-colors">
 																	{page.title}
 																</a>
 															) : (
-																<Link to={`/pages/${page.slug}`} className="text-sm text-white/70 hover:text-white transition-colors">
+																<Link to={`/pages/${page.slug}`} className="text-xs text-white hover:text-lime-300 transition-colors">
 																	{page.title}
 																</Link>
 															)}
@@ -151,8 +157,9 @@ export default function Footer({ pageSections }: FooterProps) {
 
 							{/* Col 4 — Newsletter */}
 							<div>
-								<h3 className="font-bold text-white mb-4 text-sm">Sign up for savings</h3>
-								<p className="text-sm text-white/70 mb-4 leading-relaxed">Be the first to get promo offers and reward perks straight to your inbox.</p>
+								<h3 className="font-bold text-white mb-2 text-sm">Sign up for savings</h3>
+							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+								<p className="text-xs text-white mb-4 leading-relaxed">Be the first to get promo offers and reward perks straight to your inbox.</p>
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
@@ -176,7 +183,7 @@ export default function Footer({ pageSections }: FooterProps) {
 					{/* Bottom bar */}
 					<div className="border-t border-white/20">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-sm text-white/70">Copyright &copy; {new Date().getFullYear()} NutriBox</p>
+							<p className="text-xs text-white">Copyright &copy; {new Date().getFullYear()} NutriBox. All rights reserved.</p>
 							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label="Accepted payment methods">
 								{paymentMethods.map((m) => (
 									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">

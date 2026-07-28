@@ -1,7 +1,7 @@
 import type { Route } from "./+types/products.$slug";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useFetcher, useNavigate, Link, useRouteLoaderData } from "react-router";
+import { useFetcher, Link, useRouteLoaderData } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
 import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet, Maximize2, X, Truck, Info } from "lucide-react";
@@ -11,7 +11,7 @@ import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
 import SortDropdown from "~/components/SortDropdown";
 import ProductHighlights, { type HighlightItem } from "~/components/ProductHighlights";
-import { PRODUCT_DETAIL_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
+import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -114,34 +114,54 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // ── Loader ─────────────────────────────────────────────────────────────────
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-	const slug = params.slug!;
+	const slugParam = params.slug!;
 	const url = new URL(request.url);
-	const selectedVariantId = url.searchParams.get("variant") ?? null;
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
 	try {
-		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug }, { request });
-		if (!data.product) throw new Response("Not Found", { status: 404 });
+		// $slug is either a product's own slug (bare product page, defaults to its
+		// first variant) or a specific variant's full slug (e.g.
+		// "whey-protein-chocolate-2kg") — try the product lookup first since it's
+		// the common case, then fall back to the variant lookup.
+		let product: ProductDetailItem | null = null;
+		let activeVariantId: string | null = null;
 
-		const product = data.product;
-		const activeVariant = selectedVariantId ? (product.variants.find((v) => v.id === selectedVariantId) ?? product.variants[0]) : product.variants[0];
-		const canonicalUrl = activeVariant ? `${url.origin}/products/${slug}?variant=${activeVariant.id}` : `${url.origin}/products/${slug}`;
+		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: slugParam }, { request });
+		if (data.product) {
+			product = data.product;
+		} else {
+			const { data: variantData } = await graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: slugParam }, { request });
+			if (variantData.productVariantBySlug) {
+				product = variantData.productVariantBySlug.product;
+				activeVariantId = variantData.productVariantBySlug.id;
+			}
+		}
+		if (!product) throw new Response("Not Found", { status: 404 });
+
+		const activeVariant = activeVariantId
+			? (product.variants.find((v) => v.id === activeVariantId) ?? product.variants[0])
+			: product.variants[0];
+		// A raw variant id isn't a resolvable path on its own — fall back to the bare
+		// product URL if this variant's slug hasn't been backfilled/indexed yet.
+		const canonicalUrl = activeVariant?.customFields?.slug
+			? `${url.origin}/products/${activeVariant.customFields.slug}`
+			: `${url.origin}/products/${product.slug}`;
 
 		const collectionSlug = product.collections[0]?.slug;
 		const [simResult, summaryResult, currentProductResult] = await Promise.allSettled([
 			collectionSlug ? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request }) : Promise.resolve(null),
-			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug }, { request }),
+			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 			// Dedicated search for current product to get sold count + best seller data
 			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: true, take: 5 } }, { request }),
 		]);
 
 		const allSearchItems = simResult.status === "fulfilled" && simResult.value ? simResult.value.data.search.items : [];
-		const similarProducts: SearchProductItem[] = allSearchItems.filter((p) => p.slug !== slug).slice(0, 8);
+		const similarProducts: SearchProductItem[] = allSearchItems.filter((p) => p.slug !== product.slug).slice(0, 8);
 
 		// Find current product in the dedicated search result (term: product.name)
 		const currentProductItems = currentProductResult.status === "fulfilled" ? currentProductResult.value.data.search.items : [];
-		const currentInSearch = currentProductItems.find((p) => p.slug === slug) ?? allSearchItems.find((p) => p.slug === slug); // fallback to similar results
+		const currentInSearch = currentProductItems.find((p) => p.slug === product.slug) ?? allSearchItems.find((p) => p.slug === product.slug); // fallback to similar results
 
 		const soldCount30d: number = currentInSearch?.customProductMappings?.soldCount30d ?? 0;
 		const bestSellerRank: number | null = currentInSearch?.customProductMappings?.bestSellerRank ?? null;
@@ -150,17 +170,16 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled" ? (summaryResult.value.data.productRatingSummaryBySlug ?? null) : null;
 
-		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName: activeVariant?.name ?? null, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug };
+		// Variant.name is Vendure's auto-generated "Product Name - Option" string, which
+		// would duplicate the product name if appended as-is — use just the option values
+		// (e.g. "Strawberry, 5 lbs") as the distinguishing suffix instead.
+		const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
+
+		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
 	}
-}
-
-export function shouldRevalidate({ nextUrl, currentUrl, defaultShouldRevalidate }: { nextUrl: URL; currentUrl: URL; defaultShouldRevalidate: boolean }) {
-	// Variant switches stay on the same path — skip full revalidation
-	if (nextUrl.pathname === currentUrl.pathname) return false;
-	return defaultShouldRevalidate;
 }
 
 // ── Image gallery ──────────────────────────────────────────────────────────
@@ -480,7 +499,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const [qty, setQty] = useState(1);
 	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
 	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
-	const navigate = useNavigate();
 	const { openCart, setCartCount } = useCart();
 	const { notify } = useNotification();
 
@@ -550,7 +568,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const breadcrumbs: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 	if (product.collections.length > 0) {
 		const col = product.collections[product.collections.length - 1];
-		breadcrumbs.push({ label: col.name, href: `/collections/${col.slug}` });
+		breadcrumbs.push({ label: col.name, href: `/c/${col.slug}` });
 	}
 	breadcrumbs.push({ label: product.name });
 
@@ -608,6 +626,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							shareUrl={canonicalUrl}
 							wishlistItem={{
 								variantId: activeVariant?.id ?? "",
+								variantSlug: activeVariant?.customFields?.slug ?? null,
 								productSlug: product.slug,
 								name: product.name,
 								price: activeVariant?.price ?? 0,
@@ -622,7 +641,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					<div className="flex flex-col">
 						{/* Title — full width */}
 						<div className="mb-4">
-							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{product.name}</h1>
+							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{activeVariant?.options?.length ? `${product.name} — ${activeVariant.options.map((o) => o.name).join(", ")}` : product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
 									by <span className="text-primary font-medium">{brand}</span>
@@ -676,19 +695,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													const matchedVariant = findVariantForValue(product.variants, selected, group.code, val);
 													const available = matchedVariant ? isInStock(matchedVariant.stockLevel) : false;
 													const isActive = selected[group.code] === val;
+													const variantHref = `/products/${matchedVariant?.customFields?.slug || product.slug}`;
 													return (
-														<button
+														<Link
 															key={val}
-															disabled={!available}
-															onClick={() => {
-																const newSelected = { ...selected, [group.code]: val };
-																setSelected(newSelected);
-																const newVariant = findVariant(product.variants, newSelected);
-																if (newVariant) {
-																	navigate(`/products/${product.slug}?variant=${newVariant.id}`, { replace: true, preventScrollReset: true });
+															to={variantHref}
+															replace
+															preventScrollReset
+															aria-disabled={!available}
+															onClick={(e) => {
+																if (!available || !matchedVariant) {
+																	e.preventDefault();
+																	return;
 																}
+																setSelected({ ...selected, [group.code]: val });
 															}}
-															className={`relative px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50"}`}
+															className={`relative px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none"}`}
 														>
 															<span className="block">{val}</span>
 															{!available ? (
@@ -701,7 +723,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 															) : (
 																showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>
 															)}
-														</button>
+														</Link>
 													);
 												})}
 											</div>
@@ -727,7 +749,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										{variantRankings.map((r) => (
 											<div className="flex text-[12px] font-semibold" key={r.collectionSlug}>
 												<span className="mr-1">#{r.rank} in </span>
-												<Link to={`/collections/${r.collectionSlug}`} className="text-blue-700 hover:underline">
+												<Link to={`/c/${r.collectionSlug}`} className="text-blue-700 hover:underline">
 													{r.collectionName}
 												</Link>
 											</div>
@@ -818,24 +840,31 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── Highlights (placeholder data — see DUMMY_HIGHLIGHTS) ── */}
 				<ProductHighlights title={product.name} items={DUMMY_HIGHLIGHTS} />
 
-				{/* ── Description / Disclaimer / Q&A tabs + Nutrition Facts ── */}
-				{(product.description || activeVariant?.customFields?.additionalInfo || activeVariant?.customFields?.keyInfo) && (
-					<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
-						<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-							<ProductInfoTabs
-								description={product.description ?? ""}
-								warnings={activeVariant?.customFields?.keyInfo ?? ""}
-							/>
-						</div>
-
-						{/* Nutrition Facts */}
-						{activeVariant?.customFields?.additionalInfo && (
-							<div className="lg:sticky lg:top-6">
-								<div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: activeVariant.customFields.additionalInfo }} />
+				{/* ── Description / Disclaimer / Q&A tabs + Nutrition Facts ──
+				    Prefer the selected variant's own values; fall back to the product's
+				    defaults only when this variant hasn't got its own override. */}
+				{(() => {
+					const nutritionInfo = activeVariant?.customFields?.additionalInfo || product.customFields?.additionalInfo || "";
+					const disclaimer = activeVariant?.customFields?.keyInfo ?? "";
+					if (!product.description && !nutritionInfo && !disclaimer) return null;
+					return (
+						<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
+							<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+								<ProductInfoTabs
+									description={product.description ?? ""}
+									warnings={disclaimer}
+								/>
 							</div>
-						)}
-					</div>
-				)}
+
+							{/* Nutrition Facts */}
+							{nutritionInfo && (
+								<div className="lg:sticky lg:top-6">
+									<div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: nutritionInfo }} />
+								</div>
+							)}
+						</div>
+					);
+				})()}
 
 				{/* ── Product video ── */}
 				{videoUrl && (
@@ -1018,7 +1047,7 @@ function NoReviews({ productSlug }: { productSlug: string }) {
 					))}
 				</div>
 				<p className="text-gray-500 text-sm">Looks like no one reviewed this product yet.</p>
-				<Link to={`/products/${productSlug}/reviews#write`} className="bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
+				<Link to={`/products/${productSlug}/reviews#write`} className="bg-black hover:bg-gray-800 text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
 					Write a Review
 				</Link>
 			</div>
@@ -1086,7 +1115,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 			{/* Header */}
 			<div className="flex items-center justify-between gap-4 mb-6">
 				<h2 className="font-heading text-xl font-extrabold text-black">Customer Reviews</h2>
-				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 border-2 border-black text-black font-semibold text-sm px-5 py-2 rounded-full hover:bg-black hover:text-white transition-colors">
+				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 bg-black hover:bg-gray-800 text-white font-semibold text-sm px-5 py-2 rounded-full transition-colors">
 					Write a Review
 				</Link>
 			</div>

@@ -8,7 +8,7 @@ import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
 import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
-import { Link, useFetcher } from "react-router";
+import { Link, useFetcher, useLocation } from "react-router";
 import { CircleUser, Globe, Heart, Menu, ShoppingCart, X, Check, Search } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import SearchOverlay from "../components/SearchOverlay";
@@ -340,6 +340,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
+	const routerLocation = useLocation();
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
 	const { wishlistCount } = useWishlist();
 	const [accountOpen, setAccountOpen] = useState(false);
@@ -509,7 +510,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 
 			<Footer pageSections={pageSections} />
 
-			<SeoFooterContent />
+			{routerLocation.pathname === "/" && <SeoFooterContent />}
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
 

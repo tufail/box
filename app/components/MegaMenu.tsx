@@ -5,7 +5,7 @@ import type { MegaMenuData, MegaMenuItem } from "../graphql/megamenu";
 import { ChevronDown, Search, X } from "lucide-react";
 
 function itemHref(item: Pick<MegaMenuItem, "url" | "collectionSlug">): string {
-	if (item.collectionSlug) return `/collections/${item.collectionSlug}`;
+	if (item.collectionSlug) return `/c/${item.collectionSlug}`;
 	return item.url ?? "#";
 }
 

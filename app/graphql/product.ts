@@ -12,7 +12,7 @@ export interface ProductDetailVariant {
   stockLevel: string;
   featuredAsset: { preview: string } | null;
   assets: { preview: string }[];
-  customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null } | null;
+  customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null } | null;
   options: { code: string; name: string; group: { code: string; name: string } }[];
 }
 
@@ -41,39 +41,63 @@ export interface ProductDetailData {
   product: ProductDetailItem | null;
 }
 
+// Shared field selection so the "by product slug" and "by variant slug" lookups
+// (below) can never drift apart.
+const PRODUCT_DETAIL_FIELDS = `
+  id
+  name
+  slug
+  description
+  featuredAsset { preview }
+  assets { preview }
+  customFields {
+    isFeatured
+    metaTitle
+    metaDescription
+    videoUrl
+    displayType
+    additionalInfo
+    salesCount
+  }
+  variants {
+    id
+    name
+    sku
+    price
+    priceWithTax
+    currencyCode
+    stockLevel
+    featuredAsset { preview }
+    assets { preview }
+    customFields { rrp keyInfo additionalInfo slug }
+    options { code name group { code name } }
+  }
+  facetValues { name facet { name } }
+  collections { id name slug }
+`;
+
 export const PRODUCT_DETAIL_QUERY = `
   query ProductDetail($slug: String!) {
     product(slug: $slug) {
+      ${PRODUCT_DETAIL_FIELDS}
+    }
+  }
+`;
+
+// Clean per-variant URLs (e.g. /products/whey-protein-chocolate-2kg) resolve via
+// the variant's own slug rather than the product's — this is the fallback lookup
+// used when $slug doesn't match a product directly.
+export interface ProductDetailByVariantSlugData {
+  productVariantBySlug: { id: string; product: ProductDetailItem } | null;
+}
+
+export const PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY = `
+  query ProductDetailByVariantSlug($slug: String!) {
+    productVariantBySlug(slug: $slug) {
       id
-      name
-      slug
-      description
-      featuredAsset { preview }
-      assets { preview }
-      customFields {
-        isFeatured
-        metaTitle
-        metaDescription
-        videoUrl
-        displayType
-        additionalInfo
-        salesCount
+      product {
+        ${PRODUCT_DETAIL_FIELDS}
       }
-      variants {
-        id
-        name
-        sku
-        price
-        priceWithTax
-        currencyCode
-        stockLevel
-        featuredAsset { preview }
-        assets { preview }
-        customFields { rrp keyInfo additionalInfo }
-        options { code name group { code name } }
-      }
-      facetValues { name facet { name } }
-      collections { id name slug }
     }
   }
 `;
@@ -123,6 +147,7 @@ export interface SearchProductItem {
     stockQty: number;
     discount: number;
     rrp: number | null;
+    slug: string | null;
   } | null;
   customProductMappings: {
     variantCount: number;
@@ -213,7 +238,7 @@ export const SEARCH_PAGE_QUERY = `
           ... on PriceRange { min max }
           ... on SinglePrice { value }
         }
-        customProductVariantMappings { isOnSale stockQty discount rrp }
+        customProductVariantMappings { isOnSale stockQty discount rrp slug }
         customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
       facetValues {
@@ -258,6 +283,7 @@ export const SEARCH_NEW_ARRIVALS = `
           stockQty
           discount
           rrp
+          slug
         }
         customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }
@@ -295,6 +321,7 @@ export const SEARCH_TOP_SELLING = `
           stockQty
           discount
           rrp
+          slug
         }
         customProductMappings { variantCount salesCount avgRating reviewCount isBundle soldCount30d bestSellerRank bestSellerCollection bestSellerCollectionSlug }
       }

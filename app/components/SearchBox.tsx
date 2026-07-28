@@ -139,7 +139,7 @@ export default function SearchBox() {
 	const selectCollection = (slug: string) => {
 		setOpen(false);
 		setTerm("");
-		navigate(`/collections/${slug}`);
+		navigate(`/c/${slug}`);
 	};
 
 	const selectFacet = (facetName: string, valueName: string) => {

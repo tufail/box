@@ -5,7 +5,7 @@ import { Link } from "react-router";
 // TODO: placeholder copy — refine/expand once real collection slugs, brand pages and
 // certifications are finalized. Category links point to /search?q=... rather than a
 // collection slug since not every category below has a confirmed matching collection yet;
-// swap to /collections/:slug links once those exist. "Top Brands" is intentionally left as
+// swap to /c/:slug links once those exist. "Top Brands" is intentionally left as
 // bracketed placeholders — do not fill in real brand names without confirming NutriBox
 // actually stocks them.
 
