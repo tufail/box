@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { ChevronRight, Home } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_CMS_PAGE_BY_SLUG, type CmsPageData } from "~/graphql/pages";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
 		throw data(null, { status: 404 });
 	}
 
-	const translation = page.translations[0] ?? { title: slug, description: null };
+	const translation = page.translations[0] ?? { title: slug, description: null, metaDescription: null };
 
 	return { page, translation, slug };
 }
@@ -33,29 +34,55 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
 
 export function meta({ data }: Route.MetaArgs) {
 	if (!data) return [{ title: "Page Not Found" }];
-	const { translation, page } = data;
-	const plainText = translation.description
-		? translation.description.replace(/<[^>]+>/g, "").slice(0, 160).trim()
-		: `${translation.title} — NutriBox`;
+	const { translation, page, slug } = data;
+	const plainText = translation.metaDescription
+		? translation.metaDescription.trim()
+		: translation.description
+			? translation.description.replace(/<[^>]+>/g, "").slice(0, 160).trim()
+			: `${translation.title} — ${SITE_NAME}`;
+	const canonicalUrl = `${SITE_URL}/pages/${slug}`;
 
 	return [
-		{ title: `${translation.title} — NutriBox` },
+		{ title: `${translation.title} — ${SITE_NAME}` },
 		{ name: "description", content: plainText },
-		{ property: "og:title", content: `${translation.title} — NutriBox` },
+		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		{ property: "og:title", content: `${translation.title} — ${SITE_NAME}` },
 		{ property: "og:description", content: plainText },
+		{ property: "og:url", content: canonicalUrl },
 		...(page.assetPreview ? [{ property: "og:image", content: page.assetPreview }] : []),
 		{ property: "og:type", content: "article" },
-		{ name: "robots", content: "index, follow" },
+		{ name: "robots", content: page.noIndex ? "noindex, follow" : "index, follow" },
 	];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PageDetail({ loaderData }: Route.ComponentProps) {
-	const { page, translation } = loaderData;
+	const { page, translation, slug } = loaderData;
+	const canonicalUrl = `${SITE_URL}/pages/${slug}`;
+
+	const jsonLd = [
+		{
+			"@context": "https://schema.org",
+			"@type": "WebPage",
+			name: translation.title,
+			url: canonicalUrl,
+			...(translation.description && { description: translation.description.replace(/<[^>]+>/g, "").slice(0, 300).trim() }),
+			...(page.assetPreview && { image: page.assetPreview }),
+		},
+		{
+			"@context": "https://schema.org",
+			"@type": "BreadcrumbList",
+			itemListElement: [
+				{ "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+				{ "@type": "ListItem", position: 2, name: translation.title, item: canonicalUrl },
+			],
+		},
+	];
 
 	return (
 		<div className="min-h-screen bg-white">
+			{jsonLd.map((schema, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />)}
 			{/* Hero */}
 			{page.assetPreview ? (
 				<div className="relative h-36 md:h-48 lg:h-56 overflow-hidden">

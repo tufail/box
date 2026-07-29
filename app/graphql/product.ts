@@ -12,7 +12,7 @@ export interface ProductDetailVariant {
   stockLevel: string;
   featuredAsset: { preview: string } | null;
   assets: { preview: string }[];
-  customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null } | null;
+  customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null; gtin12: string | null; sizeSpecifications: string | null } | null;
   options: { code: string; name: string; group: { code: string; name: string } }[];
 }
 
@@ -27,6 +27,7 @@ export interface ProductDetailItem {
     isFeatured: boolean | null;
     metaTitle: string | null;
     metaDescription: string | null;
+    aiOverview: string | null;
     videoUrl: string | null;
     displayType: string | null;
     additionalInfo: string | null;
@@ -54,6 +55,7 @@ const PRODUCT_DETAIL_FIELDS = `
     isFeatured
     metaTitle
     metaDescription
+    aiOverview
     videoUrl
     displayType
     additionalInfo
@@ -69,7 +71,7 @@ const PRODUCT_DETAIL_FIELDS = `
     stockLevel
     featuredAsset { preview }
     assets { preview }
-    customFields { rrp keyInfo additionalInfo slug }
+    customFields { rrp keyInfo additionalInfo slug gtin12 sizeSpecifications }
     options { code name group { code name } }
   }
   facetValues { name facet { name } }

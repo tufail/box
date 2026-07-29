@@ -41,7 +41,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export default function BrandsPage({ loaderData }: Route.ComponentProps) {
 	const { brands } = loaderData;
 
-	const jsonLd = {
+	const breadcrumbJsonLd = {
+		"@context": "https://schema.org",
+		"@type": "BreadcrumbList",
+		itemListElement: [
+			{ "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+			{ "@type": "ListItem", position: 2, name: "Brands", item: `${SITE_URL}/brands` },
+		],
+	};
+
+	const itemListJsonLd = {
 		"@context": "https://schema.org",
 		"@type": "ItemList",
 		name: "Brands",
@@ -56,7 +65,8 @@ export default function BrandsPage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<div className="container mx-auto px-4 py-6">
-			{brands.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />}
+			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+			{brands.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />}
 			<div className="mb-4">
 				<Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Brands" }]} />
 			</div>

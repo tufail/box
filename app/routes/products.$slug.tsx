@@ -87,10 +87,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const vendureBase = loaderData?.vendureBase ?? "";
 	const variantName = loaderData?.activeVariantName ?? null;
 
-	if (!product) return [{ title: "Product — NutriBox" }];
+	if (!product) return [{ title: "Product — NutriBox Qatar" }];
 
 	const baseTitle = product.customFields?.metaTitle ?? product.name;
-	const title = variantName ? `${baseTitle} — ${variantName} — NutriBox` : `${baseTitle} — NutriBox`;
+	const title = variantName ? `${baseTitle} — ${variantName} — NutriBox Qatar` : `${baseTitle} — NutriBox Qatar`;
 	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
 	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
@@ -105,7 +105,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:title", content: title },
 		{ property: "og:description", content: description },
 		{ property: "og:url", content: canonicalUrl },
-		{ property: "og:site_name", content: "NutriBox" },
+		{ property: "og:site_name", content: "NutriBox Qatar" },
 		...(image ? [{ property: "og:image", content: image }] : []),
 		// Twitter
 		{ name: "twitter:card", content: "summary_large_image" },
@@ -614,9 +614,12 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
 	const jsonLdName = isVariantPage && activeVariantName ? `${product.name} — ${activeVariantName}` : product.name;
 	// Structured-data description should summarize the product, not reproduce the
-	// full page body — prefer the curated meta description (same one used in <meta
-	// name="description">) and fall back to a truncated plain-text product description.
-	const jsonLdDescription = (product.customFields?.metaDescription || product.description.replace(/<[^>]+>/g, "").trim()).slice(0, 300);
+	// full page body — prefer the AI Overview field (written specifically for AI
+	// assistants/AI search overviews reading this markup), then the curated meta
+	// description (same one used in <meta name="description">, written for classic
+	// search snippets instead), and only fall back to a truncated plain-text product
+	// description when neither curated field has been filled in yet.
+	const jsonLdDescription = (product.customFields?.aiOverview || product.customFields?.metaDescription || product.description.replace(/<[^>]+>/g, "").trim()).slice(0, 500);
 
 	const jsonLd = {
 		"@context": "https://schema.org",
@@ -627,7 +630,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		...(product.featuredAsset?.preview && {
 			image: resolveImage(product.featuredAsset.preview, vendureBase),
 		}),
-		...(activeVariant?.sku && { sku: activeVariant.sku }),
+		...(activeVariant?.sku && { sku: activeVariant.sku, mpn: activeVariant.sku }),
+		...(activeVariant?.customFields?.gtin12 && { gtin12: activeVariant.customFields.gtin12 }),
+		...(activeVariant?.customFields?.sizeSpecifications && { size: activeVariant.customFields.sizeSpecifications }),
 		...(brand && { brand: { "@type": "Brand", name: brand } }),
 		...(category && { category }),
 		...(ar && {

@@ -4,7 +4,9 @@ import { useWishlist } from "~/context/WishlistContext";
 import VendureImage from "~/components/VendureImage";
 
 export function meta() {
-	return [{ title: "My Wishlist — NutriBox" }, { name: "description", content: "Products you've saved to your wishlist." }];
+	// Personalized, client-side (localStorage) content — same reasoning as /search's
+	// noindex: nothing here is the same page twice, so it shouldn't be indexed.
+	return [{ title: "My Wishlist — NutriBox" }, { name: "description", content: "Products you've saved to your wishlist." }, { name: "robots", content: "noindex, follow" }];
 }
 
 function formatQAR(cents: number) {

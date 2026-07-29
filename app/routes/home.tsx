@@ -18,8 +18,8 @@ import {
 } from "~/graphql/collection";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 
-const HOME_TITLE = "NutriBox — Premium Health & Quality Supplements";
-const HOME_DESCRIPTION = "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox. 100% genuine products, fast delivery in Qatar.";
+const HOME_TITLE = "NutriBox Qatar — Premium Health & Quality Supplements";
+const HOME_DESCRIPTION = "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox Qatar. 100% genuine products, fast delivery across Qatar.";
 
 export function meta({}: Route.MetaArgs) {
   return [

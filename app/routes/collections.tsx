@@ -50,8 +50,8 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const canonicalUrl = loaderData?.canonicalUrl ?? "/collections";
-  const title = "All Products — NutriBox";
-  const description = "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery in Qatar.";
+  const title = "All Products — NutriBox Qatar";
+  const description = "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery across Qatar.";
   return [
     { title },
     { name: "description", content: description },
@@ -60,7 +60,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:url", content: canonicalUrl },
-    { property: "og:site_name", content: "NutriBox" },
+    { property: "og:site_name", content: "NutriBox Qatar" },
     { name: "twitter:card", content: "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
@@ -188,7 +188,16 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
   }
 
   const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
-  const jsonLd = {
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteOrigin || "/" },
+      { "@type": "ListItem", position: 2, name: "All Products", item: canonicalUrl },
+    ],
+  };
+
+  const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "All Products",
@@ -202,7 +211,8 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       <div className="mb-4">
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "All Products" }]} />
       </div>

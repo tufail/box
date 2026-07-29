@@ -29,11 +29,13 @@ export interface PageSectionsData {
 export interface CmsPageTranslation {
   title: string;
   description: string | null;
+  metaDescription: string | null;
 }
 
 export interface CmsPage {
   orderId: number;
   assetPreview: string | null;
+  noIndex: boolean;
   translations: CmsPageTranslation[];
 }
 
@@ -46,9 +48,11 @@ export const GET_CMS_PAGE_BY_SLUG = `
     getCmsPageBySlug(slug: $slug) {
       orderId
       assetPreview
+      noIndex
       translations {
         title
         description
+        metaDescription
       }
     }
   }
