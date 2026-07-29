@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { redirect, useFetcher } from "react-router";
+import { redirect, useFetcher, useLocation } from "react-router";
 import type { Route } from "./+types/account.addresses";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_CUSTOMER_PROFILE_QUERY, type CustomerProfileData, type CustomerAddress } from "~/graphql/account";
@@ -7,21 +7,101 @@ import AccountLayout from "~/layouts/AccountLayout";
 import { qatarZones } from "~/constants/qatar";
 import { MapPin, Plus, Pencil, Trash2, Star, X } from "lucide-react";
 import { isValidQatarPhone } from "~/lib/validation";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
+	const locale = getLocaleFromPathname(new URL(request.url).pathname);
 	try {
 		const { data } = await graphqlRequest<CustomerProfileData>(env, GET_CUSTOMER_PROFILE_QUERY, undefined, { request });
-		if (!data.activeCustomer) return redirect("/");
+		if (!data.activeCustomer) return redirect(localizePath("/", locale));
 		return { customer: data.activeCustomer };
 	} catch {
-		return redirect("/");
+		return redirect(localizePath("/", locale));
 	}
 }
 
 export function meta() {
 	return [{ title: "My Addresses — NutriBox" }, { name: "robots", content: "noindex" }];
 }
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+	en: {
+		editAddress: "Edit Address",
+		addNewAddress: "Add New Address",
+		cancel: "Cancel",
+		firstName: "First Name",
+		lastName: "Last Name",
+		addressLabel: "Address (villa, flat, building & block, etc.)",
+		street: "Street",
+		municipality: "Municipality",
+		selectMunicipality: "Select Municipality...",
+		zone: "Zone",
+		selectZone: "Select Zone...",
+		zoneOption: (n: number) => `Zone ${n}`,
+		phoneNumber: "Phone Number",
+		saving: "Saving…",
+		saveAddress: "Save Address",
+		firstNameRequired: "First name is required.",
+		lastNameRequired: "Last name is required.",
+		addressRequired: "Address is required.",
+		selectMunicipalityError: "Please select a municipality.",
+		selectZoneError: "Please select a zone.",
+		phoneRequired: "Phone number is required.",
+		invalidPhone: "Enter a valid Qatar phone number.",
+		default: "Default",
+		edit: "Edit",
+		settingDefault: "Setting…",
+		setAsDefault: "Set as default",
+		deleteQuestion: "Delete?",
+		deleting: "Deleting…",
+		yes: "Yes",
+		no: "No",
+		delete: "Delete",
+		savedAddresses: "Saved Addresses",
+		manageAddressesNote: "Manage the addresses used for delivery at checkout.",
+		noAddressesYet: "You don't have any saved addresses yet.",
+	},
+	ar: {
+		editAddress: "تعديل العنوان",
+		addNewAddress: "إضافة عنوان جديد",
+		cancel: "إلغاء",
+		firstName: "الاسم الأول",
+		lastName: "اسم العائلة",
+		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
+		street: "الشارع",
+		municipality: "البلدية",
+		selectMunicipality: "اختر البلدية...",
+		zone: "المنطقة",
+		selectZone: "اختر المنطقة...",
+		zoneOption: (n: number) => `المنطقة ${n}`,
+		phoneNumber: "رقم الهاتف",
+		saving: "جارٍ الحفظ…",
+		saveAddress: "حفظ العنوان",
+		firstNameRequired: "الاسم الأول مطلوب.",
+		lastNameRequired: "اسم العائلة مطلوب.",
+		addressRequired: "العنوان مطلوب.",
+		selectMunicipalityError: "يرجى اختيار البلدية.",
+		selectZoneError: "يرجى اختيار المنطقة.",
+		phoneRequired: "رقم الهاتف مطلوب.",
+		invalidPhone: "أدخل رقم هاتف قطري صالح.",
+		default: "افتراضي",
+		edit: "تعديل",
+		settingDefault: "جارٍ التعيين…",
+		setAsDefault: "تعيين كافتراضي",
+		deleteQuestion: "حذف؟",
+		deleting: "جارٍ الحذف…",
+		yes: "نعم",
+		no: "لا",
+		delete: "حذف",
+		savedAddresses: "العناوين المحفوظة",
+		manageAddressesNote: "إدارة العناوين المستخدمة للتوصيل عند الدفع.",
+		noAddressesYet: "ليس لديك أي عناوين محفوظة بعد.",
+	},
+} as const;
 
 const inputCls = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors";
 const errCls = "w-full px-3 py-2.5 border border-red-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors";
@@ -46,6 +126,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 // ── Address form (create + edit) ────────────────────────────────────────────
 
 function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValues; onSaved: (address: CustomerAddress) => void; onCancel: () => void }) {
+	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
 	const [error, setError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [zoneList, setZoneList] = useState<number[]>(() => {
@@ -81,13 +162,13 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 		const phoneNumber = (fd.get("phoneNumber") as string).trim();
 
 		const errors: Record<string, string> = {};
-		if (!first) errors.firstName = "First name is required.";
-		if (!last) errors.lastName = "Last name is required.";
-		if (!streetLine1) errors.streetLine1 = "Address is required.";
-		if (!city) errors.city = "Please select a municipality.";
-		if (!postalCode) errors.postalCode = "Please select a zone.";
-		if (!phoneNumber) errors.phoneNumber = "Phone number is required.";
-		else if (!isValidQatarPhone(phoneNumber)) errors.phoneNumber = "Enter a valid Qatar phone number.";
+		if (!first) errors.firstName = t.firstNameRequired;
+		if (!last) errors.lastName = t.lastNameRequired;
+		if (!streetLine1) errors.streetLine1 = t.addressRequired;
+		if (!city) errors.city = t.selectMunicipalityError;
+		if (!postalCode) errors.postalCode = t.selectZoneError;
+		if (!phoneNumber) errors.phoneNumber = t.phoneRequired;
+		else if (!isValidQatarPhone(phoneNumber)) errors.phoneNumber = t.invalidPhone;
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) return;
 
@@ -109,8 +190,8 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 	return (
 		<form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-5" noValidate>
 			<div className="flex items-center justify-between">
-				<h2 className="text-lg font-semibold text-gray-900">{initial?.id ? "Edit Address" : "Add New Address"}</h2>
-				<button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cancel">
+				<h2 className="text-lg font-semibold text-gray-900">{initial?.id ? t.editAddress : t.addNewAddress}</h2>
+				<button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.cancel}>
 					<X size={18} />
 				</button>
 			</div>
@@ -118,36 +199,36 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 				<div>
 					<label className={labelCls}>
-						First Name <span className="text-red-500">*</span>
+						{t.firstName} <span className="text-red-500">*</span>
 					</label>
 					<input name="firstName" required defaultValue={initial?.firstName} className={fieldErrors.firstName ? errCls : inputCls} />
 					{fieldErrors.firstName && <p className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</p>}
 				</div>
 				<div>
 					<label className={labelCls}>
-						Last Name <span className="text-red-500">*</span>
+						{t.lastName} <span className="text-red-500">*</span>
 					</label>
 					<input name="lastName" required defaultValue={initial?.lastName} className={fieldErrors.lastName ? errCls : inputCls} />
 					{fieldErrors.lastName && <p className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</p>}
 				</div>
 				<div className="sm:col-span-2">
 					<label className={labelCls}>
-						Address (villa, flat, building & block, etc.) <span className="text-red-500">*</span>
+						{t.addressLabel} <span className="text-red-500">*</span>
 					</label>
 					<input name="streetLine1" required defaultValue={initial?.streetLine1} className={fieldErrors.streetLine1 ? errCls : inputCls} />
 					{fieldErrors.streetLine1 && <p className="text-xs text-red-600 mt-1">{fieldErrors.streetLine1}</p>}
 				</div>
 				<div className="sm:col-span-2">
-					<label className={labelCls}>Street</label>
+					<label className={labelCls}>{t.street}</label>
 					<input name="streetLine2" defaultValue={initial?.streetLine2} className={inputCls} />
 				</div>
 				<div>
 					<label className={labelCls}>
-						Municipality <span className="text-red-500">*</span>
+						{t.municipality} <span className="text-red-500">*</span>
 					</label>
 					<select name="city" required defaultValue={initial?.city ?? ""} onChange={handleCityChange} className={fieldErrors.city ? errCls : inputCls}>
 						<option value="" disabled>
-							Select Municipality...
+							{t.selectMunicipality}
 						</option>
 						{qatarZones.map((z, i) => (
 							<option key={i} value={z.municipality}>
@@ -159,15 +240,15 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 				</div>
 				<div>
 					<label className={labelCls}>
-						Zone <span className="text-red-500">*</span>
+						{t.zone} <span className="text-red-500">*</span>
 					</label>
 					<select name="postalCode" required defaultValue={initial?.postalCode ?? ""} className={fieldErrors.postalCode ? errCls : inputCls}>
 						<option value="" disabled>
-							Select Zone...
+							{t.selectZone}
 						</option>
 						{zoneList.map((zone, i) => (
 							<option key={i} value={`${zone}`}>
-								Zone {zone}
+								{t.zoneOption(zone)}
 							</option>
 						))}
 					</select>
@@ -175,7 +256,7 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 				</div>
 				<div className="sm:col-span-2">
 					<label className={labelCls}>
-						Phone Number <span className="text-red-500">*</span>
+						{t.phoneNumber} <span className="text-red-500">*</span>
 					</label>
 					<input name="phoneNumber" type="tel" required defaultValue={initial?.phoneNumber} placeholder="+974 xxxx xxxx" className={fieldErrors.phoneNumber ? errCls : inputCls} />
 					{fieldErrors.phoneNumber && <p className="text-xs text-red-600 mt-1">{fieldErrors.phoneNumber}</p>}
@@ -186,10 +267,10 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 
 			<div className="flex items-center gap-3">
 				<button type="submit" disabled={loading} className="bg-emerald-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-					{loading ? "Saving…" : "Save Address"}
+					{loading ? t.saving : t.saveAddress}
 				</button>
 				<button type="button" onClick={onCancel} className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-					Cancel
+					{t.cancel}
 				</button>
 			</div>
 		</form>
@@ -199,6 +280,7 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 // ── Address card (display + delete + set default) ──────────────────────────
 
 function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: CustomerAddress; onDeleted: (id: string) => void; onUpdated: (address: CustomerAddress) => void; onEdit: () => void }) {
+	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const deleteFetcher = useFetcher<{ success?: boolean; id?: string; error?: string }>();
 	const defaultFetcher = useFetcher<{ address?: CustomerAddress; error?: string }>();
@@ -232,35 +314,35 @@ function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: Custo
 				<div className="min-w-0">
 					<div className="flex items-center gap-2 flex-wrap">
 						<p className="font-semibold text-gray-900">{address.fullName}</p>
-						{address.defaultShippingAddress && <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Default</span>}
+						{address.defaultShippingAddress && <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{t.default}</span>}
 					</div>
 					<p className="text-sm text-gray-500 mt-1">
 						{address.streetLine1}
-						{address.streetLine2 ? `, ${address.streetLine2}` : ""}, {address.city}, Zone {address.postalCode}
+						{address.streetLine2 ? `, ${address.streetLine2}` : ""}, {address.city}, {t.zoneOption(Number(address.postalCode))}
 					</p>
 					{address.phoneNumber && <p className="text-sm text-gray-400 mt-0.5">{address.phoneNumber}</p>}
 					<div className="flex items-center gap-4 mt-3">
 						<button type="button" onClick={onEdit} className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-emerald-700 transition-colors">
-							<Pencil size={13} /> Edit
+							<Pencil size={13} /> {t.edit}
 						</button>
 						{!address.defaultShippingAddress && (
 							<button type="button" onClick={handleSetDefault} disabled={settingDefault} className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-emerald-700 transition-colors disabled:opacity-50">
-								<Star size={13} /> {settingDefault ? "Setting…" : "Set as default"}
+								<Star size={13} /> {settingDefault ? t.settingDefault : t.setAsDefault}
 							</button>
 						)}
 						{confirmingDelete ? (
 							<span className="flex items-center gap-2 text-xs">
-								<span className="text-gray-500">Delete?</span>
+								<span className="text-gray-500">{t.deleteQuestion}</span>
 								<button type="button" onClick={handleDelete} disabled={deleting} className="font-medium text-red-600 hover:underline disabled:opacity-50">
-									{deleting ? "Deleting…" : "Yes"}
+									{deleting ? t.deleting : t.yes}
 								</button>
 								<button type="button" onClick={() => setConfirmingDelete(false)} className="font-medium text-gray-500 hover:underline">
-									No
+									{t.no}
 								</button>
 							</span>
 						) : (
 							<button type="button" onClick={() => setConfirmingDelete(true)} className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-red-600 transition-colors">
-								<Trash2 size={13} /> Delete
+								<Trash2 size={13} /> {t.delete}
 							</button>
 						)}
 					</div>
@@ -274,6 +356,7 @@ function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: Custo
 
 export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 	const { customer } = loaderData;
+	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
 	const [addresses, setAddresses] = useState<CustomerAddress[]>(customer.addresses);
 	const [formState, setFormState] = useState<"none" | "create" | CustomerAddress>("none");
 
@@ -298,12 +381,12 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-lg font-semibold text-gray-900">Saved Addresses</h1>
-						<p className="text-sm text-gray-500 mt-0.5">Manage the addresses used for delivery at checkout.</p>
+						<h1 className="text-lg font-semibold text-gray-900">{t.savedAddresses}</h1>
+						<p className="text-sm text-gray-500 mt-0.5">{t.manageAddressesNote}</p>
 					</div>
 					{formState === "none" && (
 						<button type="button" onClick={() => setFormState("create")} className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
-							<Plus size={15} /> Add New Address
+							<Plus size={15} /> {t.addNewAddress}
 						</button>
 					)}
 				</div>
@@ -331,7 +414,7 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 				{addresses.length === 0 && formState === "none" && (
 					<div className="bg-white rounded-2xl shadow-sm p-10 text-center">
 						<MapPin size={28} className="mx-auto text-gray-300 mb-3" />
-						<p className="text-gray-500 text-sm">You don't have any saved addresses yet.</p>
+						<p className="text-gray-500 text-sm">{t.noAddressesYet}</p>
 					</div>
 				)}
 

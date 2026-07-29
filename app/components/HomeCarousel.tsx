@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { vendureImageUrl } from "./VendureImage";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 export interface CarouselSlide {
 	id: string;
@@ -44,6 +46,9 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	const total = items.length;
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const selectedIndexRef = useRef(0);
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const prevSlideLabel = locale === "ar" ? "الشريحة السابقة" : "Previous slide";
+	const nextSlideLabel = locale === "ar" ? "الشريحة التالية" : "Next slide";
 
 	useEffect(() => {
 		selectedIndexRef.current = selectedIndex;
@@ -117,11 +122,11 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 								{slide.mobileImage && (
 									<source
 										media="(max-width: 767px)"
-										srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { w: 768, format: "webp", mode: "resize" })}
+										srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { preset: "large", format: "webp" })}
 									/>
 								)}
 								<img
-									src={vendureImageUrl(slide.image, vendureBase, { w: 1600, format: "webp", mode: "resize" })}
+									src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })}
 									alt={slide.label}
 									className="w-full h-full object-cover block"
 									draggable={false}
@@ -169,18 +174,18 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 				<>
 					<button
 						onClick={() => goTo(selectedIndex - 1)}
-						aria-label="Previous slide"
-						className="absolute left-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
+						aria-label={prevSlideLabel}
+						className="absolute start-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
 					>
-						<ChevronLeft size={14} />
+						<ChevronLeft size={14} className="rtl:rotate-180" />
 					</button>
 
 					<button
 						onClick={() => goTo(selectedIndex + 1)}
-						aria-label="Next slide"
-						className="absolute right-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
+						aria-label={nextSlideLabel}
+						className="absolute end-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
 					>
-						<ChevronRight size={14} />
+						<ChevronRight size={14} className="rtl:rotate-180" />
 					</button>
 
 					<div className="absolute left-1/2 -translate-x-1/2 bottom-2 sm:bottom-3 z-40 flex items-center gap-2">

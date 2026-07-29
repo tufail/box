@@ -8,24 +8,49 @@ import type { SearchProductItem } from "~/graphql/product";
 import type { BannerItem } from "~/graphql/banner";
 import type { HomeCollectionItem } from "~/graphql/collection";
 import { ChevronRight } from "lucide-react";
+import { useLocation } from "react-router";
+import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 
-function StackBanner() {
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const WELCOME_COPY = {
+	en: {
+		personalizedStackAlt: "Personalized Stack",
+		buildYourStack: "Build your own personalized stack now!",
+		fastDeliveryAlt: "Fast Delivery",
+		fastDeliveryFrom: "Fast Delivery from",
+		twoHoursToNextDay: "2 Hours to Next Day!!",
+		newArrivals: "New Arrivals",
+	},
+	ar: {
+		personalizedStackAlt: "باقة مخصصة",
+		buildYourStack: "أنشئ باقتك المخصصة الآن!",
+		fastDeliveryAlt: "توصيل سريع",
+		fastDeliveryFrom: "توصيل سريع خلال",
+		twoHoursToNextDay: "ساعتين إلى يوم واحد!!",
+		newArrivals: "وصل حديثًا",
+	},
+} as const;
+
+function StackBanner({ locale }: { locale: Locale }) {
+	const t = WELCOME_COPY[locale];
 	return (
 		<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
 				<img
 					src="/images/stack.png"
-					alt="Personalized Stack"
+					alt={t.personalizedStackAlt}
 					className="w-full h-full object-contain animate-float"
 				/>
 			</div>
 			<div className="flex-1 min-w-0 flex items-center">
-				<p className="text-primary font-extrabold text-base leading-snug">Build your own personalized stack now!</p>
+				<p className="text-primary font-extrabold text-base leading-snug">{t.buildYourStack}</p>
 			</div>
 			<div className="flex-shrink-0 flex items-center">
 				<div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md flex items-center justify-center group-hover:brightness-110 transition-all relative overflow-hidden">
 					<div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full" />
-					<ChevronRight size={16} className="text-white relative z-10 drop-shadow" />
+					<ChevronRight size={16} className="text-white relative z-10 drop-shadow rtl:rotate-180" />
 				</div>
 			</div>
 		</div>
@@ -42,6 +67,8 @@ interface WelcomeProps {
 }
 
 export function Welcome({ products, newProducts, vendureBase, carouselItems, topLevelCollections, subCollections }: WelcomeProps) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = WELCOME_COPY[locale];
 	const slides = carouselItems.map((item) => ({
 		id: item.id,
 		image: item.assetPreview,
@@ -63,27 +90,27 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					</div>
 
 					{/* Side banners — row below on tablet, column beside on desktop */}
-					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:pl-6 self-stretch">
+					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:ps-6 self-stretch">
 						{/* NutriQuick delivery banner */}
 						<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
-								<img src="/images/clock-3d.png" alt="Fast Delivery" className="w-full h-full object-contain animate-vibrate" />
+								<img src="/images/clock-3d.png" alt={t.fastDeliveryAlt} className="w-full h-full object-contain animate-vibrate" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<div className="flex items-center gap-1 mb-0.5">
 									<span className="font-heading text-cart font-black text-xl tracking-widest italic">NutriQuick</span>
 								</div>
-								<p className="text-gray-600 text-xs leading-tight italic">Fast Delivery from</p>
-								<p className="text-primary font-extrabold text-sm leading-tight italic">2 Hours to Next Day!!</p>
+								<p className="text-gray-600 text-xs leading-tight italic">{t.fastDeliveryFrom}</p>
+								<p className="text-primary font-extrabold text-sm leading-tight italic">{t.twoHoursToNextDay}</p>
 							</div>
 							<div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-rose-500 shadow-md flex items-center justify-center group-hover:brightness-110 transition-all relative overflow-hidden">
 								<div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full" />
-								<ChevronRight size={16} className="text-white relative z-10 drop-shadow" />
+								<ChevronRight size={16} className="text-white relative z-10 drop-shadow rtl:rotate-180" />
 							</div>
 						</div>
 
 						{/* Personalized stack banner */}
-						<StackBanner />
+						<StackBanner locale={locale} />
 					</div>
 				</div>
 			</div>
@@ -92,7 +119,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 			<HomeShopByConcern collections={topLevelCollections} vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
-			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title="New Arrivals" viewAllHref="/collections?sort=default" />
+			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" />
 		</div>
 	);
 }

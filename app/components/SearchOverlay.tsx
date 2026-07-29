@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Search, X } from "lucide-react";
 import type { SearchSuggestionsResponse, SearchSuggestionItem } from "~/graphql/search";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
+import { formatPrice as formatCurrency } from "~/lib/currency";
 
 function highlight(text: string, term: string) {
 	const idx = text.toLowerCase().indexOf(term.toLowerCase());
@@ -15,11 +17,33 @@ function highlight(text: string, term: string) {
 	);
 }
 
-function formatPrice(price: SearchSuggestionItem["price"]) {
-	const fmt = (cents: number) => new Intl.NumberFormat("en", { style: "currency", currency: "QAR", minimumFractionDigits: 0 }).format(cents / 100);
+function formatPrice(price: SearchSuggestionItem["price"], locale: Locale) {
+	const fmt = (cents: number) => formatCurrency(cents, "QAR", locale);
 	if ("value" in price) return fmt(price.value);
 	return price.min === price.max ? fmt(price.min) : `${fmt(price.min)} – ${fmt(price.max)}`;
 }
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const OVERLAY_COPY = {
+	en: {
+		placeholder: "Search protein, vitamins, supplements…",
+		closeSearch: "Close search",
+		recentSearches: "Recent Searches",
+		startTyping: "Start typing to search products.",
+		searching: "Searching…",
+		noProductsFound: (term: string) => `No products found for "${term}"`,
+	},
+	ar: {
+		placeholder: "ابحث عن البروتين، الفيتامينات، المكملات…",
+		closeSearch: "إغلاق البحث",
+		recentSearches: "عمليات البحث الأخيرة",
+		startTyping: "ابدأ الكتابة للبحث عن المنتجات.",
+		searching: "جارٍ البحث…",
+		noProductsFound: (term: string) => `لم يتم العثور على منتجات لـ "${term}"`,
+	},
+} as const;
 
 export default function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
 	const [term, setTerm] = useState("");
@@ -28,6 +52,8 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = OVERLAY_COPY[locale];
 
 	useEffect(() => {
 		if (open) {
@@ -54,7 +80,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 		}
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${locale}`);
 			const data: SearchSuggestionsResponse = await res.json();
 			setResults(data);
 		} catch {
@@ -62,7 +88,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [locale]);
 
 	useEffect(() => {
 		if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -78,13 +104,13 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 		e.preventDefault();
 		if (term.trim()) {
 			onClose();
-			navigate(`/search?q=${encodeURIComponent(term.trim())}`);
+			navigate(localizePath(`/search?q=${encodeURIComponent(term.trim())}`, locale));
 		}
 	}
 
 	function selectProduct(slug: string) {
 		onClose();
-		navigate(`/products/${slug}`);
+		navigate(localizePath(`/products/${slug}`, locale));
 	}
 
 	const hasItems = !!results && results.items.length > 0;
@@ -102,14 +128,14 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 							type="text"
 							value={term}
 							onChange={(e) => setTerm(e.target.value)}
-							placeholder="Search protein, vitamins, supplements…"
+							placeholder={t.placeholder}
 							className="flex-1 text-sm outline-none placeholder-gray-400"
 							autoComplete="off"
 						/>
 						<button
 							type="button"
 							onClick={onClose}
-							aria-label="Close search"
+							aria-label={t.closeSearch}
 							className="flex-shrink-0 w-7 h-7 rounded-full bg-black hover:bg-gray-800 flex items-center justify-center text-white transition-colors"
 						>
 							<X size={14} strokeWidth={1.5} />
@@ -119,33 +145,33 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 					<div className="max-h-[60vh] overflow-y-auto">
 						{!isSearching ? (
 							<div className="px-5 py-8 text-center">
-								<p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Recent Searches</p>
-								<p className="text-sm text-gray-400">Start typing to search products.</p>
+								<p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.recentSearches}</p>
+								<p className="text-sm text-gray-400">{t.startTyping}</p>
 							</div>
 						) : loading && !results ? (
-							<div className="px-5 py-8 text-center text-sm text-gray-400">Searching…</div>
+							<div className="px-5 py-8 text-center text-sm text-gray-400">{t.searching}</div>
 						) : hasItems ? (
 							<div className="py-2">
 								{results!.items.map((item) => (
 									<button
 										key={item.slug}
 										onMouseDown={() => selectProduct(item.slug)}
-										className="w-full text-left px-5 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+										className="w-full text-start px-5 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
 									>
 										{item.productAsset?.preview ? (
-											<img src={item.productAsset.preview + "?w=40&h=40&mode=crop"} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100" />
+											<img src={item.productAsset.preview + "?preset=tiny"} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100" />
 										) : (
 											<span className="w-9 h-9 flex items-center justify-center flex-shrink-0 text-gray-300">
 												<Search size={14} strokeWidth={1.5} />
 											</span>
 										)}
 										<span className="text-sm text-gray-800 truncate flex-1">{highlight(item.productName, term)}</span>
-										<span className="text-sm font-bold text-black whitespace-nowrap">{formatPrice(item.price)}</span>
+										<span className="text-sm font-bold text-black whitespace-nowrap">{formatPrice(item.price, locale)}</span>
 									</button>
 								))}
 							</div>
 						) : (
-							<div className="px-5 py-8 text-center text-sm text-gray-400">No products found for "{term}"</div>
+							<div className="px-5 py-8 text-center text-sm text-gray-400">{t.noProductsFound(term)}</div>
 						)}
 					</div>
 				</div>

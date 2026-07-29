@@ -6,11 +6,17 @@ import {
   CREATE_CUSTOMER_ADDRESS_MUTATION,
   UPDATE_CUSTOMER_ADDRESS_MUTATION,
   DELETE_CUSTOMER_ADDRESS_MUTATION,
+  LINK_GOOGLE_ACCOUNT_MUTATION,
+  LINK_FACEBOOK_ACCOUNT_MUTATION,
+  UNLINK_SOCIAL_ACCOUNT_MUTATION,
   type UpdateCustomerResult,
   type UpdateCustomerPasswordResult,
   type CreateCustomerAddressResult,
   type UpdateCustomerAddressResult,
   type DeleteCustomerAddressResult,
+  type LinkGoogleAccountResult,
+  type LinkFacebookAccountResult,
+  type UnlinkSocialAccountResult,
 } from "~/graphql/account";
 
 function makeHeaders(token?: string | null): Headers {
@@ -158,6 +164,49 @@ export async function action({ request, context }: Route.ActionArgs) {
       return json({ success: data.deleteCustomerAddress.success, id }, token);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to delete address";
+      return json({ error: msg }, null, 500);
+    }
+  }
+
+  if (intent === "linkGoogleAccount" || intent === "linkFacebookAccount") {
+    const { token } = body;
+    if (!token) {
+      return json({ error: "Missing token." }, null, 400);
+    }
+    try {
+      const { data, token: authToken } = intent === "linkGoogleAccount"
+        ? await graphqlRequest<LinkGoogleAccountResult>(env, LINK_GOOGLE_ACCOUNT_MUTATION, { token }, { request })
+        : await graphqlRequest<LinkFacebookAccountResult>(env, LINK_FACEBOOK_ACCOUNT_MUTATION, { token }, { request });
+      const result = "linkGoogleAccount" in data ? data.linkGoogleAccount : data.linkFacebookAccount;
+      if (!result.success) {
+        return json({ error: result.message ?? "Could not link account." }, authToken);
+      }
+      return json({ success: true }, authToken);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to link account";
+      return json({ error: msg }, null, 500);
+    }
+  }
+
+  if (intent === "unlinkSocialAccount") {
+    const { provider } = body;
+    if (!provider) {
+      return json({ error: "Missing provider." }, null, 400);
+    }
+    try {
+      const { data, token } = await graphqlRequest<UnlinkSocialAccountResult>(
+        env,
+        UNLINK_SOCIAL_ACCOUNT_MUTATION,
+        { provider },
+        { request }
+      );
+      const result = data.unlinkSocialAccount;
+      if (!result.success) {
+        return json({ error: result.message ?? "Could not disconnect account." }, token);
+      }
+      return json({ success: true }, token);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to disconnect account";
       return json({ error: msg }, null, 500);
     }
   }

@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useLocation } from "react-router";
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 export type NotificationType = "success" | "error" | "warning" | "info";
 
@@ -35,6 +37,7 @@ function Toast({
 }) {
   const [entered, setEntered] = useState(false);
   const { icon, bar } = CONFIG[item.type];
+  const locale = getLocaleFromPathname(useLocation().pathname);
 
   // Trigger enter animation after mount
   useEffect(() => {
@@ -46,12 +49,12 @@ function Toast({
 
   return (
     <div
-      className={`relative flex items-start gap-3 bg-white shadow-lg rounded overflow-hidden pr-4 pl-4 py-3 min-w-[300px] max-w-sm pointer-events-auto transition-all duration-300 ease-out ${
+      className={`relative flex items-start gap-3 bg-white shadow-lg rounded overflow-hidden ps-4 pe-4 py-3 min-w-[300px] max-w-sm pointer-events-auto transition-all duration-300 ease-out ${
         visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"
       }`}
     >
-      {/* Left colour bar */}
-      <span className={`absolute left-0 top-0 bottom-0 w-1 ${bar}`} />
+      {/* Leading colour bar */}
+      <span className={`absolute start-0 top-0 bottom-0 w-1 ${bar}`} />
 
       {icon}
 
@@ -59,7 +62,7 @@ function Toast({
 
       <button
         onClick={() => onDismiss(item.id)}
-        aria-label="Dismiss"
+        aria-label={locale === "ar" ? "إغلاق" : "Dismiss"}
         className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0 mt-0.5"
       >
         <X size={14} />
@@ -70,6 +73,7 @@ function Toast({
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const locale = getLocaleFromPathname(useLocation().pathname);
 
   const dismiss = useCallback((id: number) => {
     // Mark as exiting to play the exit animation
@@ -99,8 +103,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       {children}
       <div
         aria-live="polite"
-        aria-label="Notifications"
-        className="fixed top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none"
+        aria-label={locale === "ar" ? "الإشعارات" : "Notifications"}
+        className="fixed top-4 end-4 z-[200] flex flex-col gap-2 pointer-events-none"
       >
         {notifications.map((item) => (
           <Toast key={item.id} item={item} onDismiss={dismiss} />

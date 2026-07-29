@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { useFetcher, useNavigate, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import type { Route } from "./+types/login";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta(): ReturnType<Route.MetaFunction> {
   return [
@@ -10,6 +12,40 @@ export function meta(): ReturnType<Route.MetaFunction> {
     { name: "description", content: "Sign in to your NutriBox account to track orders, manage your wishlist and write reviews." },
   ];
 }
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: {
+    signIn: "Sign in",
+    welcomeBack: "Welcome back to NutriBox",
+    orSignInWithEmail: "Or sign in with email",
+    emailAddress: "Email Address",
+    password: "Password",
+    forgotPassword: "Forgot password?",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    signingIn: "Signing in…",
+    signInButton: "Sign In",
+    noAccount: "Don't have an account?",
+    createOne: "Create one",
+  },
+  ar: {
+    signIn: "تسجيل الدخول",
+    welcomeBack: "مرحبًا بعودتك إلى NutriBox",
+    orSignInWithEmail: "أو سجّل الدخول عبر البريد الإلكتروني",
+    emailAddress: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    forgotPassword: "نسيت كلمة المرور؟",
+    showPassword: "إظهار كلمة المرور",
+    hidePassword: "إخفاء كلمة المرور",
+    signingIn: "جارٍ تسجيل الدخول…",
+    signInButton: "تسجيل الدخول",
+    noAccount: "ليس لديك حساب؟",
+    createOne: "أنشئ حسابًا",
+  },
+} as const;
 
 export function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -19,6 +55,8 @@ export function loader({ request }: Route.LoaderArgs) {
 export default function LoginPage({ loaderData }: Route.ComponentProps) {
   const returnTo = loaderData.redirect;
   const safeReturn = returnTo.startsWith("/") ? returnTo : "/";
+  const locale = getLocaleFromPathname(useLocation().pathname);
+  const t = COPY[locale];
 
   const [error, setError] = useState<string | null>(null);
   const fetcher = useFetcher<{ error?: string }>();
@@ -63,20 +101,20 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
               <LogIn size={20} className="text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 leading-tight">Sign in</h1>
-              <p className="text-xs text-gray-500">Welcome back to NutriBox</p>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">{t.signIn}</h1>
+              <p className="text-xs text-gray-500">{t.welcomeBack}</p>
             </div>
           </div>
 
           <SocialAuthButtons
-            dividerLabel="Or sign in with email"
+            dividerLabel={t.orSignInWithEmail}
             onSuccess={() => { window.location.href = safeReturn; }}
           />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className={labelCls}>
-                Email Address <span className="text-red-500">*</span>
+                {t.emailAddress} <span className="text-red-500">*</span>
               </label>
               <input
                 name="email"
@@ -90,13 +128,13 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className={labelCls} style={{ marginBottom: 0 }}>
-                  Password <span className="text-red-500">*</span>
+                  {t.password} <span className="text-red-500">*</span>
                 </label>
                 <Link
                   to={`/forgot-password${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
                   className="text-xs font-medium text-primary hover:underline"
                 >
-                  Forgot password?
+                  {t.forgotPassword}
                 </Link>
               </div>
               <div className="relative">
@@ -105,14 +143,14 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
-                  className={`${inputCls} pr-10`}
+                  className={`${inputCls} pe-10`}
                 />
                 <button
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? t.hidePassword : t.showPassword}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -130,17 +168,17 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
               disabled={loading}
               className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? t.signingIn : t.signInButton}
             </button>
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-5">
-            Don't have an account?{" "}
+            {t.noAccount}{" "}
             <Link
               to={`/register${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
               className="text-primary font-medium hover:underline"
             >
-              Create one
+              {t.createOne}
             </Link>
           </p>
         </div>

@@ -368,6 +368,70 @@ export const DELETE_CUSTOMER_ADDRESS_MUTATION = `
   }
 `;
 
+// ─── Social account linking (manage connections from the account page) ────────
+
+export interface LinkedSocialAccount {
+  provider: string;
+  providerAccountId: string;
+}
+
+export interface LinkedSocialAccountsData {
+  myLinkedSocialAccounts: LinkedSocialAccount[];
+}
+
+export const MY_LINKED_SOCIAL_ACCOUNTS_QUERY = `
+  query MyLinkedSocialAccounts {
+    myLinkedSocialAccounts {
+      provider
+      providerAccountId
+    }
+  }
+`;
+
+export interface SocialLinkResult {
+  success: boolean;
+  message?: string;
+}
+
+export interface LinkGoogleAccountResult {
+  linkGoogleAccount: SocialLinkResult;
+}
+
+export const LINK_GOOGLE_ACCOUNT_MUTATION = `
+  mutation LinkGoogleAccount($token: String!) {
+    linkGoogleAccount(token: $token) {
+      success
+      message
+    }
+  }
+`;
+
+export interface LinkFacebookAccountResult {
+  linkFacebookAccount: SocialLinkResult;
+}
+
+export const LINK_FACEBOOK_ACCOUNT_MUTATION = `
+  mutation LinkFacebookAccount($token: String!) {
+    linkFacebookAccount(token: $token) {
+      success
+      message
+    }
+  }
+`;
+
+export interface UnlinkSocialAccountResult {
+  unlinkSocialAccount: SocialLinkResult;
+}
+
+export const UNLINK_SOCIAL_ACCOUNT_MUTATION = `
+  mutation UnlinkSocialAccount($provider: String!) {
+    unlinkSocialAccount(provider: $provider) {
+      success
+      message
+    }
+  }
+`;
+
 export const VERIFY_CUSTOMER_ACCOUNT_MUTATION = `
   mutation VerifyCustomerAccount($token: String!, $password: String) {
     verifyCustomerAccount(token: $token, password: $password) {

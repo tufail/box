@@ -1,11 +1,38 @@
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import AddToCartButton from "./AddToCartButton";
 import type { SearchProductItem } from "~/graphql/product";
 import VendureImage from "./VendureImage";
 import { TrendingUp, Star } from "lucide-react";
+import { getLocaleFromPathname } from "~/lib/i18n";
+import { formatPrice } from "~/lib/currency";
 
 type Message = { text: string; icon: React.ReactNode };
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const CARD_COPY = {
+	en: {
+		soldOut: "SOLD OUT",
+		off: (percent: number) => `${percent}% OFF`,
+		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
+		rankInCollection: (rank: number, collection: string) => `#${rank} in ${collection}`,
+		showOptions: "Show Options",
+		addToCart: "Add to Cart",
+		sold: "Sold out",
+	},
+	ar: {
+		soldOut: "نفدت الكمية",
+		off: (percent: number) => `خصم ${percent}%`,
+		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
+		rankInCollection: (rank: number, collection: string) => `#${rank} في ${collection}`,
+		showOptions: "عرض الخيارات",
+		addToCart: "أضف إلى السلة",
+		sold: "نفدت الكمية",
+	},
+} as const;
 
 function AnimatedDeliveryBadge({ messages }: { messages: Message[] }) {
 	const [index, setIndex] = useState(0);
@@ -57,11 +84,9 @@ function minPrice(price: SearchProductItem["price"]): number {
 	return price.__typename === "PriceRange" ? price.min : price.value;
 }
 
-function formatQAR(value: number): string {
-	return value % 1 === 0 ? value.toFixed(0) : value.toFixed(2);
-}
-
 export default function ProductCard({ product, vendureBase, eager = false, showVariantName = false, forceAddToCart = false, onAddToCart }: ProductCardProps) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = CARD_COPY[locale];
 	const priceQAR = minPrice(product.price) / 100;
 	const discount = product.customProductVariantMappings?.discount ?? 0;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
@@ -84,7 +109,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 		...(sold30Days > 0
 			? [
 					{
-						text: `${sold30Days.toLocaleString()}+ sold in last 30 days`,
+						text: t.soldLast30Days(sold30Days.toLocaleString()),
 						icon: <TrendingUp size={12} className="text-orange-500 flex-shrink-0" />,
 					},
 				]
@@ -92,7 +117,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 		...(bestSellerRank != null && bestSellerCollection
 			? [
 					{
-						text: `#${bestSellerRank} in ${bestSellerCollection}`,
+						text: t.rankInCollection(bestSellerRank, bestSellerCollection),
 						icon: <Star size={12} className="text-amber-500 flex-shrink-0" fill="currentColor" />,
 					},
 				]
@@ -106,13 +131,13 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 				<div className="relative aspect-square flex items-center justify-center px-2">
 					{/* Badges float over the image instead of reserving their own row */}
 					{!product.inStock ? (
-						<span className="absolute top-0 left-0 z-10 bg-lime-300 text-black text-[11px] font-bold px-3 py-1 rounded-full">SOLD OUT</span>
+						<span className="absolute top-0 start-0 z-10 bg-lime-300 text-black text-[11px] font-bold px-3 py-1 rounded-full">{t.soldOut}</span>
 					) : discountPercent > 0 ? (
-						<span className="absolute top-0 left-0 z-10 bg-lime-300 text-black text-[11px] font-bold px-3 py-1 rounded-full">{discountPercent}% OFF</span>
+						<span className="absolute top-0 start-0 z-10 bg-lime-300 text-black text-[11px] font-bold px-3 py-1 rounded-full">{t.off(discountPercent)}</span>
 					) : null}
 
 					{(product.customProductMappings?.avgRating ?? 0) > 0 && (
-						<div className="absolute top-0 right-0 z-10 flex items-center gap-1 bg-white rounded-full px-2 py-1 shadow-sm">
+						<div className="absolute top-0 end-0 z-10 flex items-center gap-1 bg-white rounded-full px-2 py-1 shadow-sm">
 							<Star size={10} className="text-lime-300" fill="currentColor" stroke="black" strokeWidth={1} />
 							<span className="text-[11px] font-semibold text-gray-800">{product.customProductMappings!.avgRating!.toFixed(1)}</span>
 						</div>
@@ -135,8 +160,8 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 				{product.productVariantName && <p className="text-xs text-gray-500 mt-0.5">{product.productVariantName}</p>}
 
 				<div className="flex items-center justify-center gap-2 mt-2">
-					<span className="text-base font-bold text-gray-900">QAR {formatQAR(priceQAR)}</span>
-					{originalQAR && <span className="text-sm text-gray-400 line-through">QAR {formatQAR(originalQAR)}</span>}
+					<span className="text-base font-bold text-gray-900">{formatPrice(priceQAR * 100, "QAR", locale)}</span>
+					{originalQAR && <span className="text-sm text-gray-400 line-through">{formatPrice(originalQAR * 100, "QAR", locale)}</span>}
 				</div>
 
 				{/* Animated badge — cycles through delivery info, sold count, rank */}
@@ -149,7 +174,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 					<AddToCartButton inStock={product.inStock} onClick={() => onAddToCart?.(product)} />
 				) : (
 					<Link to={productHref} className={`w-full block text-center font-bold text-sm py-2.5 rounded-full transition-colors ${product.inStock ? "bg-[#3b8578] text-white hover:bg-[#2e6b61] cursor-pointer" : "bg-gray-100 text-gray-400 pointer-events-none"}`}>
-						{product.inStock ? (variantCount > 1 ? "Show Options" : "Add to Cart") : "Sold out"}
+						{product.inStock ? (variantCount > 1 ? t.showOptions : t.addToCart) : t.sold}
 					</Link>
 				)}
 			</div>

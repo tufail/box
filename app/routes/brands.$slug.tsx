@@ -16,17 +16,30 @@ import {
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME } from "~/lib/seo";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
+import { SHOP_COPY, productCountLabel } from "~/lib/shopCopy";
 
 const PAGE_SIZE = 24;
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-	{ value: "default", label: "Latest" },
-	{ value: "sales_desc", label: "Best Sellers" },
-	{ value: "name_asc", label: "Name A–Z" },
-	{ value: "price_asc", label: "Price: Low to High" },
-	{ value: "price_desc", label: "Price: High to Low" },
-];
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands" },
+	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات" },
+} as const;
+
+function getSortOptions(locale: Locale): { value: SortKey; label: string }[] {
+	const t = SHOP_COPY[locale];
+	return [
+		{ value: "default", label: t.sortLatest },
+		{ value: "sales_desc", label: t.sortBestSellers },
+		{ value: "name_asc", label: t.sortNameAsc },
+		{ value: "price_asc", label: t.sortPriceAsc },
+		{ value: "price_desc", label: t.sortPriceDesc },
+	];
+}
 
 function sortToInput(sort: SortKey): BrandPageVariables["input"]["sort"] {
 	if (sort === "sales_desc") return { salesCount: "DESC" };
@@ -67,14 +80,20 @@ function groupFacets(facetValues: BrandPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
 	const brandName = loaderData?.brandName ?? "Brand";
+	const locale = loaderData?.locale ?? "en";
 	const title = `${brandName} — ${SITE_NAME}`;
-	const description = `Shop authentic ${brandName} products at ${SITE_NAME} — fast delivery in Qatar.`;
+	const description =
+		locale === "ar"
+			? `تسوق منتجات ${brandName} الأصلية من ${SITE_NAME} — توصيل سريع في قطر.`
+			: `Shop authentic ${brandName} products at ${SITE_NAME} — fast delivery in Qatar.`;
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
+	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 
 	return [
 		{ title },
 		{ name: "description", content: description },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
 		{ property: "og:type", content: "website" },
 		{ property: "og:title", content: title },
 		{ property: "og:description", content: description },
@@ -97,7 +116,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
-	const canonicalUrl = `${url.origin}/brands/${slug}`;
+	const locale = getLocaleFromPathname(url.pathname);
+	const canonicalUrl = `${url.origin}${localizePath(`/brands/${slug}`, locale)}`;
 
 	try {
 		const { data: facetData } = await graphqlRequest<BrandFacetData>(env, GET_BRAND_FACET_QUERY, undefined, {
@@ -135,10 +155,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const { data } = mainResult.value;
 		const allFacetValues = facetsResult.status === "fulfilled" ? facetsResult.value.data.search.facetValues : [];
 
-		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, canonicalUrl };
+		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
-		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], canonicalUrl };
+		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], canonicalUrl, locale };
 	}
 }
 
@@ -150,16 +170,18 @@ interface FilterSidebarProps {
 	activeFv: string[];
 	onToggle: (id: string) => void;
 	onClearAll: () => void;
+	locale: Locale;
 }
 
-function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll }: FilterSidebarProps) {
+function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll, locale }: FilterSidebarProps) {
+	const t = SHOP_COPY[locale];
 	return (
 		<div>
 			{activeFv.length > 0 && (
 				<div className="mb-5">
 					<div className="flex items-center justify-between mb-2">
-						<span className="text-xs text-gray-400 uppercase tracking-wide">Active filters</span>
-						<button onClick={onClearAll} className="text-xs text-primary hover:underline">Clear all</button>
+						<span className="text-xs text-gray-400 uppercase tracking-wide">{t.activeFilters}</span>
+						<button onClick={onClearAll} className="text-xs text-primary hover:underline">{t.clearAll}</button>
 					</div>
 					<div className="flex flex-wrap gap-1.5">
 						{activeFv.map((id) => {
@@ -219,7 +241,7 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BrandPage({ loaderData }: Route.ComponentProps) {
-	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, canonicalUrl } = loaderData;
+	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, locale } = loaderData;
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -245,9 +267,11 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 		updateParam("fv", null);
 	}
 
+	const t = SHOP_COPY[locale];
+	const { breadcrumbHome, breadcrumbBrands } = COPY[locale];
 	const breadcrumbs = [
-		{ label: "Home", href: "/" },
-		{ label: "Brands", href: "/brands" },
+		{ label: breadcrumbHome, href: "/" },
+		{ label: breadcrumbBrands, href: "/brands" },
 		{ label: brandName },
 	];
 
@@ -260,7 +284,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				"@type": "ListItem",
 				position: i + 1,
 				name: crumb.label,
-				item: crumb.href ? `${siteOrigin}${crumb.href}` : canonicalUrl,
+				item: crumb.href ? `${siteOrigin}${localizePath(crumb.href, locale)}` : canonicalUrl,
 			})),
 		},
 		{
@@ -274,7 +298,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				itemListElement: items.slice(0, 24).map((item, i) => ({
 					"@type": "ListItem",
 					position: i + 1,
-					url: `${siteOrigin}/products/${item.customProductVariantMappings?.slug || item.slug}`,
+					url: `${siteOrigin}${localizePath(`/products/${item.customProductVariantMappings?.slug || item.slug}`, locale)}`,
 				})),
 			},
 		},
@@ -297,7 +321,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 
 			{/* ── Top bar ── */}
 			<div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-				<p className="text-sm text-gray-500">{totalItems} product{totalItems !== 1 ? "s" : ""}</p>
+				<p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
 
 				<div className="flex items-center gap-3">
 					<button
@@ -305,7 +329,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 						className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
 					>
 						<SlidersHorizontal size={14} />
-						Filters
+						{t.filters}
 						{(fv as string[]).length > 0 && (
 							<span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
 								{(fv as string[]).length}
@@ -313,7 +337,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 						)}
 					</button>
 
-					<SortDropdown options={SORT_OPTIONS} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
+					<SortDropdown options={getSortOptions(locale)} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
 				</div>
 			</div>
 
@@ -321,13 +345,14 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 			<div className="flex gap-6 items-start">
 				{/* Desktop sidebar */}
 				<aside className="hidden lg:block w-52 flex-shrink-0">
-					<div className="text-sm font-semibold text-gray-800 mb-4">Filters</div>
+					<div className="text-sm font-semibold text-gray-800 mb-4">{t.filters}</div>
 					<FilterSidebar
 						facetGroups={facetGroups}
 						filteredIds={filteredIds}
 						activeFv={fv as string[]}
 						onToggle={toggleFacet}
 						onClearAll={clearAllFacets}
+						locale={locale}
 					/>
 				</aside>
 
@@ -335,8 +360,8 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				<div className="flex-1 min-w-0">
 					{items.length === 0 ? (
 						<div className="text-center py-24 text-gray-400">
-							<p className="text-lg font-semibold text-gray-600 mb-1">No products found</p>
-							<p className="text-sm">Try clearing some filters.</p>
+							<p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>
+							<p className="text-sm">{t.tryClearingFilters}</p>
 						</div>
 					) : (
 						<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -354,15 +379,15 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 								onClick={() => updateParam("page", String((page as number) - 1))}
 								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 							>
-								← Prev
+								{t.prev}
 							</button>
-							<span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+							<span className="text-sm text-gray-600">{t.pageOf(page as number, totalPages)}</span>
 							<button
 								disabled={page === totalPages}
 								onClick={() => updateParam("page", String((page as number) + 1))}
 								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 							>
-								Next →
+								{t.next}
 							</button>
 						</div>
 					)}
@@ -373,9 +398,9 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 			{mobileFiltersOpen && (
 				<div className="fixed inset-0 z-[300] lg:hidden">
 					<div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
-					<div className="absolute right-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+					<div className="absolute end-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
 						<div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-							<span className="font-bold text-gray-800">Filters</span>
+							<span className="font-bold text-gray-800">{t.filters}</span>
 							<button onClick={() => setMobileFiltersOpen(false)} className="text-gray-400 hover:text-gray-700">
 								<X size={20} />
 							</button>
@@ -387,6 +412,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 								activeFv={fv as string[]}
 								onToggle={(id) => { toggleFacet(id); setMobileFiltersOpen(false); }}
 								onClearAll={() => { clearAllFacets(); setMobileFiltersOpen(false); }}
+								locale={locale}
 							/>
 						</div>
 					</div>

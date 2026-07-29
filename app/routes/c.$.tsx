@@ -1,5 +1,6 @@
 import type { Route } from "./+types/c.$";
-import { useSearchParams, Link, redirect } from "react-router";
+import { useSearchParams, redirect } from "react-router";
+import Link from "~/components/LocaleLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SlidersHorizontal, X, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -18,16 +19,29 @@ import {
 import type { SortKey } from "~/graphql/product";
 import { vendureImageUrl } from "~/components/VendureImage";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
+import { SHOP_COPY, productCountLabel } from "~/lib/shopCopy";
 
 const PAGE_SIZE = 24;
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "default", label: "Latest" },
-  { value: "sales_desc", label: "Best Sellers" },
-  { value: "name_asc", label: "Name A–Z" },
-  { value: "price_asc", label: "Price: Low to High" },
-  { value: "price_desc", label: "Price: High to Low" },
-];
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: { breadcrumbHome: "Home" },
+  ar: { breadcrumbHome: "الرئيسية" },
+} as const;
+
+function getSortOptions(locale: Locale): { value: SortKey; label: string }[] {
+  const t = SHOP_COPY[locale];
+  return [
+    { value: "default", label: t.sortLatest },
+    { value: "sales_desc", label: t.sortBestSellers },
+    { value: "name_asc", label: t.sortNameAsc },
+    { value: "price_asc", label: t.sortPriceAsc },
+    { value: "price_desc", label: t.sortPriceDesc },
+  ];
+}
 
 function sortToInput(sort: SortKey): CollectionPageVariables["input"]["sort"] {
   if (sort === "sales_desc") return { salesCount: "DESC" };
@@ -72,7 +86,9 @@ function CollectionMarqueeHero({ title }: { title: string }) {
 
 // ── Sub-collection nav (1st-level children as scrollable link buttons) ──────
 
-function SubCollectionNav({ children, vendureBase }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; vendureBase: string }) {
+function SubCollectionNav({ children, vendureBase, locale }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; vendureBase: string; locale: Locale }) {
+  const scrollLeftLabel = locale === "ar" ? "التمرير لليسار" : "Scroll left";
+  const scrollRightLabel = locale === "ar" ? "التمرير لليمين" : "Scroll right";
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -103,10 +119,10 @@ function SubCollectionNav({ children, vendureBase }: { children: { id: string; n
           <Link
             key={child.id}
             to={`/c/${child.slug}`}
-            className="flex-shrink-0 flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
+            className="flex-shrink-0 flex items-center gap-2 ps-1.5 pe-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
           >
             {child.featuredAsset ? (
-              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { w: 56, h: 56, format: "webp", mode: "crop" })} alt="" className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
+              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { preset: "thumb", format: "webp" })} alt="" className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
             ) : (
               <span className="w-7 h-7 rounded-full bg-stone-100 flex-shrink-0" />
             )}
@@ -117,17 +133,17 @@ function SubCollectionNav({ children, vendureBase }: { children: { id: string; n
 
       {canScrollLeft && (
         <>
-          <div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none" />
-          <button onClick={() => scrollByAmount("left")} aria-label="Scroll left" className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <ChevronLeft size={14} />
+          <div className="absolute start-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-l" />
+          <button onClick={() => scrollByAmount("left")} aria-label={scrollLeftLabel} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-2 rtl:translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={14} className="rtl:rotate-180" />
           </button>
         </>
       )}
       {canScrollRight && (
         <>
-          <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none" />
-          <button onClick={() => scrollByAmount("right")} aria-label="Scroll right" className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <ChevronRight size={14} />
+          <div className="absolute end-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-r" />
+          <button onClick={() => scrollByAmount("right")} aria-label={scrollRightLabel} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-2 rtl:-translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+            <ChevronRight size={14} className="rtl:rotate-180" />
           </button>
         </>
       )}
@@ -155,21 +171,27 @@ function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const collection = loaderData?.collection;
-  const name = collection?.name ?? "Collection";
+  const locale = loaderData?.locale ?? "en";
+  const name = collection?.name ?? (locale === "ar" ? "قسم" : "Collection");
   const title = `${name} — ${SITE_NAME}`;
   const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
-  const description = rawDescription
-    ? rawDescription.slice(0, 160)
-    : `Shop authentic ${name} products at ${SITE_NAME} — 100% genuine, fast delivery across Qatar.`;
+  const fallbackDescription =
+    locale === "ar"
+      ? `تسوق منتجات ${name} الأصلية من ${SITE_NAME} — أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.`
+      : `Shop authentic ${name} products at ${SITE_NAME} — 100% genuine, fast delivery across Qatar.`;
+  const description = rawDescription ? rawDescription.slice(0, 160) : fallbackDescription;
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";
 
   if (!collection) return [{ title }, { name: "robots", content: "noindex, follow" }];
 
+  const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
+
   return [
     { title },
     { name: "description", content: description },
     { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+    ...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
     { property: "og:type", content: "website" },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
@@ -186,14 +208,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // ── Loader ─────────────────────────────────────────────────────────────────
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-  // "*" is everything after /c/, e.g. "health-supplements/creatine" — Vendure
-  // collection slugs are globally unique, so only the last segment is actually
-  // used to look the collection up; the rest of the path is purely for a
-  // human/SEO-readable deep URL, canonicalized below via redirect.
+  // "*" is everything after /c/ (or /ar/c/) — e.g. "health-supplements/creatine".
+  // Vendure collection slugs are globally unique, so only the last segment is
+  // actually used to look the collection up; the rest of the path is purely for
+  // a human/SEO-readable deep URL, canonicalized below via redirect.
   const path = params["*"] ?? "";
   const segments = path.split("/").filter(Boolean);
   const slug = segments[segments.length - 1] ?? "";
   const url = new URL(request.url);
+  const locale = getLocaleFromPathname(url.pathname);
   const sort = (url.searchParams.get("sort") ?? "sales_desc") as SortKey;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const fv = url.searchParams.get("fv")?.split(",").filter(Boolean) ?? [];
@@ -224,10 +247,11 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
     // Canonicalize: if the visited path doesn't match the collection's real
     // ancestor chain, redirect to the correct deep URL (avoids duplicate-content
-    // across multiple paths reaching the same collection).
+    // across multiple paths reaching the same collection). Locale-aware so an
+    // /ar/c/... visit redirects to another /ar/c/... URL, never back to English.
     if (data.collection?.breadcrumbs?.length) {
-      const canonicalPath = buildCollectionPath(data.collection.breadcrumbs);
-      if (canonicalPath !== `/c/${path}`) {
+      const canonicalPath = localizePath(buildCollectionPath(data.collection.breadcrumbs), locale);
+      if (canonicalPath !== `${localizePath("/c/" + path, locale)}`) {
         throw redirect(`${canonicalPath}${url.search}`, 301);
       }
     }
@@ -236,15 +260,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       ? facetsResult.value.data.search.facetValues
       : data.search.facetValues;
 
-    const canonicalUrl = `${url.origin}${data.collection ? buildCollectionPath(data.collection.breadcrumbs) : `/c/${path}`}`;
+    const canonicalUrl = `${url.origin}${data.collection ? localizePath(buildCollectionPath(data.collection.breadcrumbs), locale) : localizePath("/c/" + path, locale)}`;
     const collectionImage = data.collection?.featuredAsset?.preview
-      ? vendureImageUrl(data.collection.featuredAsset.preview, vendureBase, { w: 1200, format: "jpg" })
+      ? vendureImageUrl(data.collection.featuredAsset.preview, vendureBase, { preset: "xlarge", format: "jpg" })
       : null;
 
-    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, collectionImage };
+    return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, collectionImage, locale };
   } catch (e) {
     if (e instanceof Response) throw e;
-    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase, canonicalUrl: `${url.origin}/c/${path}`, collectionImage: null };
+    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase, canonicalUrl: `${url.origin}${localizePath("/c/" + path, locale)}`, collectionImage: null, locale };
   }
 }
 
@@ -256,16 +280,18 @@ interface FilterSidebarProps {
   activeFv: string[];
   onToggle: (id: string) => void;
   onClearAll: () => void;
+  locale: Locale;
 }
 
-function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll }: FilterSidebarProps) {
+function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll, locale }: FilterSidebarProps) {
+  const t = SHOP_COPY[locale];
   return (
     <div>
       {activeFv.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 uppercase tracking-wide">Active filters</span>
-            <button onClick={onClearAll} className="text-xs text-primary hover:underline">Clear all</button>
+            <span className="text-xs text-gray-400 uppercase tracking-wide">{t.activeFilters}</span>
+            <button onClick={onClearAll} className="text-xs text-primary hover:underline">{t.clearAll}</button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {activeFv.map((id) => {
@@ -325,7 +351,9 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CollectionPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, allFacetValues, collection, sort, page, fv, vendureBase, canonicalUrl, collectionImage } = loaderData;
+  const { totalItems, items, facetValues, allFacetValues, collection, sort, page, fv, vendureBase, canonicalUrl, collectionImage, locale } = loaderData;
+  const t = SHOP_COPY[locale];
+  const { breadcrumbHome } = COPY[locale];
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -355,7 +383,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
 
   // Build breadcrumb from Vendure's collection.breadcrumbs — each ancestor links to
   // its own deep path (built progressively from the same breadcrumb chain).
-  const breadcrumbs: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
+  const breadcrumbs: BreadcrumbItem[] = [{ label: breadcrumbHome, href: "/" }];
   if (collection?.breadcrumbs) {
     const realCrumbs = collection.breadcrumbs.filter((c) => c.name !== "__root_collection__");
     realCrumbs.forEach((crumb, i) => {
@@ -379,7 +407,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         "@type": "ListItem",
         position: i + 1,
         name: crumb.label,
-        item: crumb.href ? `${SITE_URL}${crumb.href}` : canonicalUrl,
+        item: crumb.href ? `${SITE_URL}${localizePath(crumb.href, locale)}` : canonicalUrl,
       })),
     },
     {
@@ -394,7 +422,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         itemListElement: items.slice(0, 24).map((item, i) => ({
           "@type": "ListItem",
           position: i + 1,
-          url: `${SITE_URL}/products/${item.customProductVariantMappings?.slug || item.slug}`,
+          url: `${SITE_URL}${localizePath(`/products/${item.customProductVariantMappings?.slug || item.slug}`, locale)}`,
         })),
       },
     },
@@ -433,11 +461,11 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* ── Sub-collections (1st-level children) ── */}
-      {collection && <SubCollectionNav children={collection.children} vendureBase={vendureBase} />}
+      {collection && <SubCollectionNav children={collection.children} vendureBase={vendureBase} locale={locale} />}
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-        <p className="text-sm text-gray-500">{totalItems} product{totalItems !== 1 ? "s" : ""}</p>
+        <p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
 
         <div className="flex items-center gap-3">
           <button
@@ -445,7 +473,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
           >
             <SlidersHorizontal size={14} />
-            Filters
+            {t.filters}
             {(fv as string[]).length > 0 && (
               <span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
                 {(fv as string[]).length}
@@ -453,7 +481,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             )}
           </button>
 
-          <SortDropdown options={SORT_OPTIONS} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
+          <SortDropdown options={getSortOptions(locale)} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
         </div>
       </div>
 
@@ -461,13 +489,14 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       <div className="flex gap-6 items-start">
         {/* Desktop sidebar */}
         <aside className="hidden lg:block w-52 flex-shrink-0">
-          <div className="text-sm font-semibold text-gray-800 mb-4">Filters</div>
+          <div className="text-sm font-semibold text-gray-800 mb-4">{t.filters}</div>
           <FilterSidebar
             facetGroups={facetGroups}
             filteredIds={filteredIds}
             activeFv={fv as string[]}
             onToggle={toggleFacet}
             onClearAll={clearAllFacets}
+            locale={locale}
           />
         </aside>
 
@@ -475,8 +504,8 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         <div className="flex-1 min-w-0">
           {items.length === 0 ? (
             <div className="text-center py-24 text-gray-400">
-              <p className="text-lg font-semibold text-gray-600 mb-1">No products found</p>
-              <p className="text-sm">Try clearing some filters.</p>
+              <p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>
+              <p className="text-sm">{t.tryClearingFilters}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -494,15 +523,15 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
                 onClick={() => updateParam("page", String((page as number) - 1))}
                 className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                ← Prev
+                {t.prev}
               </button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+              <span className="text-sm text-gray-600">{t.pageOf(page as number, totalPages)}</span>
               <button
                 disabled={page === totalPages}
                 onClick={() => updateParam("page", String((page as number) + 1))}
                 className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Next →
+                {t.next}
               </button>
             </div>
           )}
@@ -513,9 +542,9 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       {mobileFiltersOpen && (
         <div className="fixed inset-0 z-[300] lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
-          <div className="absolute right-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+          <div className="absolute end-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <span className="font-bold text-gray-800">Filters</span>
+              <span className="font-bold text-gray-800">{t.filters}</span>
               <button onClick={() => setMobileFiltersOpen(false)} className="text-gray-400 hover:text-gray-700">
                 <X size={20} />
               </button>
@@ -527,6 +556,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
                 activeFv={fv as string[]}
                 onToggle={(id) => { toggleFacet(id); setMobileFiltersOpen(false); }}
                 onClearAll={() => { clearAllFacets(); setMobileFiltersOpen(false); }}
+                locale={locale}
               />
             </div>
           </div>

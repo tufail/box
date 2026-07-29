@@ -4,6 +4,7 @@ import { GET_PAGE_SECTIONS, type PageSectionsData } from "~/graphql/pages";
 import { buildCollectionPath } from "~/graphql/collection";
 import { GET_BRAND_FACET_QUERY, type BrandFacetData } from "~/graphql/brand";
 import { SITE_URL } from "~/lib/seo";
+import { localizePath } from "~/lib/i18n";
 
 interface SitemapCollection {
 	slug: string;
@@ -37,10 +38,19 @@ const SITEMAP_PRODUCTS_QUERY = `
 	}
 `;
 
-const STATIC_PATHS = ["", "/about", "/collections", "/brands", "/wishlist"];
+// Locale-free canonical paths only — /wishlist is intentionally excluded (it's
+// noindex; Google's own guidance is not to list noindex pages in a sitemap).
+const STATIC_PATHS = ["/", "/about", "/collections", "/brands"];
 
-function urlEntry(loc: string): string {
-	return `<url><loc>${loc}</loc></url>`;
+// One <url> entry per locale-free path, each carrying hreflang alternates to its
+// English/Arabic counterparts (and x-default -> English) — this is what actually
+// tells Google the two URLs are translations of the same page, not duplicate
+// content or unrelated pages that happen to look similar.
+function urlEntry(path: string): string {
+	const enHref = `${SITE_URL}${localizePath(path, "en")}`;
+	const arHref = `${SITE_URL}${localizePath(path, "ar")}`;
+	const alternates = `<xhtml:link rel="alternate" hreflang="en" href="${enHref}"/><xhtml:link rel="alternate" hreflang="ar" href="${arHref}"/><xhtml:link rel="alternate" hreflang="x-default" href="${enHref}"/>`;
+	return `<url><loc>${enHref}</loc>${alternates}</url>\n<url><loc>${arHref}</loc>${alternates}</url>`;
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -60,15 +70,15 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const pageSections = pagesResult.status === "fulfilled" ? pagesResult.value.data.getPageSections.items : [];
 	const brands = brandsResult.status === "fulfilled" ? (brandsResult.value.data.facets.items[0]?.values ?? []) : [];
 
-	const urls = [
-		...STATIC_PATHS.map((p) => `${SITE_URL}${p}`),
-		...collections.map((c) => `${SITE_URL}${buildCollectionPath(c.breadcrumbs)}`),
-		...products.map((p) => `${SITE_URL}/products/${p.slug}`),
-		...pageSections.flatMap((s) => s.pages.map((p) => `${SITE_URL}/pages/${p.slug}`)),
-		...brands.map((b) => `${SITE_URL}/brands/${b.code}`),
+	const paths = [
+		...STATIC_PATHS,
+		...collections.map((c) => buildCollectionPath(c.breadcrumbs)),
+		...products.map((p) => `/products/${p.slug}`),
+		...pageSections.flatMap((s) => s.pages.map((p) => `/pages/${p.slug}`)),
+		...brands.map((b) => `/brands/${b.code}`),
 	];
 
-	const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(urlEntry).join("\n")}\n</urlset>`;
+	const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${paths.map(urlEntry).join("\n")}\n</urlset>`;
 
 	return new Response(body, {
 		headers: {

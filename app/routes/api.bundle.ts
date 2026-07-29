@@ -10,6 +10,7 @@ import {
   type RestoreBundleResult,
   type RestoreBundleVariables,
 } from "~/graphql/bundle";
+import type { Locale } from "~/lib/i18n";
 
 function makeHeaders(token: string | null | undefined): Headers {
   const headers = new Headers({ "Content-Type": "application/json" });
@@ -24,6 +25,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const url = new URL(request.url);
   const productId = url.searchParams.get("productId");
+  // This route's own URL is never /ar/* (it's a fixed resource endpoint) —
+  // the calling page passes its locale through explicitly instead.
+  const locale: Locale = url.searchParams.get("lang") === "ar" ? "ar" : "en";
 
   if (!productId) return Response.json({ productBundleOffers: [] });
 
@@ -32,7 +36,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       env,
       PRODUCT_BUNDLE_OFFERS_QUERY,
       { productId },
-      { request }
+      { request, locale }
     );
     return Response.json({ productBundleOffers: data.productBundleOffers ?? [] });
   } catch {

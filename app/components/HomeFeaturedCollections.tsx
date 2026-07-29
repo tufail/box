@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
+import { useLocation } from "react-router";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HomeCollectionItem } from "~/graphql/collection";
 import VendureImage from "./VendureImage";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 interface Props {
 	topLevelCollections: HomeCollectionItem[];
@@ -19,10 +21,12 @@ export default function HomeFeaturedCollections({ topLevelCollections, subCollec
 }
 
 function CollectionScroll({ collections, vendureBase }: { collections: HomeCollectionItem[]; vendureBase: string }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		align: "start",
 		slidesToScroll: "auto",
 		containScroll: "trimSnaps",
+		direction: locale === "ar" ? "rtl" : "ltr",
 	});
 
 	const [canPrev, setCanPrev] = useState(false);
@@ -51,10 +55,10 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 				<button
 					onClick={() => emblaApi?.scrollPrev()}
 					disabled={!canPrev}
-					aria-label="Previous collections"
-					className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+					aria-label={locale === "ar" ? "المجموعات السابقة" : "Previous collections"}
+					className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
 				>
-					<ChevronLeft size={14} />
+					<ChevronLeft size={14} className="rtl:rotate-180" />
 				</button>
 
 				<div className="overflow-hidden" ref={emblaRef}>
@@ -105,10 +109,10 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 				<button
 					onClick={() => emblaApi?.scrollNext()}
 					disabled={!canNext}
-					aria-label="Next collections"
-					className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+					aria-label={locale === "ar" ? "المجموعات التالية" : "Next collections"}
+					className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
 				>
-					<ChevronRight size={14} />
+					<ChevronRight size={14} className="rtl:rotate-180" />
 				</button>
 			</div>
 		</section>

@@ -11,7 +11,13 @@
 	//   wrangler secret put VENDURE_SHOP_API
 	// or add an [env.production] block below.
 	"vars": {
-		"VENDURE_SHOP_API": "http://localhost:3000/shop-api"
+		"VENDURE_SHOP_API": "http://localhost:3000/shop-api",
+		// NOTE: these two do NOT reach SocialAuthButtons.tsx — that's client-side code
+		// reading import.meta.env.VITE_*, which Vite resolves at BUILD time from the
+		// frontend's own .env file, not from this Workers runtime config. Listed here
+		// only for reference/consistency; the actual fix is the frontend .env entry.
+		"VITE_GOOGLE_CLIENT_ID": "653181107786-n30fd2tconrqfgrdst1chkjd70sdt9oa.apps.googleusercontent.com",
+		"VITE_FACEBOOK_APP_ID": "1488130163334894"
 	},
 	"observability": {
 		"enabled": true,

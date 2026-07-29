@@ -36,7 +36,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 	files.forEach((file, i) => form.append(String(i), file));
 
 	const headers: Record<string, string> = {
-		"vendure-token": "__default_channel__",
+		"vendure-token": "jmnv08o4xjv1wk9dngg",
 	};
 	if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 

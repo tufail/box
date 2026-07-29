@@ -1,19 +1,69 @@
 import { useState, useRef, useEffect } from "react";
 
+// The asset server only accepts named presets (?preset=) — crop-vs-resize is
+// baked into the preset name itself, so "cover" (crop-to-fill) and "contain"
+// (resize, keep the whole image) each need their own size ladder rather than
+// a single list + a separate mode param.
+export type ImagePreset =
+  | "tiny" | "thumb" | "small" | "medium" | "large" | "xlarge"
+  | "crop-300" | "crop-500" | "crop-800" | "crop-1400";
+
+// "blur" is a separate, dedicated preset for blur-up placeholders (20×20 crop)
+// — distinct from "tiny" (50×50) — so it's not part of either size ladder.
+type AnyPreset = ImagePreset | "blur";
+
+interface Rung {
+  max: number;
+  preset: ImagePreset;
+}
+
+// objectFit="cover" ladder (crop-to-fill).
+const CROP_LADDER: Rung[] = [
+  { max: 50, preset: "tiny" },
+  { max: 150, preset: "thumb" },
+  { max: 300, preset: "crop-300" },
+  { max: 500, preset: "crop-500" },
+  { max: 800, preset: "crop-800" },
+  { max: Infinity, preset: "crop-1400" },
+];
+
+// objectFit="contain" ladder (resize, whole image preserved).
+const RESIZE_LADDER: Rung[] = [
+  { max: 300, preset: "small" },
+  { max: 500, preset: "medium" },
+  { max: 800, preset: "large" },
+  { max: Infinity, preset: "xlarge" },
+];
+
+function ladderFor(objectFit: "cover" | "contain"): Rung[] {
+  return objectFit === "contain" ? RESIZE_LADDER : CROP_LADDER;
+}
+
+// Picks the smallest preset on the relevant ladder whose ceiling covers the
+// requested pixel size, capping at that ladder's largest preset.
+export function presetForSize(px: number, objectFit: "cover" | "contain" = "cover"): ImagePreset {
+  const ladder = ladderFor(objectFit);
+  return (ladder.find((rung) => px <= rung.max) ?? ladder[ladder.length - 1]).preset;
+}
+
+function stepUp(preset: ImagePreset, objectFit: "cover" | "contain"): ImagePreset {
+  const ladder = ladderFor(objectFit);
+  const idx = ladder.findIndex((rung) => rung.preset === preset);
+  return idx === -1 || idx === ladder.length - 1 ? preset : ladder[idx + 1].preset;
+}
+
 export function vendureImageUrl(
   src: string,
   vendureBase: string,
-  opts: { w?: number; h?: number; format?: "webp" | "jpg" | "png"; mode?: "crop" | "resize" } = {}
+  opts: { preset: AnyPreset; format?: "webp" | "jpg" | "png" }
 ): string {
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
   const resolved = src.startsWith("http") ? src : `${base}${src}`;
   if (!base || !resolved.startsWith(base)) return resolved;
   try {
     const u = new URL(resolved);
-    if (opts.w !== undefined) u.searchParams.set("w", String(opts.w));
-    if (opts.h !== undefined) u.searchParams.set("h", String(opts.h));
+    u.searchParams.set("preset", opts.preset);
     if (opts.format) u.searchParams.set("format", opts.format);
-    if (opts.mode) u.searchParams.set("mode", opts.mode);
     return u.toString();
   } catch {
     return resolved;
@@ -60,25 +110,25 @@ export default function VendureImage({
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
   const resolved = src.startsWith("http") ? src : `${base}${src}`;
   const isVendure = base.length > 0 && resolved.startsWith(base);
-  const mode = objectFit === "cover" ? "crop" : "resize";
   const fit = objectFit === "cover" ? "object-cover" : "object-contain";
 
+  const preset = presetForSize(Math.max(width, height), objectFit);
+  const preset2x = stepUp(preset, objectFit);
+
   const optimizedSrc = isVendure
-    ? vendureImageUrl(src, vendureBase, { w: width, h: height, format: "webp", mode })
+    ? vendureImageUrl(src, vendureBase, { preset, format: "webp" })
     : resolved;
 
   const srcSet = isVendure
     ? [
-        `${vendureImageUrl(src, vendureBase, { w: width, h: height, format: "webp", mode })} 1x`,
-        `${vendureImageUrl(src, vendureBase, { w: width * 2, h: height * 2, format: "webp", mode })} 2x`,
+        `${vendureImageUrl(src, vendureBase, { preset, format: "webp" })} 1x`,
+        `${vendureImageUrl(src, vendureBase, { preset: preset2x, format: "webp" })} 2x`,
       ].join(", ")
     : undefined;
 
   // No blur placeholder for eager images — they should be visible immediately,
   // and the extra request would compete with the LCP image itself.
-  const blurSrc = !eager && isVendure
-    ? vendureImageUrl(src, vendureBase, { w: 20, h: 20, format: "webp", mode: "crop" })
-    : null;
+  const blurSrc = !eager && isVendure ? vendureImageUrl(src, vendureBase, { preset: "blur", format: "webp" }) : null;
 
   return (
     <div className={`relative w-full h-full ${className}`}>

@@ -1,4 +1,5 @@
-import { redirect, Link } from "react-router";
+import { redirect, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import type { Route } from "./+types/account.orders.$id";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
@@ -10,10 +11,13 @@ import {
 } from "~/graphql/account";
 import AccountLayout from "~/layouts/AccountLayout";
 import { Package, MapPin, CreditCard, ChevronLeft } from "lucide-react";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
+import { formatPrice } from "~/lib/currency";
 
 export async function loader({ request, context, params }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const id = params.id;
+  const locale = getLocaleFromPathname(new URL(request.url).pathname);
   const vendureBase = (env.VENDURE_SHOP_API ?? "http://localhost:3000/shop-api").replace(
     "/shop-api",
     ""
@@ -28,13 +32,13 @@ export async function loader({ request, context, params }: Route.LoaderArgs) {
     profileResult.status === "rejected" ||
     !profileResult.value.data.activeCustomer
   ) {
-    return redirect("/");
+    return redirect(localizePath("/", locale));
   }
 
   const order =
     orderResult.status === "fulfilled" ? orderResult.value.data.order : null;
 
-  if (!order) return redirect("/account/orders");
+  if (!order) return redirect(localizePath("/account/orders", locale));
 
   return {
     customer: profileResult.value.data.activeCustomer,
@@ -51,9 +55,79 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: {
+    orderSteps: ["Placed", "Confirmed", "Shipped", "Delivered"],
+    orderCancelled: "This order has been cancelled.",
+    orderItems: (n: number) => `Order Items (${n})`,
+    sku: "SKU",
+    subtotal: "Subtotal",
+    shipping: "Shipping",
+    total: "Total",
+    shippingAddress: "Shipping Address",
+    payment: "Payment",
+    backToOrders: "Back to Orders",
+    orderNumber: (code: string) => `Order #${code}`,
+    stateLabels: {
+      AddingItems: "Draft",
+      ArrangingPayment: "Pending Payment",
+      PaymentAuthorized: "Processing",
+      PaymentSettled: "Confirmed",
+      PartiallyShipped: "Partially Shipped",
+      Shipped: "Shipped",
+      PartiallyDelivered: "Partially Delivered",
+      Delivered: "Delivered",
+      Modifying: "Modifying",
+      ArrangingAdditionalPayment: "Payment Required",
+      Cancelled: "Cancelled",
+    } as Record<string, string>,
+    paymentStates: {
+      Settled: "Settled",
+      Authorized: "Authorized",
+      Declined: "Declined",
+      Cancelled: "Cancelled",
+      Error: "Error",
+    } as Record<string, string>,
+  },
+  ar: {
+    orderSteps: ["تم الطلب", "مؤكد", "تم الشحن", "تم التوصيل"],
+    orderCancelled: "تم إلغاء هذا الطلب.",
+    orderItems: (n: number) => `عناصر الطلب (${n})`,
+    sku: "رمز المنتج",
+    subtotal: "المجموع الفرعي",
+    shipping: "الشحن",
+    total: "الإجمالي",
+    shippingAddress: "عنوان الشحن",
+    payment: "الدفع",
+    backToOrders: "العودة إلى الطلبات",
+    orderNumber: (code: string) => `طلب رقم ${code}`,
+    stateLabels: {
+      AddingItems: "مسودة",
+      ArrangingPayment: "بانتظار الدفع",
+      PaymentAuthorized: "قيد المعالجة",
+      PaymentSettled: "مؤكد",
+      PartiallyShipped: "تم شحنه جزئيًا",
+      Shipped: "تم الشحن",
+      PartiallyDelivered: "تم التوصيل جزئيًا",
+      Delivered: "تم التوصيل",
+      Modifying: "قيد التعديل",
+      ArrangingAdditionalPayment: "الدفع مطلوب",
+      Cancelled: "ملغى",
+    } as Record<string, string>,
+    paymentStates: {
+      Settled: "مكتمل",
+      Authorized: "مصرّح به",
+      Declined: "مرفوض",
+      Cancelled: "ملغى",
+      Error: "خطأ",
+    } as Record<string, string>,
+  },
+} as const;
 
-const ORDER_STEPS = ["Placed", "Confirmed", "Shipped", "Delivered"] as const;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATE_STEP_MAP: Record<string, number> = {
   AddingItems: 0,
@@ -71,13 +145,9 @@ function getStep(state: string) {
   return STATE_STEP_MAP[state] ?? 0;
 }
 
-function formatPrice(amount: number, currency: string) {
-  return `${currency} ${(amount / 100).toFixed(2)}`;
-}
-
-function formatDate(iso: string | null) {
+function formatDate(iso: string | null, locale: Locale) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-QA", {
+  return new Date(iso).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-QA", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -98,26 +168,9 @@ function stateBadge(state: string) {
   return map[state] ?? "bg-gray-100 text-gray-600";
 }
 
-function stateLabel(state: string) {
-  const map: Record<string, string> = {
-    AddingItems: "Draft",
-    ArrangingPayment: "Pending Payment",
-    PaymentAuthorized: "Processing",
-    PaymentSettled: "Confirmed",
-    PartiallyShipped: "Partially Shipped",
-    Shipped: "Shipped",
-    PartiallyDelivered: "Partially Delivered",
-    Delivered: "Delivered",
-    Modifying: "Modifying",
-    ArrangingAdditionalPayment: "Payment Required",
-    Cancelled: "Cancelled",
-  };
-  return map[state] ?? state;
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatusTracker({ state }: { state: string }) {
+function StatusTracker({ state, t }: { state: string; t: (typeof COPY)[Locale] }) {
   const isCancelled = state === "Cancelled";
   const currentStep = getStep(state);
 
@@ -125,7 +178,7 @@ function StatusTracker({ state }: { state: string }) {
     return (
       <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
         <span className="text-sm font-medium text-red-700">
-          This order has been cancelled.
+          {t.orderCancelled}
         </span>
       </div>
     );
@@ -134,15 +187,15 @@ function StatusTracker({ state }: { state: string }) {
   return (
     <div className="relative">
       {/* Progress bar */}
-      <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 mx-8">
+      <div className="absolute top-4 start-0 end-0 h-0.5 bg-gray-200 mx-8">
         <div
           className="h-full bg-emerald-500 transition-all"
-          style={{ width: `${(currentStep / (ORDER_STEPS.length - 1)) * 100}%` }}
+          style={{ width: `${(currentStep / (t.orderSteps.length - 1)) * 100}%` }}
         />
       </div>
 
       <div className="flex justify-between relative">
-        {ORDER_STEPS.map((step, idx) => {
+        {t.orderSteps.map((step, idx) => {
           const done = idx <= currentStep;
           return (
             <div key={step} className="flex flex-col items-center gap-2 flex-1">
@@ -179,16 +232,20 @@ function StatusTracker({ state }: { state: string }) {
 function OrderItems({
   order,
   vendureBase,
+  locale,
+  t,
 }: {
   order: CustomerOrderDetail;
   vendureBase: string;
+  locale: Locale;
+  t: (typeof COPY)[Locale];
 }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <div className="flex items-center gap-2 mb-4">
         <Package size={18} className="text-gray-500" />
         <h3 className="font-semibold text-gray-900">
-          Order Items ({order.lines.length})
+          {t.orderItems(order.lines.length)}
         </h3>
       </div>
 
@@ -224,17 +281,17 @@ function OrderItems({
                 </Link>
                 <p className="text-sm text-gray-500 mt-0.5">{line.productVariant.name}</p>
                 {line.productVariant.sku && (
-                  <p className="text-xs text-gray-400 mt-0.5">SKU: {line.productVariant.sku}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{t.sku}: {line.productVariant.sku}</p>
                 )}
               </div>
 
               {/* Qty + price */}
-              <div className="text-right shrink-0">
+              <div className="text-end shrink-0">
                 <p className="text-sm font-semibold text-gray-900">
-                  {formatPrice(line.linePriceWithTax, order.currencyCode)}
+                  {formatPrice(line.linePriceWithTax, order.currencyCode, locale)}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {formatPrice(line.unitPriceWithTax, order.currencyCode)} × {line.quantity}
+                  {formatPrice(line.unitPriceWithTax, order.currencyCode, locale)} × {line.quantity}
                 </p>
               </div>
             </div>
@@ -245,31 +302,31 @@ function OrderItems({
       {/* Price summary */}
       <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
         <div className="flex justify-between text-sm text-gray-600">
-          <span>Subtotal</span>
-          <span>{formatPrice(order.subTotalWithTax, order.currencyCode)}</span>
+          <span>{t.subtotal}</span>
+          <span>{formatPrice(order.subTotalWithTax, order.currencyCode, locale)}</span>
         </div>
         {order.shippingWithTax > 0 && (
           <div className="flex justify-between text-sm text-gray-600">
-            <span>Shipping</span>
-            <span>{formatPrice(order.shippingWithTax, order.currencyCode)}</span>
+            <span>{t.shipping}</span>
+            <span>{formatPrice(order.shippingWithTax, order.currencyCode, locale)}</span>
           </div>
         )}
         {order.discounts.map((d, i) => (
           <div key={i} className="flex justify-between text-sm text-emerald-600">
             <span>{d.description}</span>
-            <span>-{formatPrice(d.amountWithTax, order.currencyCode)}</span>
+            <span>-{formatPrice(d.amountWithTax, order.currencyCode, locale)}</span>
           </div>
         ))}
         <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-100">
-          <span>Total</span>
-          <span>{formatPrice(order.totalWithTax, order.currencyCode)}</span>
+          <span>{t.total}</span>
+          <span>{formatPrice(order.totalWithTax, order.currencyCode, locale)}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function ShippingInfo({ order }: { order: CustomerOrderDetail }) {
+function ShippingInfo({ order, t }: { order: CustomerOrderDetail; t: (typeof COPY)[Locale] }) {
   const addr = order.shippingAddress;
   if (!addr) return null;
 
@@ -277,7 +334,7 @@ function ShippingInfo({ order }: { order: CustomerOrderDetail }) {
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <div className="flex items-center gap-2 mb-4">
         <MapPin size={18} className="text-gray-500" />
-        <h3 className="font-semibold text-gray-900">Shipping Address</h3>
+        <h3 className="font-semibold text-gray-900">{t.shippingAddress}</h3>
       </div>
       <div className="text-sm text-gray-700 space-y-0.5">
         <p className="font-medium">{addr.fullName}</p>
@@ -297,7 +354,7 @@ function ShippingInfo({ order }: { order: CustomerOrderDetail }) {
   );
 }
 
-function PaymentInfo({ order }: { order: CustomerOrderDetail }) {
+function PaymentInfo({ order, locale, t }: { order: CustomerOrderDetail; locale: Locale; t: (typeof COPY)[Locale] }) {
   if (!order.payments.length) return null;
 
   const paymentStateColor: Record<string, string> = {
@@ -312,7 +369,7 @@ function PaymentInfo({ order }: { order: CustomerOrderDetail }) {
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <div className="flex items-center gap-2 mb-4">
         <CreditCard size={18} className="text-gray-500" />
-        <h3 className="font-semibold text-gray-900">Payment</h3>
+        <h3 className="font-semibold text-gray-900">{t.payment}</h3>
       </div>
       <div className="space-y-3">
         {order.payments.map((p) => (
@@ -321,14 +378,14 @@ function PaymentInfo({ order }: { order: CustomerOrderDetail }) {
               <p className="font-medium text-gray-900 capitalize">
                 {p.method.replace(/-/g, " ")}
               </p>
-              <p className="text-gray-500">{formatPrice(p.amount, order.currencyCode)}</p>
+              <p className="text-gray-500">{formatPrice(p.amount, order.currencyCode, locale)}</p>
             </div>
             <span
               className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                 paymentStateColor[p.state] ?? "text-gray-600 bg-gray-100"
               }`}
             >
-              {p.state}
+              {t.paymentStates[p.state] ?? p.state}
             </span>
           </div>
         ))}
@@ -341,6 +398,8 @@ function PaymentInfo({ order }: { order: CustomerOrderDetail }) {
 
 export default function OrderDetailPage({ loaderData }: Route.ComponentProps) {
   const { customer, order, vendureBase } = loaderData;
+  const locale = getLocaleFromPathname(useLocation().pathname);
+  const t = COPY[locale];
 
   return (
     <AccountLayout customer={customer}>
@@ -353,30 +412,30 @@ export default function OrderDetailPage({ loaderData }: Route.ComponentProps) {
                 to="/account/orders"
                 className="flex items-center gap-1 text-sm text-gray-500 hover:text-emerald-600 transition-colors mb-3"
               >
-                <ChevronLeft size={15} /> Back to Orders
+                <ChevronLeft size={15} className="rtl:rotate-180" /> {t.backToOrders}
               </Link>
               <h2 className="text-lg font-semibold text-gray-900">
-                Order #{order.code}
+                {t.orderNumber(order.code)}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">{formatDate(order.orderPlacedAt)}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{formatDate(order.orderPlacedAt, locale)}</p>
             </div>
             <span
               className={`text-xs font-medium px-3 py-1.5 rounded-full shrink-0 ${stateBadge(order.state)}`}
             >
-              {stateLabel(order.state)}
+              {t.stateLabels[order.state] ?? order.state}
             </span>
           </div>
 
-          <StatusTracker state={order.state} />
+          <StatusTracker state={order.state} t={t} />
         </div>
 
         {/* Items */}
-        <OrderItems order={order} vendureBase={vendureBase} />
+        <OrderItems order={order} vendureBase={vendureBase} locale={locale} t={t} />
 
         {/* Shipping + Payment (side by side on wider screens) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ShippingInfo order={order} />
-          <PaymentInfo order={order} />
+          <ShippingInfo order={order} t={t} />
+          <PaymentInfo order={order} locale={locale} t={t} />
         </div>
       </div>
     </AccountLayout>

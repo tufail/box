@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import { Sparkles, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import type { HomeCollectionItem } from "~/graphql/collection";
 import type { SearchProductItem } from "~/graphql/product";
 import ProductCard from "./ProductCard";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 const PAGE_SIZE = 8;
 
@@ -45,6 +47,7 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const fetcher = useFetcher<ConcernResponse>();
 	const loadMoreFetcher = useFetcher<ConcernResponse>();
+	const locale = getLocaleFromPathname(useLocation().pathname);
 
 	const updateScrollState = useCallback(() => {
 		const el = scrollRef.current;
@@ -89,9 +92,9 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 	// Tab switch — client-fetch the first page for the newly selected concern
 	useEffect(() => {
 		if (!activeSlug) return;
-		fetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=0&take=${PAGE_SIZE}`);
+		fetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=0&take=${PAGE_SIZE}&lang=${locale}`);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSlug]);
+	}, [activeSlug, locale]);
 
 	useEffect(() => {
 		if (!fetcher.data) return;
@@ -106,7 +109,7 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 	}, [loadMoreFetcher.data]);
 
 	function handleLoadMore() {
-		loadMoreFetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=${items.length}&take=${PAGE_SIZE}`);
+		loadMoreFetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=${items.length}&take=${PAGE_SIZE}&lang=${locale}`);
 	}
 
 	if (tabs.length === 0) return null;
@@ -119,8 +122,8 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 	return (
 		<section className="pt-8 md:pt-10 pb-8 md:pb-10 container mx-auto px-4">
 			<div className="mb-8 md:mb-10 text-center">
-				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black">Shop by Concern</h2>
-				<p className="text-gray-500 text-sm mt-2">Find what fits your goals</p>
+				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black">{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}</h2>
+				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "اعثر على ما يناسب أهدافك" : "Find what fits your goals"}</p>
 			</div>
 
 			{/* Tabs — sliding pill, measured against each tab's own box so it works with
@@ -151,17 +154,17 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 
 				{canScrollLeft && (
 					<>
-						<div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none" />
-						<button onClick={() => scrollTabs("left")} aria-label="Scroll tabs left" className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-							<ChevronLeft size={14} />
+						<div className="absolute start-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-l" />
+						<button onClick={() => scrollTabs("left")} aria-label={locale === "ar" ? "تمرير علامات التبويب لليسار" : "Scroll tabs left"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-2 rtl:translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+							<ChevronLeft size={14} className="rtl:rotate-180" />
 						</button>
 					</>
 				)}
 				{canScrollRight && (
 					<>
-						<div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none" />
-						<button onClick={() => scrollTabs("right")} aria-label="Scroll tabs right" className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-							<ChevronRight size={14} />
+						<div className="absolute end-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-r" />
+						<button onClick={() => scrollTabs("right")} aria-label={locale === "ar" ? "تمرير علامات التبويب لليمين" : "Scroll tabs right"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-2 rtl:-translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+							<ChevronRight size={14} className="rtl:rotate-180" />
 						</button>
 					</>
 				)}
@@ -175,13 +178,13 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 					<Sparkles className="absolute bottom-4 right-4 text-white/10 pointer-events-none" size={96} strokeWidth={1} />
 
 					<div className="relative z-10">
-						<span className="inline-block bg-lime-300 text-black text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-4">Shop by Concern</span>
-						<h3 className="font-heading text-2xl font-extrabold text-white leading-tight">{activeCollection?.name ?? "Your Goals"}</h3>
-						<p className="text-white/70 text-sm mt-2">Curated picks trusted by thousands, backed by science.</p>
+						<span className="inline-block bg-lime-300 text-black text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-4">{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}</span>
+						<h3 className="font-heading text-2xl font-extrabold text-white leading-tight">{activeCollection?.name ?? (locale === "ar" ? "أهدافك" : "Your Goals")}</h3>
+						<p className="text-white/70 text-sm mt-2">{locale === "ar" ? "اختيارات مدروسة يثق بها الآلاف، مدعومة بالعلم." : "Curated picks trusted by thousands, backed by science."}</p>
 					</div>
 
 					<Link to={`/c/${activeSlug}`} className="relative z-10 mt-6 inline-flex items-center gap-1.5 text-white text-sm font-semibold hover:gap-2.5 transition-all w-fit">
-						Explore all <ArrowRight size={15} />
+						{locale === "ar" ? "استكشف الكل" : "Explore all"} <ArrowRight size={15} className="rtl:rotate-180" />
 					</Link>
 				</div>
 
@@ -195,13 +198,13 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 
 				{loading && Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductCardSkeleton key={i} />)}
 
-				{!loading && items.length === 0 && <p className="col-span-full lg:col-span-4 text-center text-gray-400 text-sm py-10">No products found for this concern yet.</p>}
+				{!loading && items.length === 0 && <p className="col-span-full lg:col-span-4 text-center text-gray-400 text-sm py-10">{locale === "ar" ? "لم يتم العثور على منتجات لهذا الاحتياج بعد." : "No products found for this concern yet."}</p>}
 			</div>
 
 			{hasMore && (
 				<div className="mt-8 flex justify-center">
 					<button onClick={handleLoadMore} disabled={loadingMore} className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors disabled:opacity-60">
-						{loadingMore ? "Loading…" : "Load More"}
+						{loadingMore ? (locale === "ar" ? "جارٍ التحميل…" : "Loading…") : (locale === "ar" ? "تحميل المزيد" : "Load More")}
 					</button>
 				</div>
 			)}

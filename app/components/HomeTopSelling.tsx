@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { useLocation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
 import type { SearchProductItem } from "~/graphql/product";
 import ProductCard from "./ProductCard";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 interface Props {
 	products: SearchProductItem[];
@@ -12,11 +14,17 @@ interface Props {
 	viewAllHref?: string;
 }
 
-export default function HomeTopSelling({ products, vendureBase, title = "Best-Sellers Edition", viewAllHref }: Props) {
+export default function HomeTopSelling({ products, vendureBase, title, viewAllHref }: Props) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const resolvedTitle = title ?? (locale === "ar" ? "الأكثر مبيعًا" : "Best-Sellers Edition");
+	// embla has its own RTL mode (correct scroll-physics/drag direction for
+	// right-to-left content) rather than something achievable by just mirroring
+	// CSS — "prev"/"next" stay semantically correct in both directions this way.
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		align: "start",
 		slidesToScroll: "auto",
 		containScroll: "trimSnaps",
+		direction: locale === "ar" ? "rtl" : "ltr",
 	});
 
 	const [canPrev, setCanPrev] = useState(false);
@@ -44,12 +52,12 @@ export default function HomeTopSelling({ products, vendureBase, title = "Best-Se
 	return (
 		<section className="py-8 md:py-10 container mx-auto px-4">
 			<div className="mb-8 md:mb-10">
-				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{title}</h2>
+				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{resolvedTitle}</h2>
 			</div>
 
 			<div className="relative">
-				<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label="Previous products" className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
-					<ChevronLeft size={14} />
+				<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label={locale === "ar" ? "المنتجات السابقة" : "Previous products"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+					<ChevronLeft size={14} className="rtl:rotate-180" />
 				</button>
 
 				<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
@@ -62,8 +70,8 @@ export default function HomeTopSelling({ products, vendureBase, title = "Best-Se
 					</div>
 				</div>
 
-				<button onClick={() => emblaApi?.scrollNext()} disabled={!canNext} aria-label="Next products" className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
-					<ChevronRight size={14} />
+				<button onClick={() => emblaApi?.scrollNext()} disabled={!canNext} aria-label={locale === "ar" ? "المنتجات التالية" : "Next products"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+					<ChevronRight size={14} className="rtl:rotate-180" />
 				</button>
 			</div>
 
@@ -73,7 +81,7 @@ export default function HomeTopSelling({ products, vendureBase, title = "Best-Se
 						to={viewAllHref}
 						className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors"
 					>
-						View All
+						{locale === "ar" ? "عرض الكل" : "View All"}
 					</Link>
 				</div>
 			)}

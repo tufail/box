@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { BannerItem } from "~/graphql/banner";
 import VendureImage from "./VendureImage";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 type State = "loading" | BannerItem[];
 
-export default function HomeTrendingBanners({ title = "Trending Products", vendureBase = "" }: { title?: string; vendureBase?: string }) {
+export default function HomeTrendingBanners({ title, vendureBase = "" }: { title?: string; vendureBase?: string }) {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
@@ -46,11 +48,14 @@ function Shimmer() {
   );
 }
 
-function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; title: string; vendureBase: string }) {
+function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; title?: string; vendureBase: string }) {
+  const locale = getLocaleFromPathname(useLocation().pathname);
+  const resolvedTitle = title ?? (locale === "ar" ? "المنتجات الرائجة" : "Trending Products");
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: "auto",
     containScroll: "trimSnaps",
+    direction: locale === "ar" ? "rtl" : "ltr",
   });
 
   const [canPrev, setCanPrev] = useState(false);
@@ -76,17 +81,17 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
   return (
     <section className="py-8 md:py-10 container mx-auto px-4">
       <div className="mb-8 md:mb-10">
-        <h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{title}</h2>
+        <h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{resolvedTitle}</h2>
       </div>
 
       <div className="relative">
         <button
           onClick={() => emblaApi?.scrollPrev()}
           disabled={!canPrev}
-          aria-label="Previous items"
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          aria-label={locale === "ar" ? "العناصر السابقة" : "Previous items"}
+          className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronLeft size={14} />
+          <ChevronLeft size={14} className="rtl:rotate-180" />
         </button>
 
         <div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
@@ -119,10 +124,10 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
         <button
           onClick={() => emblaApi?.scrollNext()}
           disabled={!canNext}
-          aria-label="Next items"
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          aria-label={locale === "ar" ? "العناصر التالية" : "Next items"}
+          className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={14} className="rtl:rotate-180" />
         </button>
       </div>
     </section>

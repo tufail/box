@@ -4,10 +4,14 @@ import {
   SEARCH_SUGGESTIONS_QUERY,
   type SearchSuggestionsResponse,
 } from "~/graphql/search";
+import type { Locale } from "~/lib/i18n";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const term = url.searchParams.get("q")?.trim() ?? "";
+  // This route's own URL is never /ar/* (it's a fixed resource endpoint) —
+  // the calling page passes its locale through explicitly instead.
+  const locale: Locale = url.searchParams.get("lang") === "ar" ? "ar" : "en";
 
   if (term.length < 2) {
     return Response.json({ items: [], collections: [], facetValues: [] } satisfies SearchSuggestionsResponse);
@@ -20,7 +24,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       env,
       SEARCH_SUGGESTIONS_QUERY,
       { term },
-      { request }
+      { request, locale }
     );
     return Response.json(data.search);
   } catch {

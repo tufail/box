@@ -14,6 +14,7 @@ import { CART_COUNT_QUERY } from "./graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
 import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
 import { SITE_NAME, SITE_URL } from "./lib/seo";
+import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
 
 // Rendered on every page — establishes NutriBox as a single consistent entity for
 // Google's Knowledge Graph and for AI systems (ChatGPT/Gemini/Claude) grounding
@@ -50,8 +51,22 @@ export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@700;800;900&family=Noto+Sans+Arabic:wght@400;500&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@700;800;900&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap",
 	},
+	{ rel: "apple-touch-icon", sizes: "57x57", href: "/apple-icon-57x57.png" },
+	{ rel: "apple-touch-icon", sizes: "60x60", href: "/apple-icon-60x60.png" },
+	{ rel: "apple-touch-icon", sizes: "72x72", href: "/apple-icon-72x72.png" },
+	{ rel: "apple-touch-icon", sizes: "76x76", href: "/apple-icon-76x76.png" },
+	{ rel: "apple-touch-icon", sizes: "114x114", href: "/apple-icon-114x114.png" },
+	{ rel: "apple-touch-icon", sizes: "120x120", href: "/apple-icon-120x120.png" },
+	{ rel: "apple-touch-icon", sizes: "144x144", href: "/apple-icon-144x144.png" },
+	{ rel: "apple-touch-icon", sizes: "152x152", href: "/apple-icon-152x152.png" },
+	{ rel: "apple-touch-icon", sizes: "180x180", href: "/apple-icon-180x180.png" },
+	{ rel: "icon", type: "image/png", sizes: "192x192", href: "/android-icon-192x192.png" },
+	{ rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
+	{ rel: "icon", type: "image/png", sizes: "96x96", href: "/favicon-96x96.png" },
+	{ rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
+	{ rel: "manifest", href: "/manifest.json" },
 ];
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -86,11 +101,20 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+	// Derived from the URL (/ar/* prefix) — real translated content now comes from
+	// the backend per-locale, so the old Google Translate widget (which used to
+	// machine-translate the English DOM in place) has been removed; it would only
+	// fight with genuinely Arabic-rendered pages.
+	const locale = getLocaleFromPathname(useLocation().pathname);
+
 	return (
-		<html lang="en">
+		<html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta name="msapplication-TileColor" content="#ffffff" />
+				<meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
+				<meta name="theme-color" content="#ffffff" />
 				<Meta />
 				<Links />
 			</head>
@@ -98,9 +122,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				{children}
 				<ScrollRestoration />
 				<Scripts />
-				<div id="google_translate_element" />
-				<script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'ar,en',autoDisplay:true},'google_translate_element');}` }} />
-				<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async={true} />
 			</body>
 		</html>
 	);
@@ -110,9 +131,12 @@ export default function App() {
 	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
 	const location = useLocation();
 	const navigationType = useNavigationType();
+	// stripLocalePrefix first — otherwise this never matches on Arabic pages,
+	// since /ar/checkout starts with "/ar/", not "/checkout".
+	const bareRoutePath = stripLocalePrefix(location.pathname);
 	const isCheckoutRoute =
-		location.pathname.startsWith("/checkout") ||
-		location.pathname.startsWith("/order-confirmation");
+		bareRoutePath.startsWith("/checkout") ||
+		bareRoutePath.startsWith("/order-confirmation");
 
 	// Belt-and-suspenders alongside <ScrollRestoration /> — on a real page change
 	// (not back/forward, where preserving position is the whole point) force the
@@ -248,7 +272,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 				)}
 				<a
 					href="/"
-					className="inline-block px-8 py-3.5 bg-[#458500] text-white rounded-full font-bold text-sm hover:bg-[#3a7000] transition-colors shadow-lg shadow-[#458500]/20"
+					className="inline-block px-8 py-3.5 bg-primary text-white rounded-full font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
 				>
 					Back to Home
 				</a>

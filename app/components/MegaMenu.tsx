@@ -1,9 +1,11 @@
-import { Link, useFetcher } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "../graphql/megamenu";
 import type { BrandValue } from "../graphql/brand";
 import { ChevronDown, Search, X } from "lucide-react";
+import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 
 function itemHref(item: Pick<MegaMenuItem, "url">): string {
 	return item.url ?? "#";
@@ -43,6 +45,7 @@ function BrandsDropdown() {
 	const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const fetcher = useFetcher<{ brands: BrandValue[] }>();
+	const locale = getLocaleFromPathname(useLocation().pathname);
 
 	function cancelClose() {
 		if (closeTimer.current) {
@@ -54,8 +57,9 @@ function BrandsDropdown() {
 		cancelClose();
 		setOpen(true);
 		// Client-side only — the full brand list isn't part of the page's SSR payload,
-		// it's fetched lazily the first time this dropdown is actually opened.
-		if (fetcher.state === "idle" && !fetcher.data) fetcher.load("/brands");
+		// it's fetched lazily the first time this dropdown is actually opened. Loads
+		// the locale-matching /brands route so its own loader resolves the right language.
+		if (fetcher.state === "idle" && !fetcher.data) fetcher.load(localizePath("/brands", locale));
 	}
 	function scheduleClose() {
 		cancelClose();
@@ -97,7 +101,7 @@ function BrandsDropdown() {
 	return (
 		<div ref={ref} className="relative" onMouseEnter={openNow} onMouseLeave={scheduleClose}>
 			<button className="font-medium flex items-center gap-1 py-2 group" aria-expanded={open}>
-				<span className="text-black text-sm transition-colors">Brands</span>
+				<span className="text-black text-sm transition-colors">{locale === "ar" ? "العلامات التجارية" : "Brands"}</span>
 				<span className={`text-black transition-all duration-300 ${open ? "-rotate-180" : ""}`}>
 					<ChevronDown size={18} strokeWidth={1.5} />
 				</span>
@@ -107,15 +111,15 @@ function BrandsDropdown() {
 				<div
 					onMouseEnter={cancelClose}
 					onMouseLeave={scheduleClose}
-					className="absolute left-0 top-full mt-[1px] bg-white border border-gray-200 shadow-xl z-50 flex w-[580px] overflow-hidden">
+					className="absolute start-0 top-full mt-[1px] bg-white border border-gray-200 shadow-xl z-50 flex w-[580px] overflow-hidden">
 					{/* Left — searchable alphabetical list */}
-					<div className="w-[240px] flex-shrink-0 border-r border-gray-100 flex flex-col">
+					<div className="w-[240px] flex-shrink-0 border-e border-gray-100 flex flex-col">
 						<div className="p-3 border-b border-gray-100">
 							<div className="flex items-center gap-2 border border-gray-300 rounded px-3 py-1.5 bg-white">
 								<Search size={14} strokeWidth={1.5} className="text-gray-400 flex-shrink-0" />
 								<input
 									type="text"
-									placeholder="Search for brands"
+									placeholder={locale === "ar" ? "ابحث عن العلامات التجارية" : "Search for brands"}
 									value={search}
 									onChange={(e) => setSearch(e.target.value)}
 									className="text-sm flex-1 outline-none bg-transparent placeholder-gray-400"
@@ -124,7 +128,7 @@ function BrandsDropdown() {
 							</div>
 						</div>
 						<div className="overflow-y-auto max-h-[340px]">
-							{loading && <p className="px-4 py-6 text-sm text-gray-400 text-center">Loading brands…</p>}
+							{loading && <p className="px-4 py-6 text-sm text-gray-400 text-center">{locale === "ar" ? "جارٍ تحميل العلامات التجارية…" : "Loading brands…"}</p>}
 							{!loading &&
 								Object.keys(grouped).sort().map((letter) => (
 									<div key={letter}>
@@ -137,20 +141,20 @@ function BrandsDropdown() {
 												onClick={close}
 											>
 												{brand.name}
-												<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 text-gray-300" />
+												<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 rtl:rotate-90 text-gray-300" />
 											</Link>
 										))}
 									</div>
 								))}
 							{!loading && filtered.length === 0 && (
-								<p className="px-4 py-6 text-sm text-gray-400 text-center">No brands found</p>
+								<p className="px-4 py-6 text-sm text-gray-400 text-center">{locale === "ar" ? "لم يتم العثور على علامات تجارية" : "No brands found"}</p>
 							)}
 						</div>
 					</div>
 
 					{/* Right — top brands grid */}
 					<div className="flex-1 p-4 bg-stone-100">
-						<p className="text-sm font-bold text-gray-800 mb-3">Top Brands</p>
+						<p className="text-sm font-bold text-gray-800 mb-3">{locale === "ar" ? "أشهر العلامات التجارية" : "Top Brands"}</p>
 						<div className="grid grid-cols-3 gap-3">
 							{TOP_BRANDS.map((brand) => (
 								<Link
@@ -194,6 +198,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 	const [desktopOpen, setDesktopOpen] = useState<number | null>(null);
 	const [mobileExpandedItem, setMobileExpandedItem] = useState<number | null>(null);
 	const [mounted, setMounted] = useState(false);
+	const locale = getLocaleFromPathname(useLocation().pathname);
 
 	const menuRef = useRef<HTMLDivElement>(null);
 	const desktopCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -249,10 +254,10 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 					onClick={onMobileClose}
 				/>
 				{/* Panel */}
-				<div className={`fixed top-0 left-0 h-full w-72 bg-white z-50 shadow-xl transition-transform duration-300 flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+				<div className={`fixed top-0 start-0 h-full w-72 bg-white z-50 shadow-xl transition-transform duration-300 flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"}`}>
 					<div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
-						<span className="font-semibold text-base text-gray-900">Menu</span>
-						<button onClick={onMobileClose} className="text-gray-500 hover:text-gray-700 transition-colors" aria-label="Close menu">
+						<span className="font-semibold text-base text-gray-900">{locale === "ar" ? "القائمة" : "Menu"}</span>
+						<button onClick={onMobileClose} className="text-gray-500 hover:text-gray-700 transition-colors" aria-label={locale === "ar" ? "إغلاق القائمة" : "Close menu"}>
 							<X size={20} strokeWidth={1.5} />
 						</button>
 					</div>
@@ -277,7 +282,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 											<button
 												className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors"
 												onClick={() => setMobileExpandedItem(isExpanded ? null : index)}
-												aria-label={isExpanded ? "Collapse" : "Expand"}
+												aria-label={isExpanded ? (locale === "ar" ? "طي" : "Collapse") : (locale === "ar" ? "توسيع" : "Expand")}
 											>
 												<ChevronDown size={16} strokeWidth={1.5} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
 											</button>
@@ -333,12 +338,12 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 								<div
 									onMouseEnter={cancelCloseDesktop}
 									onMouseLeave={scheduleCloseDesktop}
-									className={`absolute left-0 top-full bg-white border border-gray-200 shadow-xl transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
+									className={`absolute start-0 top-full bg-white border border-gray-200 shadow-xl transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
 									<div className="grid grid-cols-5 gap-6 p-6 divide-x divide-gray-100">
 										{[...item.columns]
 											.sort((a, b) => a.position - b.position)
 											.map((col, ci) => (
-												<div key={ci} className="flex flex-col gap-4 pl-8 first:pl-0">
+												<div key={ci} className="flex flex-col gap-4 ps-8 first:ps-0">
 													{col.sections.length > 0 && (
 														<div className="flex flex-col gap-4">
 															{col.sections.map((section, si) => {
@@ -374,7 +379,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 													)}
 													{col.promoAssetPreview && (
 														<Link to={col.promoUrl ?? "#"} className="block group rounded overflow-hidden border border-gray-100 hover:border-primary transition-colors mt-auto" onClick={() => setDesktopOpen(null)}>
-															<img src={col.promoAssetPreview} alt={col.promoLabel ?? "Promotion"} className="w-full h-[120px] object-cover group-hover:scale-105 transition-transform duration-300" />
+															<img src={col.promoAssetPreview} alt={col.promoLabel ?? (locale === "ar" ? "عرض ترويجي" : "Promotion")} className="w-full h-[120px] object-cover group-hover:scale-105 transition-transform duration-300" />
 															{col.promoLabel && <p className="text-xs font-medium text-center py-2 px-3 bg-gray-50 group-hover:text-black transition-colors">{col.promoLabel}</p>}
 														</Link>
 													)}

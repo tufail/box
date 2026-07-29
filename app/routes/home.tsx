@@ -17,23 +17,39 @@ import {
   type HomeCollectionsResult,
 } from "~/graphql/collection";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 
-const HOME_TITLE = "NutriBox Qatar — Premium Health & Quality Supplements";
-const HOME_DESCRIPTION = "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox Qatar. 100% genuine products, fast delivery across Qatar.";
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: {
+    title: "NutriBox Qatar — Premium Health & Quality Supplements",
+    description: "Shop authentic protein powders, vitamins, and sports nutrition at NutriBox Qatar. 100% genuine products, fast delivery across Qatar.",
+  },
+  ar: {
+    title: "NutriBox قطر — مكملات غذائية ورياضية عالية الجودة",
+    description: "تسوّق بروتينات ومكملات وفيتامينات أصلية من NutriBox قطر. منتجات أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.",
+  },
+} as const;
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ location }: Route.MetaArgs) {
+  const locale = getLocaleFromPathname(location.pathname);
+  const { title, description } = COPY[locale];
+  const canonicalUrl = `${SITE_URL}${localizePath("/", locale)}`;
   return [
-    { title: HOME_TITLE },
-    { name: "description", content: HOME_DESCRIPTION },
-    { tagName: "link" as const, rel: "canonical", href: SITE_URL },
+    { title },
+    { name: "description", content: description },
+    { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+    ...hreflangTags(SITE_URL, "/"),
     { property: "og:type", content: "website" },
-    { property: "og:title", content: HOME_TITLE },
-    { property: "og:description", content: HOME_DESCRIPTION },
-    { property: "og:url", content: SITE_URL },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: canonicalUrl },
     { property: "og:site_name", content: SITE_NAME },
     { name: "twitter:card", content: "summary" },
-    { name: "twitter:title", content: HOME_TITLE },
-    { name: "twitter:description", content: HOME_DESCRIPTION },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
   ];
 }
 

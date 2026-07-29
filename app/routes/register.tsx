@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import type { Route } from "./+types/register";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -16,6 +18,66 @@ export function meta(): ReturnType<Route.MetaFunction> {
   ];
 }
 
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: {
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    accountCreated: "Account created!",
+    verificationSentTo: "We've sent a verification email to",
+    checkInbox: "Please check your inbox and click the link to activate your account.",
+    signIn: "Sign In",
+    createAnAccount: "Create an account",
+    joinNutribox: "Join NutriBox for faster checkout & order tracking",
+    orSignUpWithEmail: "Or sign up with email",
+    firstName: "First Name",
+    lastName: "Last Name",
+    emailAddress: "Email Address",
+    phoneNumber: "Phone Number",
+    password: "Password",
+    minPasswordChars: "Minimum 8 characters",
+    emailMeOffers: "Email me with news and offers",
+    subscribeAgreement: "By subscribing you agree to our",
+    privacyPolicy: "Privacy Policy",
+    unsubscribeNote: ". You can unsubscribe at any time.",
+    createAccountAgreement: "By creating an account you agree to our",
+    termsAndConditions: "Terms & Conditions",
+    and: "and",
+    creatingAccount: "Creating account…",
+    createAccount: "Create Account",
+    alreadyHaveAccount: "Already have an account?",
+  },
+  ar: {
+    showPassword: "إظهار كلمة المرور",
+    hidePassword: "إخفاء كلمة المرور",
+    accountCreated: "تم إنشاء الحساب!",
+    verificationSentTo: "لقد أرسلنا رسالة تحقق إلى",
+    checkInbox: "يرجى التحقق من بريدك الإلكتروني والنقر على الرابط لتفعيل حسابك.",
+    signIn: "تسجيل الدخول",
+    createAnAccount: "إنشاء حساب",
+    joinNutribox: "انضم إلى NutriBox لتسجيل خروج أسرع وتتبع الطلبات",
+    orSignUpWithEmail: "أو أنشئ حسابًا عبر البريد الإلكتروني",
+    firstName: "الاسم الأول",
+    lastName: "اسم العائلة",
+    emailAddress: "البريد الإلكتروني",
+    phoneNumber: "رقم الهاتف",
+    password: "كلمة المرور",
+    minPasswordChars: "8 أحرف على الأقل",
+    emailMeOffers: "أرسلوا لي الأخبار والعروض عبر البريد الإلكتروني",
+    subscribeAgreement: "بالاشتراك، فإنك توافق على",
+    privacyPolicy: "سياسة الخصوصية",
+    unsubscribeNote: ". يمكنك إلغاء الاشتراك في أي وقت.",
+    createAccountAgreement: "بإنشاء حساب، فإنك توافق على",
+    termsAndConditions: "الشروط والأحكام",
+    and: "و",
+    creatingAccount: "جارٍ إنشاء الحساب…",
+    createAccount: "إنشاء حساب",
+    alreadyHaveAccount: "لديك حساب بالفعل؟",
+  },
+} as const;
+
 function PasswordInput({
   name,
   placeholder,
@@ -24,6 +86,7 @@ function PasswordInput({
   placeholder?: string;
 }) {
   const [show, setShow] = useState(false);
+  const t = COPY[getLocaleFromPathname(useLocation().pathname)];
   return (
     <div className="relative">
       <input
@@ -33,14 +96,14 @@ function PasswordInput({
         minLength={8}
         placeholder={placeholder}
         autoComplete="new-password"
-        className="w-full border border-gray-300 rounded px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        className="w-full border border-gray-300 rounded px-3 py-2.5 pe-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
       <button
         type="button"
         tabIndex={-1}
         onClick={() => setShow((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-        aria-label={show ? "Hide password" : "Show password"}
+        className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+        aria-label={show ? t.hidePassword : t.showPassword}
       >
         {show ? <EyeOff size={16} /> : <Eye size={16} />}
       </button>
@@ -53,6 +116,8 @@ function PasswordInput({
 export default function RegisterPage({ loaderData }: Route.ComponentProps) {
   const returnTo = loaderData.redirect;
   const safeReturn = returnTo.startsWith("/") ? returnTo : "/";
+  const locale = getLocaleFromPathname(useLocation().pathname);
+  const t = COPY[locale];
   const [newsletter, setNewsletter] = useState(true);
   const [registered, setRegistered] = useState(false);
   const [email, setEmail] = useState("");
@@ -106,19 +171,19 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={32} className="text-green-600" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Account created!</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">{t.accountCreated}</h1>
           <p className="text-sm text-gray-500 mb-1">
-            We've sent a verification email to{" "}
+            {t.verificationSentTo}{" "}
             <span className="font-medium text-gray-700">{email}</span>.
           </p>
           <p className="text-sm text-gray-500 mb-8">
-            Please check your inbox and click the link to activate your account.
+            {t.checkInbox}
           </p>
           <Link
             to={`/login${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
             className="inline-block bg-primary text-white px-8 py-3 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            Sign In
+            {t.signIn}
           </Link>
         </div>
       </div>
@@ -136,25 +201,25 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
               <UserPlus size={20} className="text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 leading-tight">Create an account</h1>
-              <p className="text-xs text-gray-500">Join NutriBox for faster checkout & order tracking</p>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">{t.createAnAccount}</h1>
+              <p className="text-xs text-gray-500">{t.joinNutribox}</p>
             </div>
           </div>
 
-          <SocialAuthButtons dividerLabel="Or sign up with email" emailOffers={newsletter} />
+          <SocialAuthButtons dividerLabel={t.orSignUpWithEmail} emailOffers={newsletter} />
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>
-                  First Name <span className="text-red-500">*</span>
+                  {t.firstName} <span className="text-red-500">*</span>
                 </label>
                 <input name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>
-                  Last Name <span className="text-red-500">*</span>
+                  {t.lastName} <span className="text-red-500">*</span>
                 </label>
                 <input name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
               </div>
@@ -162,13 +227,13 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
 
             <div>
               <label className={labelCls}>
-                Email Address <span className="text-red-500">*</span>
+                {t.emailAddress} <span className="text-red-500">*</span>
               </label>
               <input name="emailAddress" type="email" required autoComplete="email" className={inputCls} />
             </div>
 
             <div>
-              <label className={labelCls}>Phone Number</label>
+              <label className={labelCls}>{t.phoneNumber}</label>
               <input
                 name="phoneNumber"
                 type="tel"
@@ -180,9 +245,9 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
 
             <div>
               <label className={labelCls}>
-                Password <span className="text-red-500">*</span>
+                {t.password} <span className="text-red-500">*</span>
               </label>
-              <PasswordInput name="password" placeholder="Minimum 8 characters" />
+              <PasswordInput name="password" placeholder={t.minPasswordChars} />
             </div>
 
             {/* Newsletter consent */}
@@ -199,29 +264,29 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
                   {newsletter && <Check size={12} strokeWidth={3} className="text-primary" />}
                 </div>
                 <input type="hidden" name="emailOffers" value={newsletter ? "true" : "false"} />
-                <span className="text-sm text-gray-700">Email me with news and offers</span>
+                <span className="text-sm text-gray-700">{t.emailMeOffers}</span>
               </label>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">
-                By subscribing you agree to our{" "}
+              <p className="text-xs text-gray-400 mt-1.5 ms-7">
+                {t.subscribeAgreement}{" "}
                 <Link
                   to="/privacy-policy"
                   className="underline hover:text-gray-600 transition-colors"
                 >
-                  Privacy Policy
+                  {t.privacyPolicy}
                 </Link>
-                . You can unsubscribe at any time.
+                {t.unsubscribeNote}
               </p>
             </div>
 
             {/* Privacy & terms note */}
             <p className="text-xs text-gray-400 text-center">
-              By creating an account you agree to our{" "}
+              {t.createAccountAgreement}{" "}
               <Link to="/terms" className="underline hover:text-gray-600 transition-colors">
-                Terms & Conditions
+                {t.termsAndConditions}
               </Link>{" "}
-              and{" "}
+              {t.and}{" "}
               <Link to="/privacy-policy" className="underline hover:text-gray-600 transition-colors">
-                Privacy Policy
+                {t.privacyPolicy}
               </Link>
               .
             </p>
@@ -237,18 +302,18 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
               disabled={loading}
               className="w-full bg-primary text-white font-semibold py-3 rounded hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Creating account…" : "Create Account"}
+              {loading ? t.creatingAccount : t.createAccount}
             </button>
           </form>
 
           {/* Sign in link */}
           <p className="text-center text-sm text-gray-500 mt-5">
-            Already have an account?{" "}
+            {t.alreadyHaveAccount}{" "}
             <Link
               to={`/login${safeReturn !== "/" ? `?redirect=${encodeURIComponent(safeReturn)}` : ""}`}
               className="text-primary font-medium hover:underline"
             >
-              Sign in
+              {t.signIn}
             </Link>
           </p>
         </div>

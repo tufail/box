@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { redirect, useFetcher } from "react-router";
+import { redirect, useFetcher, useLocation } from "react-router";
 import type { Route } from "./+types/account.profile";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
@@ -9,9 +9,11 @@ import {
 } from "~/graphql/account";
 import AccountLayout from "~/layouts/AccountLayout";
 import { CheckCircle, Copy, Gift, Users } from "lucide-react";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
+  const locale = getLocaleFromPathname(new URL(request.url).pathname);
   try {
     const { data } = await graphqlRequest<CustomerProfileData>(
       env,
@@ -19,10 +21,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       undefined,
       { request }
     );
-    if (!data.activeCustomer) return redirect("/");
+    if (!data.activeCustomer) return redirect(localizePath("/", locale));
     return { customer: data.activeCustomer };
   } catch {
-    return redirect("/");
+    return redirect(localizePath("/", locale));
   }
 }
 
@@ -30,11 +32,75 @@ export function meta() {
   return [{ title: "My Profile | NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const COPY = {
+  en: {
+    personalInformation: "Personal Information",
+    updateProfileNote: "Update your profile details and contact information.",
+    title: "Title",
+    selectPlaceholder: "— Select —",
+    mr: "Mr",
+    mrs: "Mrs",
+    ms: "Ms",
+    dr: "Dr",
+    firstName: "First Name",
+    lastName: "Last Name",
+    emailAddress: "Email Address",
+    contactSupportNote: "To change your email, please contact support.",
+    phoneNumber: "Phone Number",
+    saving: "Saving…",
+    saveChanges: "Save Changes",
+    saved: "Saved!",
+    referralProgram: "Referral Program",
+    referralNote: "Share your referral code and earn rewards when friends make their first purchase.",
+    referrals: "Referrals",
+    friendsReferred: "Friends referred",
+    rewards: "Rewards",
+    totalEarned: "Total earned",
+    yourReferralCode: "Your Referral Code",
+    copied: "Copied!",
+    copy: "Copy",
+    orShareLink: "Or share your referral link:",
+    copyLink: "Copy link",
+  },
+  ar: {
+    personalInformation: "المعلومات الشخصية",
+    updateProfileNote: "حدّث بيانات ملفك الشخصي ومعلومات الاتصال.",
+    title: "اللقب",
+    selectPlaceholder: "— اختر —",
+    mr: "السيد",
+    mrs: "السيدة",
+    ms: "الآنسة",
+    dr: "الدكتور",
+    firstName: "الاسم الأول",
+    lastName: "اسم العائلة",
+    emailAddress: "البريد الإلكتروني",
+    contactSupportNote: "لتغيير بريدك الإلكتروني، يرجى التواصل مع الدعم.",
+    phoneNumber: "رقم الهاتف",
+    saving: "جارٍ الحفظ…",
+    saveChanges: "حفظ التغييرات",
+    saved: "تم الحفظ!",
+    referralProgram: "برنامج الإحالة",
+    referralNote: "شارك رمز الإحالة الخاص بك واكسب مكافآت عندما يقوم أصدقاؤك بأول عملية شراء.",
+    referrals: "الإحالات",
+    friendsReferred: "الأصدقاء المُحالون",
+    rewards: "المكافآت",
+    totalEarned: "إجمالي الأرباح",
+    yourReferralCode: "رمز الإحالة الخاص بك",
+    copied: "تم النسخ!",
+    copy: "نسخ",
+    orShareLink: "أو شارك رابط الإحالة الخاص بك:",
+    copyLink: "نسخ الرابط",
+  },
+} as const;
+
 const inputCls =
   "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors";
 const labelCls = "block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5";
 
-function ProfileForm({ customer }: { customer: CustomerProfile }) {
+function ProfileForm({ customer, t }: { customer: CustomerProfile; t: (typeof COPY)[Locale] }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetcher = useFetcher<{ customer?: CustomerProfile; error?: string }>();
@@ -69,21 +135,21 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Personal Information</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">{t.personalInformation}</h2>
       <p className="text-sm text-gray-500 mb-6">
-        Update your profile details and contact information.
+        {t.updateProfileNote}
       </p>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <label className={labelCls}>Title</label>
+            <label className={labelCls}>{t.title}</label>
             <select name="title" defaultValue={customer.title ?? ""} className={inputCls}>
-              <option value="">— Select —</option>
-              <option value="Mr">Mr</option>
-              <option value="Mrs">Mrs</option>
-              <option value="Ms">Ms</option>
-              <option value="Dr">Dr</option>
+              <option value="">{t.selectPlaceholder}</option>
+              <option value="Mr">{t.mr}</option>
+              <option value="Mrs">{t.mrs}</option>
+              <option value="Ms">{t.ms}</option>
+              <option value="Dr">{t.dr}</option>
             </select>
           </div>
 
@@ -91,7 +157,7 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
 
           <div>
             <label className={labelCls}>
-              First Name <span className="text-red-500">*</span>
+              {t.firstName} <span className="text-red-500">*</span>
             </label>
             <input
               name="firstName"
@@ -104,7 +170,7 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
 
           <div>
             <label className={labelCls}>
-              Last Name <span className="text-red-500">*</span>
+              {t.lastName} <span className="text-red-500">*</span>
             </label>
             <input
               name="lastName"
@@ -116,7 +182,7 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
           </div>
 
           <div>
-            <label className={labelCls}>Email Address</label>
+            <label className={labelCls}>{t.emailAddress}</label>
             <input
               type="email"
               value={customer.emailAddress}
@@ -124,12 +190,12 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
               className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
             />
             <p className="text-xs text-gray-400 mt-1">
-              To change your email, please contact support.
+              {t.contactSupportNote}
             </p>
           </div>
 
           <div>
-            <label className={labelCls}>Phone Number</label>
+            <label className={labelCls}>{t.phoneNumber}</label>
             <input
               name="phoneNumber"
               type="tel"
@@ -152,11 +218,11 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
             disabled={loading}
             className="bg-emerald-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Saving…" : "Save Changes"}
+            {loading ? t.saving : t.saveChanges}
           </button>
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
-              <CheckCircle size={16} /> Saved!
+              <CheckCircle size={16} /> {t.saved}
             </span>
           )}
         </div>
@@ -165,7 +231,7 @@ function ProfileForm({ customer }: { customer: CustomerProfile }) {
   );
 }
 
-function ReferralCard({ customer }: { customer: CustomerProfile }) {
+function ReferralCard({ customer, t }: { customer: CustomerProfile; t: (typeof COPY)[Locale] }) {
   const [copied, setCopied] = useState(false);
 
   const referralCode = `NB${customer.id.toString().padStart(8, "0").toUpperCase()}`;
@@ -192,10 +258,10 @@ function ReferralCard({ customer }: { customer: CustomerProfile }) {
     <div className="bg-white rounded-2xl shadow-sm p-6">
       <div className="flex items-center gap-2 mb-1">
         <Gift size={20} className="text-emerald-600" />
-        <h2 className="text-lg font-semibold text-gray-900">Referral Program</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t.referralProgram}</h2>
       </div>
       <p className="text-sm text-gray-500 mb-6">
-        Share your referral code and earn rewards when friends make their first purchase.
+        {t.referralNote}
       </p>
 
       {/* Stats */}
@@ -204,27 +270,27 @@ function ReferralCard({ customer }: { customer: CustomerProfile }) {
           <div className="flex items-center gap-1.5 mb-2">
             <Users size={15} className="text-emerald-600" />
             <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">
-              Referrals
+              {t.referrals}
             </span>
           </div>
           <p className="text-2xl font-bold text-gray-900">0</p>
-          <p className="text-xs text-gray-500 mt-0.5">Friends referred</p>
+          <p className="text-xs text-gray-500 mt-0.5">{t.friendsReferred}</p>
         </div>
         <div className="bg-amber-50 rounded-xl p-4">
           <div className="flex items-center gap-1.5 mb-2">
             <Gift size={15} className="text-amber-600" />
             <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-              Rewards
+              {t.rewards}
             </span>
           </div>
           <p className="text-2xl font-bold text-gray-900">QAR 0</p>
-          <p className="text-xs text-gray-500 mt-0.5">Total earned</p>
+          <p className="text-xs text-gray-500 mt-0.5">{t.totalEarned}</p>
         </div>
       </div>
 
       {/* Referral code */}
       <div className="border border-dashed border-emerald-200 rounded-xl p-4 bg-emerald-50/40">
-        <p className={labelCls}>Your Referral Code</p>
+        <p className={labelCls}>{t.yourReferralCode}</p>
         <div className="flex items-center gap-3 mb-3">
           <code className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-base font-mono font-bold text-emerald-700 tracking-widest">
             {referralCode}
@@ -236,18 +302,18 @@ function ReferralCard({ customer }: { customer: CustomerProfile }) {
           >
             {copied ? (
               <>
-                <CheckCircle size={14} /> Copied!
+                <CheckCircle size={14} /> {t.copied}
               </>
             ) : (
               <>
-                <Copy size={14} /> Copy
+                <Copy size={14} /> {t.copy}
               </>
             )}
           </button>
         </div>
 
         <div>
-          <p className="text-xs text-gray-500 mb-1.5">Or share your referral link:</p>
+          <p className="text-xs text-gray-500 mb-1.5">{t.orShareLink}</p>
           <div className="flex items-center gap-2">
             <span className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 font-mono truncate">
               {referralLink}
@@ -256,7 +322,7 @@ function ReferralCard({ customer }: { customer: CustomerProfile }) {
               type="button"
               onClick={copyLink}
               className="text-emerald-600 hover:text-emerald-700 shrink-0 transition-colors"
-              title="Copy link"
+              title={t.copyLink}
             >
               <Copy size={14} />
             </button>
@@ -269,12 +335,13 @@ function ReferralCard({ customer }: { customer: CustomerProfile }) {
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
   const { customer } = loaderData;
+  const t = COPY[getLocaleFromPathname(useLocation().pathname)];
 
   return (
     <AccountLayout customer={customer}>
       <div className="space-y-6">
-        <ProfileForm customer={customer} />
-        <ReferralCard customer={customer} />
+        <ProfileForm customer={customer} t={t} />
+        <ReferralCard customer={customer} t={t} />
       </div>
     </AccountLayout>
   );

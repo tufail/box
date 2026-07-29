@@ -1,3 +1,5 @@
+import { formatPrice } from "~/lib/currency";
+
 // ─── Bundle offer (product page) ─────────────────────────────────────────────
 
 export interface BundleOfferItem {
@@ -161,10 +163,11 @@ export const VALIDATE_ORDER_BUNDLES_MUTATION = `
 
 // ─── Discount display helper ──────────────────────────────────────────────────
 
-export function formatBundleDiscount(discountType: BundleDiscountType, discountValue: number): string {
+export function formatBundleDiscount(discountType: BundleDiscountType, discountValue: number, locale: "en" | "ar" = "en"): string {
+  const save = locale === "ar" ? "وفّر" : "Save";
   switch (discountType) {
-    case "PERCENTAGE": return `Save ${discountValue}%`;
-    case "FIXED_AMOUNT": return `Save QAR ${(discountValue).toFixed(2)}`;
-    default: return `Save ${discountValue}%`;
+    case "PERCENTAGE": return `${save} ${discountValue}%`;
+    case "FIXED_AMOUNT": return `${save} ${formatPrice(discountValue * 100, "QAR", locale)}`;
+    default: return `${save} ${discountValue}%`;
   }
 }

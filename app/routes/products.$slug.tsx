@@ -1,7 +1,8 @@
 import type { Route } from "./+types/products.$slug";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useFetcher, Link, useRouteLoaderData } from "react-router";
+import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
 import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet, Maximize2, X, Truck, Info } from "lucide-react";
@@ -17,9 +18,149 @@ import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } fr
 import { getAddToCartErrorMessage } from "~/graphql/order";
 import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
-import { SITE_NAME } from "~/lib/seo";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
+import { formatPrice as formatCurrency } from "~/lib/currency";
 
-const WHATSAPP_NUMBER = "97412345678"; // replace with business WhatsApp number (country code + number, no +)
+const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const PDP_COPY = {
+	en: {
+		previousImage: "Previous image",
+		nextImage: "Next image",
+		goToImage: (n: number) => `Go to image ${n}`,
+		viewFullScreen: "View full screen",
+		removeFromWishlist: "Remove from wishlist",
+		addToWishlist: "Add to wishlist",
+		share: "Share",
+		copied: "Copied!",
+		copyLink: "Copy Link",
+		close: "Close",
+		tabDescription: "Description",
+		tabDisclaimer: "Disclaimer",
+		tabQA: "Q & A",
+		noDescription: "No description available for this product.",
+		noDisclaimer: "No disclaimer available for this product.",
+		noQA: "No questions have been asked about this product yet.",
+		inStock: "In stock",
+		outOfStock: "Out of stock",
+		sku: "SKU",
+		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
+		soldOutBadge: "Sold Out",
+		qualityPromise: "Quality Promise",
+		qualityPromiseBody: "This product is guaranteed authentic and backed by our easy returns & refunds policy.",
+		productRankings: "Product rankings:",
+		rankIn: (rank: number) => `#${rank} in`,
+		shippingInfo: "Shipping Info",
+		shippingInfoPrefix: "Free shipping on orders over",
+		shippingInfoSuffix: ". Standard delivery within Qatar in 2–4 business days.",
+		decrease: "Decrease",
+		increase: "Increase",
+		outOfStockBtn: "Out of Stock",
+		adding: "Adding...",
+		addedToCart: "Added to Cart ✓",
+		failedTryAgain: "Failed — try again",
+		addToCart: "Add to Cart",
+		percentOff: (n: number) => `${n}% Off`,
+		by: "by",
+		whatsappEnquiry: "WhatsApp Enquiry",
+		trustBadges: ["Express delivery within 2 hours", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
+		productVideo: "Product Video",
+		youMay: "You May",
+		alsoLike: "also like",
+		verified: "Verified",
+		helpfulQuestion: "Helpful?",
+		helpfulSuffix: "helpful",
+		seeCustomerReviews: "See customer reviews",
+		customerReviews: "Customer Reviews",
+		noOneReviewedYet: "Looks like no one reviewed this product yet.",
+		writeAReview: "Write a Review",
+		filter: "Filter",
+		verifiedOnly: "Verified only",
+		withPhotos: "With photos",
+		noReviewsYet: "No reviews yet.",
+		moreReviews: (n: string) => `More Reviews (${n})`,
+		reviews: "reviews",
+		reviewsCap: "Reviews",
+		starsOutOf5: (n: number) => `${n} out of 5 stars`,
+		ratingSummary: "Rating summary",
+		customerReviewsAria: "Customer reviews",
+		sortMostRelevant: "Most Relevant",
+		sortNewest: "Newest",
+		sortHighestRated: "Highest Rated",
+		sortLowestRated: "Lowest Rated",
+		sortMostHelpful: "Most Helpful",
+	},
+	ar: {
+		previousImage: "الصورة السابقة",
+		nextImage: "الصورة التالية",
+		goToImage: (n: number) => `الانتقال إلى الصورة ${n}`,
+		viewFullScreen: "عرض بملء الشاشة",
+		removeFromWishlist: "إزالة من المفضلة",
+		addToWishlist: "إضافة إلى المفضلة",
+		share: "مشاركة",
+		copied: "تم النسخ!",
+		copyLink: "نسخ الرابط",
+		close: "إغلاق",
+		tabDescription: "الوصف",
+		tabDisclaimer: "إخلاء المسؤولية",
+		tabQA: "الأسئلة والأجوبة",
+		noDescription: "لا يوجد وصف متاح لهذا المنتج.",
+		noDisclaimer: "لا يوجد إخلاء مسؤولية متاح لهذا المنتج.",
+		noQA: "لم يتم طرح أي أسئلة حول هذا المنتج بعد.",
+		inStock: "متوفر",
+		outOfStock: "غير متوفر",
+		sku: "رمز المنتج",
+		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
+		soldOutBadge: "نفدت الكمية",
+		qualityPromise: "ضمان الجودة",
+		qualityPromiseBody: "هذا المنتج مضمون الأصالة ومدعوم بسياسة الإرجاع والاسترداد السهلة لدينا.",
+		productRankings: "تصنيفات المنتج:",
+		rankIn: (rank: number) => `#${rank} في`,
+		shippingInfo: "معلومات الشحن",
+		shippingInfoPrefix: "شحن مجاني للطلبات فوق",
+		shippingInfoSuffix: ". التوصيل القياسي داخل قطر خلال 2-4 أيام عمل.",
+		decrease: "إنقاص",
+		increase: "زيادة",
+		outOfStockBtn: "غير متوفر",
+		adding: "جارٍ الإضافة...",
+		addedToCart: "تمت الإضافة إلى السلة ✓",
+		failedTryAgain: "فشلت العملية — حاول مرة أخرى",
+		addToCart: "أضف إلى السلة",
+		percentOff: (n: number) => `خصم ${n}%`,
+		by: "بواسطة",
+		whatsappEnquiry: "استفسار عبر واتساب",
+		trustBadges: ["توصيل سريع خلال ساعتين", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
+		productVideo: "فيديو المنتج",
+		youMay: "قد",
+		alsoLike: "يعجبك أيضًا",
+		verified: "موثّق",
+		helpfulQuestion: "مفيد؟",
+		helpfulSuffix: "مفيد",
+		seeCustomerReviews: "عرض تقييمات العملاء",
+		customerReviews: "تقييمات العملاء",
+		noOneReviewedYet: "يبدو أنه لم يقم أحد بتقييم هذا المنتج بعد.",
+		writeAReview: "أضف تقييمًا",
+		filter: "تصفية",
+		verifiedOnly: "الموثّقة فقط",
+		withPhotos: "مع صور",
+		noReviewsYet: "لا توجد تقييمات بعد.",
+		moreReviews: (n: string) => `المزيد من التقييمات (${n})`,
+		reviews: "تقييمات",
+		reviewsCap: "تقييمات",
+		starsOutOf5: (n: number) => `${n} من 5 نجوم`,
+		ratingSummary: "ملخص التقييمات",
+		customerReviewsAria: "تقييمات العملاء",
+		sortMostRelevant: "الأكثر صلة",
+		sortNewest: "الأحدث",
+		sortHighestRated: "الأعلى تقييمًا",
+		sortLowestRated: "الأقل تقييمًا",
+		sortMostHelpful: "الأكثر فائدة",
+	},
+} as const;
 
 // TODO: placeholder data — replace with real values once the "highlights" custom
 // field is confirmed on the backend and mapped from `product.customFields`.
@@ -41,11 +182,6 @@ function resolveImage(preview: string, vendureBase: string) {
 	// JSON-LD/og:image silently breaks rich results either way.
 	const normalized = preview.replace(/\\/g, "/");
 	return normalized.startsWith("http") ? normalized : `${vendureBase}${normalized}`;
-}
-
-function formatQAR(cents: number) {
-	const val = cents / 100;
-	return `QAR ${val % 1 === 0 ? val.toFixed(0) : val.toFixed(2)}`;
 }
 
 function isInStock(stockLevel: string) {
@@ -95,11 +231,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const description = rawDescription.slice(0, 160);
 	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
 	const brand = product.facetValues.find((f: { name: string; facet: { name: string } }) => f.facet.name.toLowerCase() === "brand")?.name ?? null;
+	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 
 	return [
 		{ title },
 		{ name: "description", content: description },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
 		// Open Graph
 		{ property: "og:type", content: "product" },
 		{ property: "og:title", content: title },
@@ -122,6 +260,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const slugParam = params.slug!;
 	const url = new URL(request.url);
+	const locale = getLocaleFromPathname(url.pathname);
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
@@ -151,8 +290,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// A raw variant id isn't a resolvable path on its own — fall back to the bare
 		// product URL if this variant's slug hasn't been backfilled/indexed yet.
 		const canonicalUrl = activeVariant?.customFields?.slug
-			? `${url.origin}/products/${activeVariant.customFields.slug}`
-			: `${url.origin}/products/${product.slug}`;
+			? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}`
+			: `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
 
 		const collectionSlug = product.collections[0]?.slug;
 		const [simResult, summaryResult, currentProductResult] = await Promise.allSettled([
@@ -181,7 +320,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// (e.g. "Strawberry, 5 lbs") as the distinguishing suffix instead.
 		const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
 
-		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug };
+		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -198,6 +337,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 	const shareRef = useRef<HTMLDivElement>(null);
 	const { toggle, isWishlisted } = useWishlist();
 	const wishlisted = isWishlisted(wishlistItem.variantId);
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 
 	// Close the share dropdown on outside click
 	useEffect(() => {
@@ -274,32 +414,32 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 					{/* Carousel prev/next */}
 					{resolved.length > 1 && (
 						<>
-							<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Previous image">
-								<ChevronLeft size={16} />
+							<button onClick={() => setActive(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="absolute start-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label={t.previousImage}>
+								<ChevronLeft size={16} className="rtl:rotate-180" />
 							</button>
-							<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label="Next image">
-								<ChevronRight size={16} />
+							<button onClick={() => setActive(Math.min(resolved.length - 1, currentIdx + 1))} disabled={currentIdx === resolved.length - 1} className="absolute end-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-30" aria-label={t.nextImage}>
+								<ChevronRight size={16} className="rtl:rotate-180" />
 							</button>
 						</>
 					)}
 				</div>
 
 				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
-				<div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-					<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label="View full screen">
+				<div className="absolute top-3 end-3 flex flex-col gap-2 z-10">
+					<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label={t.viewFullScreen}>
 						<Maximize2 size={15} />
 					</button>
-					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}>
+					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? t.removeFromWishlist : t.addToWishlist}>
 						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
 					<div className="relative" ref={shareRef}>
-						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-white text-primary" : "bg-white/90 text-gray-600 hover:text-primary"}`} aria-label="Share">
+						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-white text-primary" : "bg-white/90 text-gray-600 hover:text-primary"}`} aria-label={t.share}>
 							<Share2 size={15} />
 						</button>
 
 						{/* Share dropdown — absolute from the button, so it never widens the parent */}
 						{showShare && (
-							<div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-20">
+							<div className="absolute end-0 top-full mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-20">
 								{shareLinks.map((link) => (
 									<a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setShowShare(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}>
 										{link.icon}
@@ -308,7 +448,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 								))}
 								<button onClick={handleCopy} className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100">
 									<Link2 size={15} className="flex-shrink-0" />
-									{copied ? "Copied!" : "Copy Link"}
+									{copied ? t.copied : t.copyLink}
 								</button>
 							</div>
 						)}
@@ -321,7 +461,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 				<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
 					{resolved.map((src, i) => (
 						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-black" : "border-stone-200 hover:border-gray-400"}`}>
-							<img src={vendureImageUrl(src, vendureBase, { w: 64, h: 64, format: "webp", mode: "resize" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
+							<img src={vendureImageUrl(src, vendureBase, { preset: "small", format: "webp" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
 						</button>
 					))}
 				</div>
@@ -340,6 +480,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 	const [zoomed, setZoomed] = useState(false);
 	const [origin, setOrigin] = useState("50% 50%");
 	const [mounted, setMounted] = useState(false);
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 
 	useEffect(() => {
 		setMounted(true);
@@ -385,15 +526,15 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 				<span className="text-gray-500 text-sm font-medium">
 					{index + 1} / {images.length}
 				</span>
-				<button onClick={onClose} className="w-9 h-9 rounded-full bg-black hover:bg-gray-800 flex items-center justify-center text-white transition-colors" aria-label="Close">
+				<button onClick={onClose} className="w-9 h-9 rounded-full bg-black hover:bg-gray-800 flex items-center justify-center text-white transition-colors" aria-label={t.close}>
 					<X size={18} />
 				</button>
 			</div>
 
 			<div className="relative flex-1 flex items-center justify-center px-4 sm:px-10 min-h-0">
 				{images.length > 1 && (
-					<button onClick={goPrev} className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label="Previous image">
-						<ChevronLeft size={20} />
+					<button onClick={goPrev} className="absolute start-2 sm:start-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label={t.previousImage}>
+						<ChevronLeft size={20} className="rtl:rotate-180" />
 					</button>
 				)}
 
@@ -406,7 +547,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 					onMouseMove={(e) => zoomed && updateOrigin(e)}
 				>
 					<img
-						src={vendureImageUrl(images[index], vendureBase, { w: 1200, h: 1200, format: "webp", mode: "resize" })}
+						src={vendureImageUrl(images[index], vendureBase, { preset: "xlarge", format: "webp" })}
 						alt={name}
 						className="w-full h-full object-contain select-none transition-transform duration-300 ease-out"
 						style={{ transform: zoomed ? "scale(2.2)" : "scale(1)", transformOrigin: origin }}
@@ -415,8 +556,8 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 				</div>
 
 				{images.length > 1 && (
-					<button onClick={goNext} className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label="Next image">
-						<ChevronRight size={20} />
+					<button onClick={goNext} className="absolute end-2 sm:end-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-sm hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-colors z-10" aria-label={t.nextImage}>
+						<ChevronRight size={20} className="rtl:rotate-180" />
 					</button>
 				)}
 			</div>
@@ -431,7 +572,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 								setIndex(i);
 							}}
 							className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-black" : "w-1.5 bg-gray-300 hover:bg-gray-400"}`}
-							aria-label={`Go to image ${i + 1}`}
+							aria-label={t.goToImage(i + 1)}
 						/>
 					))}
 				</div>
@@ -444,10 +585,12 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 // ── Product info tabs (Description / Full Specs / Warnings) ────────────────
 
 function ProductInfoTabs({ description, warnings, qa = "" }: { description: string; warnings: string; qa?: string }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = PDP_COPY[locale];
 	const TABS = [
-		{ key: "description", label: "Description", content: description, emptyText: "No description available for this product." },
-		{ key: "warnings", label: "Disclaimer", content: warnings, emptyText: "No disclaimer available for this product." },
-		{ key: "qa", label: "Q & A", content: qa, emptyText: "No questions have been asked about this product yet." },
+		{ key: "description", label: t.tabDescription, content: description, emptyText: t.noDescription },
+		{ key: "warnings", label: t.tabDisclaimer, content: warnings, emptyText: t.noDisclaimer },
+		{ key: "qa", label: t.tabQA, content: qa, emptyText: t.noQA },
 	] as const;
 	const [active, setActive] = useState<(typeof TABS)[number]["key"]>("description");
 	const activeIndex = TABS.findIndex((t) => t.key === active);
@@ -461,8 +604,8 @@ function ProductInfoTabs({ description, warnings, qa = "" }: { description: stri
 			{/* Sliding pill tab bar */}
 			<div className="relative inline-flex bg-white border border-gray-200 shadow-sm rounded-full p-1 mb-6">
 				<div
-					className="absolute top-1 bottom-1 left-1 rounded-full bg-black transition-transform duration-300 ease-out"
-					style={{ width: TAB_WIDTH, transform: `translateX(${activeIndex * TAB_WIDTH}px)` }}
+					className="absolute top-1 bottom-1 start-1 rounded-full bg-black transition-transform duration-300 ease-out"
+					style={{ width: TAB_WIDTH, transform: `translateX(${(locale === "ar" ? -1 : 1) * activeIndex * TAB_WIDTH}px)` }}
 				/>
 				{TABS.map((t) => (
 					<button
@@ -477,7 +620,7 @@ function ProductInfoTabs({ description, warnings, qa = "" }: { description: stri
 				))}
 			</div>
 
-			<div className="prose prose-sm max-w-2xl w-full mx-auto text-left text-gray-600 prose-ul:pl-5 prose-ol:pl-5 prose-li:my-1">
+			<div className="prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1">
 				{activeTab.content ? (
 					<div dangerouslySetInnerHTML={{ __html: activeTab.content }} />
 				) : (
@@ -491,7 +634,8 @@ function ProductInfoTabs({ description, warnings, qa = "" }: { description: stri
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug } = loaderData;
+	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, locale } = loaderData;
+	const t = PDP_COPY[locale];
 
 	const optionGroups = getOptionGroups(product.variants);
 	const initialSelected = (() => {
@@ -518,11 +662,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 	useEffect(() => {
 		if (!activeVariant?.id) return;
-		fetch(`/api/variant-rankings?variantId=${encodeURIComponent(activeVariant.id)}`)
+		fetch(`/api/variant-rankings?variantId=${encodeURIComponent(activeVariant.id)}&lang=${locale}`)
 			.then((r) => r.json() as Promise<{ rankings: VariantRanking[] }>)
 			.then((d) => setVariantRankings(d.rankings ?? []))
 			.catch(() => setVariantRankings([]));
-	}, [activeVariant?.id]);
+	}, [activeVariant?.id, locale]);
 
 	useEffect(() => {
 		if (cartFetcher.state !== "idle" || !cartFetcher.data) return;
@@ -572,7 +716,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const category = product.facetValues.find((f) => f.facet.name.toLowerCase() === "category")?.name ?? null;
 
 	// Breadcrumb
-	const breadcrumbs: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
+	const breadcrumbs: BreadcrumbItem[] = [{ label: locale === "ar" ? "الرئيسية" : "Home", href: "/" }];
 	if (product.collections.length > 0) {
 		const col = product.collections[product.collections.length - 1];
 		breadcrumbs.push({ label: col.name, href: `/c/${col.slug}` });
@@ -594,7 +738,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	function offerFor(v: ProductDetailVariant) {
 		return {
 			"@type": "Offer",
-			url: v.customFields?.slug ? `${siteOrigin}/products/${v.customFields.slug}` : canonicalUrl,
+			url: v.customFields?.slug ? `${siteOrigin}${localizePath(`/products/${v.customFields.slug}`, locale)}` : canonicalUrl,
 			price: (v.price / 100).toFixed(2),
 			priceCurrency: v.currencyCode || "QAR",
 			sku: v.sku,
@@ -657,7 +801,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			"@type": "ListItem",
 			position: i + 1,
 			name: crumb.label,
-			item: crumb.href ? `${siteOrigin}${crumb.href}` : canonicalUrl,
+			item: crumb.href ? `${siteOrigin}${localizePath(crumb.href, locale)}` : canonicalUrl,
 		})),
 	};
 
@@ -701,7 +845,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{activeVariantName ? `${product.name} — ${activeVariantName}` : product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
-									by <span className="text-primary font-medium">{brand}</span>
+									{t.by} <span className="text-primary font-medium">{brand}</span>
 								</p>
 							)}
 							{ratingSummary && ratingSummary.totalReviews > 0 && (
@@ -721,21 +865,21 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										{inStock ? (
 											<>
 												<CheckCircle size={15} className="text-green-500" />
-												<span className="text-xs font-medium text-green-600">In stock</span>
+												<span className="text-xs font-medium text-green-600">{t.inStock}</span>
 											</>
 										) : (
 											<>
 												<XCircle size={15} className="text-red-400" />
-												<span className="text-xs font-medium text-red-500">Out of stock</span>
+												<span className="text-xs font-medium text-red-500">{t.outOfStock}</span>
 											</>
 										)}
 									</div>
 									<div className="inline-flex gap-2">
-										{activeVariant?.sku && <span className="text-xs text-gray-400">SKU: {activeVariant.sku}</span>}
+										{activeVariant?.sku && <span className="text-xs text-gray-400">{t.sku}: {activeVariant.sku}</span>}
 										{sold30Days > 0 && (
 											<span className="flex items-center gap-1.5 text-xs font-normal text-red-600">
 												<TrendingUp size={15} className="text-red-500" />
-												{sold30Days.toLocaleString()}+ sold in last 30 days
+												{t.soldLast30Days(sold30Days.toLocaleString())}
 											</span>
 										)}
 									</div>
@@ -775,10 +919,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																	<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
 																		<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
 																	</span>
-																	<span className="absolute -top-1.5 right-1 bg-gray-700 text-white text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shadow-sm leading-none">Sold Out</span>
+																	<span className="absolute -top-1.5 end-1 bg-gray-700 text-white text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shadow-sm leading-none">{t.soldOutBadge}</span>
 																</>
 															) : (
-																showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatQAR(matchedVariant.price) : "—"}</span>
+																showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "—"}</span>
 															)}
 														</Link>
 													);
@@ -792,8 +936,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
 									<ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
 									<div>
-										<p className="text-sm font-semibold text-green-700">Quality Promise</p>
-										<p className="text-xs text-green-600 mt-0.5">This product is guaranteed authentic and backed by our easy returns &amp; refunds policy.</p>
+										<p className="text-sm font-semibold text-green-700">{t.qualityPromise}</p>
+										<p className="text-xs text-green-600 mt-0.5">{t.qualityPromiseBody}</p>
 									</div>
 								</div>
 
@@ -802,10 +946,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{/* ── Sales & Rankings ── */}
 								{variantRankings.length > 0 && (
 									<div className="mt-2">
-										<h4 className="text-orange-500 text-sm font-bold">Product rankings:</h4>
+										<h4 className="text-orange-500 text-sm font-bold">{t.productRankings}</h4>
 										{variantRankings.map((r) => (
 											<div className="flex text-[12px] font-semibold" key={r.collectionSlug}>
-												<span className="mr-1">#{r.rank} in </span>
+												<span className="me-1">{t.rankIn(r.rank)} </span>
 												<Link to={`/c/${r.collectionSlug}`} className="text-blue-700 hover:underline">
 													{r.collectionName}
 												</Link>
@@ -820,11 +964,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								<div className="bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
 									{/* Price */}
 									<div>
-										<div className="text-2xl font-black text-black">{price !== null ? formatQAR(price) : "—"}</div>
+										<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</div>
 										{hasDiscount && rrp !== null && (
 											<div className="flex items-center gap-2 mt-1 flex-wrap">
-												<span className="text-sm text-gray-400 line-through">{formatQAR(rrp)}</span>
-												<span className="bg-lime-300 text-black text-xs font-bold px-2 py-0.5 rounded-full">{discountPct}% Off</span>
+												<span className="text-sm text-gray-400 line-through">{formatCurrency(rrp, activeVariant?.currencyCode ?? "QAR", locale)}</span>
+												<span className="bg-lime-300 text-black text-xs font-bold px-2 py-0.5 rounded-full">{t.percentOff(discountPct)}</span>
 											</div>
 										)}
 									</div>
@@ -833,11 +977,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										{/* Quantity stepper + shipping info */}
 										<div className="flex items-center justify-between gap-3">
 											<div className="flex items-center border border-gray-300 bg-white rounded-full overflow-hidden">
-												<button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Decrease">
+												<button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label={t.decrease}>
 													<Minus size={13} />
 												</button>
 												<span className="w-7 text-center text-sm font-semibold select-none">{qty}</span>
-												<button onClick={() => setQty((q) => q + 1)} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Increase">
+												<button onClick={() => setQty((q) => q + 1)} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label={t.increase}>
 													<Plus size={13} />
 												</button>
 											</div>
@@ -846,11 +990,12 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											<div className="relative group">
 												<button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors cursor-default">
 													<Truck size={15} />
-													Shipping Info
+													{t.shippingInfo}
 													<Info size={13} className="text-gray-400" />
 												</button>
-												<div className="absolute right-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-20">
-													Free shipping on orders over <span className="font-bold text-black">QAR 150</span>. Standard delivery within Qatar in 2–4 business days.
+												<div className="absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-20">
+													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR 150</span>
+													{t.shippingInfoSuffix}
 												</div>
 											</div>
 										</div>
@@ -864,7 +1009,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											}}
 											className={`w-full text-white font-semibold text-sm py-3 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
 										>
-											{!inStock ? "Out of Stock" : cartFetcher.state !== "idle" ? "Adding..." : cartFeedback === "success" ? "Added to Cart ✓" : cartFeedback === "error" ? "Failed — try again" : "Add to Cart"}
+											{!inStock ? t.outOfStockBtn : cartFetcher.state !== "idle" ? t.adding : cartFeedback === "success" ? t.addedToCart : cartFeedback === "error" ? t.failedTryAgain : t.addToCart}
 										</button>
 									</div>
 								</div>
@@ -876,11 +1021,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
 										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
 									</svg>
-									WhatsApp Enquiry
+									{t.whatsappEnquiry}
 								</a>
 								{/* Trust badges */}
 								<ul className="space-y-1.5 mt-5">
-									{["Express delivery within 2 hours", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"].map((item) => (
+									{t.trustBadges.map((item) => (
 										<li key={item} className="flex items-start gap-2 text-xs text-gray-500">
 											<span className="text-primary mt-0.5">•</span>
 											{item}
@@ -926,7 +1071,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── Product video ── */}
 				{videoUrl && (
 					<div className="mt-12">
-						<h2 className="font-heading text-xl font-extrabold text-black mb-4">Product Video</h2>
+						<h2 className="font-heading text-xl font-extrabold text-black mb-4">{t.productVideo}</h2>
 						<div className="aspect-video rounded-2xl overflow-hidden bg-gray-100 shadow-sm max-w-2xl">
 							<iframe src={videoUrl} title={`${product.name} video`} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
 						</div>
@@ -942,7 +1087,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					vendureBase={vendureBase}
 					title={
 						<>
-							<strong>You May</strong> <span className="font-light">also like</span>
+							<strong>{t.youMay}</strong> <span className="font-light">{t.alsoLike}</span>
 						</>
 					}
 				/>
@@ -954,8 +1099,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
-		<span className="flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
+		<span className="flex items-center gap-0.5" aria-label={t.starsOutOf5(value)}>
 			{[1, 2, 3, 4, 5].map((s) => {
 				const fill = value >= s ? 1 : value >= s - 0.5 ? 0.5 : 0;
 				return (
@@ -973,11 +1119,13 @@ function Stars({ value, size = 14 }: { value: number; size?: number }) {
 	);
 }
 
-function formatDate(iso: string) {
-	return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+function formatDate(iso: string, locale: "en" | "ar" = "en") {
+	return new Date(iso).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
 function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: ReviewItem; compact?: boolean; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void; isLoggedIn?: boolean }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = PDP_COPY[locale];
 	return (
 		<div className={`border border-gray-100 rounded-xl p-4 md:p-5 bg-white ${compact ? "" : "shadow-sm"}`}>
 			<div className="flex items-start justify-between gap-3 mb-2">
@@ -988,7 +1136,7 @@ function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: R
 				{review.isVerifiedPurchase && (
 					<span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5 shrink-0">
 						<BadgeCheck size={11} />
-						Verified
+						{t.verified}
 					</span>
 				)}
 			</div>
@@ -1004,11 +1152,11 @@ function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: R
 				<div className="text-xs text-gray-400">
 					<span className="font-medium text-gray-600">{review.authorName}</span>
 					{review.authorLocation && <span> · {review.authorLocation}</span>}
-					<span> · {formatDate(review.createdAt)}</span>
+					<span> · {formatDate(review.createdAt, locale)}</span>
 				</div>
 				{onVote && isLoggedIn ? (
 					<div className="flex items-center gap-3 text-xs text-gray-400">
-						<span>Helpful?</span>
+						<span>{t.helpfulQuestion}</span>
 						<button onClick={() => onVote(review.id, "HELPFUL")} className={`flex items-center gap-1 hover:text-green-600 transition-colors ${review.myVote === "HELPFUL" ? "text-green-600 font-medium" : ""}`}>
 							<ThumbsUp size={12} /> {review.helpfulCount}
 						</button>
@@ -1018,7 +1166,7 @@ function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: R
 					</div>
 				) : review.helpfulCount > 0 ? (
 					<span className="text-xs text-gray-400 flex items-center gap-1">
-						<ThumbsUp size={11} /> {review.helpfulCount} helpful
+						<ThumbsUp size={11} /> {review.helpfulCount} {t.helpfulSuffix}
 					</span>
 				) : null}
 			</div>
@@ -1034,6 +1182,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 
 	useEffect(() => {
 		function onClickOutside(e: MouseEvent) {
@@ -1047,19 +1196,19 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 		<div ref={ref} className="relative inline-block" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
 			<button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 cursor-pointer" aria-expanded={open} aria-haspopup="true">
 				<Stars value={summary.averageRating} size={14} />
-				<span className="text-sm text-gray-600 font-medium">{summary.totalReviews.toLocaleString()} Reviews</span>
+				<span className="text-sm text-gray-600 font-medium">{summary.totalReviews.toLocaleString()} {t.reviewsCap}</span>
 				<ChevronDown size={13} className={`text-gray-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
 			</button>
 
 			{open && (
-				<div className="absolute left-0 top-full z-30 w-64 pt-1" role="dialog" aria-label="Rating summary">
+				<div className="absolute start-0 top-full z-30 w-64 pt-1" role="dialog" aria-label={t.ratingSummary}>
 					<div className="bg-white border border-gray-100 rounded-2xl shadow-xl p-4">
 						{/* Score row */}
 						<div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
 							<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
 							<div>
 								<Stars value={summary.averageRating} size={14} />
-								<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} reviews</p>
+								<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} {t.reviews}</p>
 							</div>
 						</div>
 
@@ -1070,19 +1219,19 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 								const pct = Math.round((count / maxCount) * 100);
 								return (
 									<div key={star} className="flex items-center gap-2">
-										<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+										<span className="text-xs text-gray-500 w-4 text-end shrink-0">{star}</span>
 										<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
 										<div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
 											<div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
 										</div>
-										<span className="text-xs text-gray-400 w-10 shrink-0 text-right">{count.toLocaleString()}</span>
+										<span className="text-xs text-gray-400 w-10 shrink-0 text-end">{count.toLocaleString()}</span>
 									</div>
 								);
 							})}
 						</div>
 
 						<Link to={`/products/${productSlug}/reviews`} onClick={() => setOpen(false)} className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
-							See customer reviews
+							{t.seeCustomerReviews}
 						</Link>
 					</div>
 				</div>
@@ -1094,18 +1243,19 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 // ── No Reviews ───────────────────────────────────────────────────────────────
 
 function NoReviews({ productSlug }: { productSlug: string }) {
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
-		<section aria-label="Customer reviews">
-			<h2 className="font-heading text-xl font-extrabold text-black mb-6">Customer Reviews</h2>
+		<section aria-label={t.customerReviewsAria}>
+			<h2 className="font-heading text-xl font-extrabold text-black mb-6">{t.customerReviews}</h2>
 			<div className="border border-dashed border-amber-300 rounded-2xl px-6 py-10 flex flex-col items-center text-center gap-5 bg-amber-50/40">
 				<div className="flex items-center gap-1">
 					{[1, 2, 3, 4, 5].map((s) => (
 						<Star key={s} size={28} className="text-amber-300" strokeWidth={1.5} />
 					))}
 				</div>
-				<p className="text-gray-500 text-sm">Looks like no one reviewed this product yet.</p>
+				<p className="text-gray-500 text-sm">{t.noOneReviewedYet}</p>
 				<Link to={`/products/${productSlug}/reviews#write`} className="bg-black hover:bg-gray-800 text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
-					Write a Review
+					{t.writeAReview}
 				</Link>
 			</div>
 		</section>
@@ -1114,15 +1264,19 @@ function NoReviews({ productSlug }: { productSlug: string }) {
 
 // ── Rating Panel ────────────────────────────────────────────────────────────
 
-const SORT_OPTIONS: { value: ReviewSortOrder; label: string }[] = [
-	{ value: "MOST_RELEVANT", label: "Most Relevant" },
-	{ value: "NEWEST", label: "Newest" },
-	{ value: "HIGHEST_RATED", label: "Highest Rated" },
-	{ value: "LOWEST_RATED", label: "Lowest Rated" },
-	{ value: "MOST_HELPFUL", label: "Most Helpful" },
-];
+function getSortOptions(t: (typeof PDP_COPY)[keyof typeof PDP_COPY]): { value: ReviewSortOrder; label: string }[] {
+	return [
+		{ value: "MOST_RELEVANT", label: t.sortMostRelevant },
+		{ value: "NEWEST", label: t.sortNewest },
+		{ value: "HIGHEST_RATED", label: t.sortHighestRated },
+		{ value: "LOWEST_RATED", label: t.sortLowestRated },
+		{ value: "MOST_HELPFUL", label: t.sortMostHelpful },
+	];
+}
 
 function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; productSlug: string }) {
+	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
+	const SORT_OPTIONS = getSortOptions(t);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
 
 	// Auth
@@ -1168,12 +1322,12 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 	const displayReviews = reviews.map((r) => (voteOverrides[r.id] ? { ...r, ...voteOverrides[r.id] } : r));
 
 	return (
-		<section aria-label="Customer reviews">
+		<section aria-label={t.customerReviewsAria}>
 			{/* Header */}
 			<div className="flex items-center justify-between gap-4 mb-6">
-				<h2 className="font-heading text-xl font-extrabold text-black">Customer Reviews</h2>
+				<h2 className="font-heading text-xl font-extrabold text-black">{t.customerReviews}</h2>
 				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 bg-black hover:bg-gray-800 text-white font-semibold text-sm px-5 py-2 rounded-full transition-colors">
-					Write a Review
+					{t.writeAReview}
 				</Link>
 			</div>
 
@@ -1183,7 +1337,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 					<div className="flex flex-col items-center py-2">
 						<span className="text-5xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
 						<Stars value={summary.averageRating} size={18} />
-						<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} reviews</span>
+						<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} {t.reviews}</span>
 					</div>
 
 					<div className="space-y-1.5">
@@ -1192,27 +1346,27 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 							const pct = Math.round((count / maxCount) * 100);
 							return (
 								<Link key={star} to={`/products/${productSlug}/reviews?rating=${star}`} className="flex items-center gap-2 group rounded-lg px-1 py-0.5 hover:bg-gray-50 transition-colors">
-									<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+									<span className="text-xs text-gray-500 w-4 text-end shrink-0">{star}</span>
 									<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
 									<div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
 										<div className="h-full bg-amber-400 rounded-full group-hover:bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
 									</div>
-									<span className="text-xs text-gray-400 w-12 shrink-0 text-right">{count.toLocaleString()}</span>
+									<span className="text-xs text-gray-400 w-12 shrink-0 text-end">{count.toLocaleString()}</span>
 								</Link>
 							);
 						})}
 					</div>
 
 					<div>
-						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Filter</p>
+						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.filter}</p>
 						<div className="space-y-1">
 							<Link to={`/products/${productSlug}/reviews?verified=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
 								<BadgeCheck size={13} />
-								Verified only
+								{t.verifiedOnly}
 							</Link>
 							<Link to={`/products/${productSlug}/reviews?images=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
 								<ImagePlus size={13} />
-								With photos
+								{t.withPhotos}
 							</Link>
 						</div>
 					</div>
@@ -1221,7 +1375,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 				{/* Right — sort + reviews */}
 				<div id="reviews" className="space-y-3">
 					<div className="flex items-center justify-between gap-3 pb-1">
-						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} reviews</span>
+						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} {t.reviews}</span>
 						<SortDropdown options={SORT_OPTIONS} value={sort} onChange={handleSortChange} />
 					</div>
 
@@ -1238,13 +1392,13 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 					) : displayReviews.length > 0 ? (
 						displayReviews.map((r) => <ReviewCard key={r.id} review={r} onVote={handleVote} isLoggedIn={isLoggedIn} />)
 					) : (
-						<p className="text-sm text-gray-400 py-4">No reviews yet.</p>
+						<p className="text-sm text-gray-400 py-4">{t.noReviewsYet}</p>
 					)}
 
 					{totalReviews > 5 && (
 						<div className="pt-2">
 							<Link to={`/products/${productSlug}/reviews`} className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors">
-								More Reviews ({totalReviews.toLocaleString()})
+								{t.moreReviews(totalReviews.toLocaleString())}
 							</Link>
 						</div>
 					)}

@@ -1,39 +1,46 @@
 import { useEffect, useState, Fragment } from "react";
-import { useFetcher, Link } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import { ShoppingCart, Zap } from "lucide-react";
 import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import type { BundleOffer, BundleOfferItem } from "~/graphql/bundle";
 import { formatBundleDiscount } from "~/graphql/bundle";
+import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
+import { formatPrice } from "~/lib/currency";
 
 // ─── Fetch cache ──────────────────────────────────────────────────────────────
 
+// Keyed by productId+locale — otherwise switching languages would keep serving
+// whichever language happened to be cached first for that product.
 const bundleCache = new Map<string, Promise<BundleOffer[]>>();
 
-function fetchBundleOffers(productId: string): Promise<BundleOffer[]> {
-	if (!bundleCache.has(productId)) {
+function fetchBundleOffers(productId: string, locale: Locale): Promise<BundleOffer[]> {
+	const cacheKey = `${productId}:${locale}`;
+	if (!bundleCache.has(cacheKey)) {
 		bundleCache.set(
-			productId,
-			fetch(`/api/bundle?productId=${encodeURIComponent(productId)}`)
+			cacheKey,
+			fetch(`/api/bundle?productId=${encodeURIComponent(productId)}&lang=${locale}`)
 				.then((r) => (r.ok ? (r.json() as Promise<{ productBundleOffers: BundleOffer[] }>) : Promise.resolve({ productBundleOffers: [] })))
 				.then((d) => d.productBundleOffers ?? [])
 				.catch(() => []),
 		);
 	}
-	return bundleCache.get(productId)!;
+	return bundleCache.get(cacheKey)!;
 }
 
 function useBundleOffers(productId: string) {
 	const [bundles, setBundles] = useState<BundleOffer[] | null>(null);
+	const locale = getLocaleFromPathname(useLocation().pathname);
 	useEffect(() => {
 		let cancelled = false;
-		fetchBundleOffers(productId).then((data) => {
+		fetchBundleOffers(productId, locale).then((data) => {
 			if (!cancelled) setBundles(data);
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [productId]);
+	}, [productId, locale]);
 	return bundles;
 }
 
@@ -43,15 +50,16 @@ function useAddBundle(triggerVariantId: string) {
 	const fetcher = useFetcher<{ addBundleToCart?: { bundleGroupId: string; bundleName: string; status: string }; error?: string }>();
 	const { openCart, refreshCart } = useCart();
 	const { notify } = useNotification();
+	const t = BUNDLE_COPY[getLocaleFromPathname(useLocation().pathname)];
 
 	useEffect(() => {
 		if (fetcher.state !== "idle" || !fetcher.data) return;
 		if (fetcher.data.addBundleToCart) {
-			notify(`${fetcher.data.addBundleToCart.bundleName} added to cart ✓`, "success");
+			notify(t.bundleAdded(fetcher.data.addBundleToCart.bundleName), "success");
 			refreshCart();
 			openCart();
 		} else if (fetcher.data.error) {
-			notify("Could not add bundle to cart — please try again", "error");
+			notify(t.couldNotAddBundle, "error");
 		}
 	}, [fetcher.state, fetcher.data]);
 
@@ -72,9 +80,43 @@ function resolveBundleImage(preview: string, vendureBase: string): string {
 	return `${base}${path}`;
 }
 
-function formatPrice(minor: number, currency: string) {
-	return `${currency} ${(minor / 100).toFixed(2)}`;
-}
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const BUNDLE_COPY = {
+	en: {
+		bundleAdded: (name: string) => `${name} added to cart ✓`,
+		couldNotAddBundle: "Could not add bundle to cart — please try again",
+		qty: "Qty",
+		remove: "- Remove",
+		add: "+ Add",
+		noImage: "No image",
+		mainProduct: "Main product",
+		comboWith: "Combo with:",
+		aiGeneratedDisclaimer: "AI generated. Not medical advice.",
+		comboPrice: "Combo Price:",
+		adding: "Adding…",
+		addAllItemsToCart: "Add all items to cart",
+		addAllItemsPrice: (price: string) => `Add all items - ${price}`,
+		addAllItems: "Add all items",
+	},
+	ar: {
+		bundleAdded: (name: string) => `تمت إضافة ${name} إلى السلة ✓`,
+		couldNotAddBundle: "تعذّرت إضافة الباقة إلى السلة — يرجى المحاولة مرة أخرى",
+		qty: "الكمية",
+		remove: "- إزالة",
+		add: "+ إضافة",
+		noImage: "لا توجد صورة",
+		mainProduct: "المنتج الرئيسي",
+		comboWith: "باقة مع:",
+		aiGeneratedDisclaimer: "تم إنشاؤه بالذكاء الاصطناعي. ليس نصيحة طبية.",
+		comboPrice: "سعر الباقة:",
+		adding: "جارٍ الإضافة…",
+		addAllItemsToCart: "أضف جميع العناصر إلى السلة",
+		addAllItemsPrice: (price: string) => `أضف جميع العناصر - ${price}`,
+		addAllItems: "أضف جميع العناصر",
+	},
+} as const;
 
 function isInStock(stockLevel: string) {
 	if (stockLevel === "OUT_OF_STOCK") return false;
@@ -88,6 +130,8 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 	const inStock = isInStock(item.stockLevel);
 	const imgSize = "aspect-square w-full";
 	const width = compact ? "w-[110px]" : "w-[130px]";
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = BUNDLE_COPY[locale];
 
 	return (
 		<div
@@ -103,7 +147,7 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 						<svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
 							<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5M4.5 3h15A1.5 1.5 0 0121 4.5v15A1.5 1.5 0 0119.5 21h-15A1.5 1.5 0 013 19.5v-15A1.5 1.5 0 014.5 3z" />
 						</svg>
-						<span className="text-[10px] text-gray-300 font-medium">No image</span>
+						<span className="text-[10px] text-gray-300 font-medium">{t.noImage}</span>
 					</div>
 				)}
 			</Link>
@@ -114,9 +158,9 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 					{item.variantName}
 				</Link>
 
-				{item.priceWithTax > 0 && <span className="text-xs font-bold text-primary block">{formatPrice(item.priceWithTax, item.currencyCode)}</span>}
+				{item.priceWithTax > 0 && <span className="text-xs font-bold text-primary block">{formatPrice(item.priceWithTax, item.currencyCode, locale)}</span>}
 
-				{item.requiredQuantity > 1 && <p className="text-[10px] text-gray-400 mt-0.5">Qty: {item.requiredQuantity}</p>}
+				{item.requiredQuantity > 1 && <p className="text-[10px] text-gray-400 mt-0.5">{t.qty}: {item.requiredQuantity}</p>}
 
 				{/* Add/Remove toggle button — top left */}
 				{item.required ? null : (
@@ -126,7 +170,7 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 							className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-colors duration-150
 						 bg-primary text-white border-primary hover:bg-primary/80`}
 						>
-							{selected ? "- Remove" : "+ Add"}
+							{selected ? t.remove : t.add}
 						</button>
 					</div>
 				)}
@@ -139,14 +183,15 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 
 function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = false, vendureBase, triggerImage }: { bundle: BundleOffer; triggerVariantId: string; triggerVariantPrice: number; compact?: boolean; vendureBase: string; triggerImage?: string }) {
 	const { submit, isLoading } = useAddBundle(triggerVariantId);
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = BUNDLE_COPY[locale];
 	const sortedItems = [...bundle.items].sort((a, b) => a.sortOrder - b.sortOrder);
-	console.log(bundle);
 	const [selectedOptional, setSelectedOptional] = useState<Set<string>>(() => new Set(sortedItems.filter((i) => !i.required).map((i) => i.productVariantId)));
 
 	const isSelected = (item: BundleOfferItem) => item.required || selectedOptional.has(item.productVariantId);
 	const selectedItems = sortedItems.filter(isSelected);
 	const selectedCount = selectedItems.length;
-	const discountLabel = formatBundleDiscount(bundle.discountType, bundle.discountValue);
+	const discountLabel = formatBundleDiscount(bundle.discountType, bundle.discountValue, locale);
 
 	// Sum prices of selected bundle items (the additional products, not the trigger/parent)
 	const bundleItemsTotal = selectedItems.reduce((sum, item) => {
@@ -160,8 +205,8 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 
 	// Calculate actual savings based on selected items' prices
 	const calculatedSavings = totalPrice > 0 ? (bundle.discountType === "PERCENTAGE" ? (totalPrice * bundle.discountValue) / 100 : bundle.discountType === "FIXED_AMOUNT" ? bundle.discountValue * 100 : 0) : 0;
-	const savingsDisplay = calculatedSavings > 0 ? `${currency} -${(calculatedSavings / 100).toFixed(2)}` : discountLabel;
-	const discountedTotal = totalPrice > 0 ? `${currency} ${((totalPrice - calculatedSavings) / 100).toFixed(2)}` : null;
+	const savingsDisplay = calculatedSavings > 0 ? formatPrice(-calculatedSavings, currency, locale) : discountLabel;
+	const discountedTotal = totalPrice > 0 ? formatPrice(totalPrice - calculatedSavings, currency, locale) : null;
 	function toggle(id: string) {
 		setSelectedOptional((prev) => {
 			const n = new Set(prev);
@@ -186,13 +231,13 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 					<div className="flex gap-2 w-full overflow-x-auto pb-1 scrollbar-hide">
 						<div className="aspect-square w-[120px] flex-shrink-0 bg-gray-50 overflow-hidden">
 							{triggerImage ? (
-								<img src={resolveBundleImage(triggerImage, vendureBase)} alt="Main product" className="w-full h-full object-contain mix-blend-multiply hover:scale-105 transition-transform duration-200" />
+								<img src={resolveBundleImage(triggerImage, vendureBase)} alt={t.mainProduct} className="w-full h-full object-contain mix-blend-multiply hover:scale-105 transition-transform duration-200" />
 							) : (
 								<div className="w-full h-full bg-gray-50 flex flex-col items-center justify-center gap-1">
 									<svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5M4.5 3h15A1.5 1.5 0 0121 4.5v15A1.5 1.5 0 0119.5 21h-15A1.5 1.5 0 013 19.5v-15A1.5 1.5 0 014.5 3z" />
 									</svg>
-									<span className="text-[10px] text-gray-300 font-medium">No image</span>
+									<span className="text-[10px] text-gray-300 font-medium">{t.noImage}</span>
 								</div>
 							)}
 						</div>
@@ -207,7 +252,7 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 											<svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
 												<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5M4.5 3h15A1.5 1.5 0 0121 4.5v15A1.5 1.5 0 0119.5 21h-15A1.5 1.5 0 013 19.5v-15A1.5 1.5 0 014.5 3z" />
 											</svg>
-											<span className="text-[10px] text-gray-300 font-medium">No image</span>
+											<span className="text-[10px] text-gray-300 font-medium">{t.noImage}</span>
 										</div>
 									)}
 								</Link>
@@ -216,24 +261,24 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 						))}
 					</div>
 					<div>
-						<div className="text-sm mt-2 font-semibold text-black">Combo with:</div>
+						<div className="text-sm mt-2 font-semibold text-black">{t.comboWith}</div>
 						<Link to={`/products/${bundle.items[0].productSlug}`} className="text-sm text-blue-700 hover:underline transition-colors line-clamp-2 leading-snug block">
 							{bundle.items[0].productName}
 						</Link>
 						<div className="text-xs text-black mt-0.5 bg-stone-100 mt-1 mb-2 p-2 rounded">
 							{bundle.description}
 							<p className="text-xs mt-2 text-gray-500">
-								<em>AI generated. Not medical advice.</em>
+								<em>{t.aiGeneratedDisclaimer}</em>
 							</p>
 						</div>
-						<div className="text-lg font-bold text-black mt-0.5">Combo Price: {discountedTotal}</div>
+						<div className="text-lg font-bold text-black mt-0.5">{t.comboPrice} {discountedTotal}</div>
 					</div>
 				</div>
 				{/* Footer */}
 				<div className="pb-3 pt-1.5">
 					<button onClick={handleAdd} disabled={isLoading || selectedCount === 0} className="w-full flex items-center justify-center gap-2 border-2 border-[#3b8578] text-[#3b8578] bg-white hover:bg-[#3b8578] hover:text-white font-semibold text-sm py-2.5 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed">
 						{isLoading ? <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <ShoppingCart size={15} />}
-						{isLoading ? "Adding…" : `Add all items to cart`}
+						{isLoading ? t.adding : t.addAllItemsToCart}
 					</button>
 				</div>
 			</div>
@@ -261,7 +306,7 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 				<div className="p-4 pt-1.5">
 					<button onClick={handleAdd} disabled={isLoading || selectedCount === 0} className="w-full flex items-center justify-center gap-2 border-2 border-[#3b8578] text-[#3b8578] bg-white hover:bg-[#3b8578] hover:text-white font-semibold text-sm py-2.5 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed">
 						{isLoading ? <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <ShoppingCart size={15} />}
-						{isLoading ? "Adding…" : discountedTotal ? `Add all items - ${discountedTotal}` : "Add all items"}
+						{isLoading ? t.adding : discountedTotal ? t.addAllItemsPrice(discountedTotal) : t.addAllItems}
 					</button>
 				</div>
 			</div>

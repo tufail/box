@@ -1,7 +1,10 @@
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
+import { useLocation } from "react-router";
 import { Heart } from "lucide-react";
 import { useWishlist } from "~/context/WishlistContext";
 import VendureImage from "~/components/VendureImage";
+import { getLocaleFromPathname } from "~/lib/i18n";
+import { formatPrice } from "~/lib/currency";
 
 export function meta() {
 	// Personalized, client-side (localStorage) content — same reasoning as /search's
@@ -9,13 +12,32 @@ export function meta() {
 	return [{ title: "My Wishlist — NutriBox" }, { name: "description", content: "Products you've saved to your wishlist." }, { name: "robots", content: "noindex, follow" }];
 }
 
-function formatQAR(cents: number) {
-	const val = cents / 100;
-	return `QAR ${val % 1 === 0 ? val.toFixed(0) : val.toFixed(2)}`;
-}
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const WISHLIST_COPY = {
+	en: {
+		emptyTitle: "Your wishlist is empty",
+		emptyBody: "Tap the heart icon on any product to save it here for later.",
+		browseProducts: "Browse Products",
+		myWishlist: "My Wishlist",
+		removeFromWishlist: "Remove from wishlist",
+		viewProduct: "View Product",
+	},
+	ar: {
+		emptyTitle: "قائمة المفضلة فارغة",
+		emptyBody: "اضغط على أيقونة القلب في أي منتج لحفظه هنا لوقت لاحق.",
+		browseProducts: "تصفح المنتجات",
+		myWishlist: "المفضلة",
+		removeFromWishlist: "إزالة من المفضلة",
+		viewProduct: "عرض المنتج",
+	},
+} as const;
 
 export default function WishlistPage() {
 	const { items, toggle, wishlistCount } = useWishlist();
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = WISHLIST_COPY[locale];
 
 	if (items.length === 0) {
 		return (
@@ -23,15 +45,15 @@ export default function WishlistPage() {
 				<div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-6">
 					<Heart size={36} className="text-gray-300" />
 				</div>
-				<h1 className="text-2xl font-bold text-gray-900 mb-2">Your wishlist is empty</h1>
+				<h1 className="text-2xl font-bold text-gray-900 mb-2">{t.emptyTitle}</h1>
 				<p className="text-gray-500 mb-8 max-w-sm mx-auto">
-					Tap the heart icon on any product to save it here for later.
+					{t.emptyBody}
 				</p>
 				<Link
 					to="/collections"
 					className="inline-block bg-black text-white font-bold px-8 py-3 rounded-full hover:bg-gray-800 transition-colors"
 				>
-					Browse Products
+					{t.browseProducts}
 				</Link>
 			</div>
 		);
@@ -41,7 +63,7 @@ export default function WishlistPage() {
 		<div className="container mx-auto px-4 py-8">
 			<div className="flex items-center justify-between mb-6">
 				<h1 className="text-2xl font-bold text-gray-900">
-					My Wishlist{" "}
+					{t.myWishlist}{" "}
 					<span className="text-gray-400 font-normal text-lg">({wishlistCount})</span>
 				</h1>
 			</div>
@@ -56,8 +78,8 @@ export default function WishlistPage() {
 							<div className="relative aspect-square flex items-center justify-center px-2">
 								<button
 									onClick={() => toggle(item)}
-									className="absolute top-0 right-0 z-10 w-7 h-7 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-colors"
-									aria-label="Remove from wishlist"
+									className="absolute top-0 end-0 z-10 w-7 h-7 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800 transition-colors"
+									aria-label={t.removeFromWishlist}
 								>
 									<Heart size={13} fill="currentColor" />
 								</button>
@@ -80,7 +102,7 @@ export default function WishlistPage() {
 										{item.name}
 									</p>
 								</Link>
-								<p className="text-base font-bold text-black mt-2">{formatQAR(item.price)}</p>
+								<p className="text-base font-bold text-black mt-2">{formatPrice(item.price, item.currencyCode, locale)}</p>
 							</div>
 
 							<div className="mt-3">
@@ -88,7 +110,7 @@ export default function WishlistPage() {
 									to={productHref}
 									className="w-full block text-center font-bold text-sm py-2.5 rounded-full bg-[#3b8578] text-white hover:bg-[#2e6b61] transition-colors"
 								>
-									View Product
+									{t.viewProduct}
 								</Link>
 							</div>
 						</div>

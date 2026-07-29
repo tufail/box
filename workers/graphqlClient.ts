@@ -1,6 +1,7 @@
 import { graphql as gql } from "gql.tada";
 import type { TadaDocumentNode } from "gql.tada";
 import { print } from "graphql";
+import { getLocaleFromPathname, localeToLanguageCode, type Locale } from "~/lib/i18n";
 
 export const DEFAULT_VENDURE_SHOP_API = "http://localhost:3000/shop-api";
 
@@ -17,6 +18,11 @@ interface GraphQLRequestOptions {
   channelToken?: string;
   authToken?: string | null;
   cf?: Record<string, unknown>;
+  // Overrides auto-detection from `request`'s own URL — needed for internal
+  // resource routes (e.g. /api/search), whose OWN url never has the /ar/*
+  // prefix even when called from an Arabic page. Callers of those endpoints
+  // pass the page's locale through explicitly (see e.g. api.search.ts).
+  locale?: Locale;
 }
 
 function queryToString(query: string | TadaDocumentNode<unknown, unknown>): string {
@@ -39,10 +45,18 @@ export async function graphqlRequest<
   variables?: TVariables,
   options?: GraphQLRequestOptions
 ): Promise<{ data: TData; token?: string }> {
-  const api =
+  const baseApi =
     typeof env?.VENDURE_SHOP_API === "string"
       ? env.VENDURE_SHOP_API
       : DEFAULT_VENDURE_SHOP_API;
+
+  // Vendure resolves the request's translation language from a `languageCode`
+  // query string parameter on the shop-api HTTP request itself (not a GraphQL
+  // arg, not a header) — derived here from the page's own URL (via the /ar/*
+  // prefix) so every loader gets locale-correct data automatically, with zero
+  // changes needed at each of the ~40 call sites.
+  const locale = options?.locale ?? (options?.request ? getLocaleFromPathname(new URL(options.request.url).pathname) : "en");
+  const api = locale === "en" ? baseApi : `${baseApi}${baseApi.includes("?") ? "&" : "?"}languageCode=${localeToLanguageCode(locale)}`;
 
   const bodyQuery = queryToString(query as TadaDocumentNode<unknown, unknown>);
   const authToken = options?.authToken ?? getAuthTokenFromCookie(options?.request);
@@ -50,7 +64,7 @@ export async function graphqlRequest<
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     [CHANNEL_HEADER]:
-      options?.channelToken ?? env?.VENDURE_CHANNEL_TOKEN ?? "__default_channel__",
+      options?.channelToken ?? env?.VENDURE_CHANNEL_TOKEN ?? "jmnv08o4xjv1wk9dngg",
   };
 
   if (authToken) {

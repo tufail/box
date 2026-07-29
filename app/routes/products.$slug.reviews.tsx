@@ -1,6 +1,7 @@
 import type { Route } from "./+types/products.$slug.reviews";
 import { useState, useEffect } from "react";
-import { Link, useFetcher, useRouteLoaderData } from "react-router";
+import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import { data } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { ChevronLeft, Star, BadgeCheck, ThumbsUp, ThumbsDown, X, ImagePlus, ChevronRight } from "lucide-react";
@@ -10,8 +11,123 @@ import {
 	type ProductDetailData, type ProductRatingSummaryData, type ProductRatingSummary,
 	type ProductReviewsData, type ReviewItem, type ReviewSortOrder,
 } from "~/graphql/product";
+import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 
 const TAKE = 10;
+
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const REVIEWS_COPY = {
+	en: {
+		starsOutOf5: (n: number) => `${n} out of 5 stars`,
+		verifiedPurchase: "Verified Purchase",
+		helpfulQuestion: "Helpful?",
+		star: (s: number) => `${s} star${s > 1 ? "s" : ""}`,
+		close: "Close",
+		signInToWrite: "Sign in to Write a Review",
+		needLoginToShare: "You need to be logged in to share your experience.",
+		signIn: "Sign In",
+		createAccount: "Create Account",
+		cancel: "Cancel",
+		reviewSubmitted: "Review Submitted!",
+		pendingApproval: "Thank you. Your review is pending approval and will appear shortly.",
+		writeAReview: "Write a Review",
+		shareExperience: "Share your experience to help other shoppers.",
+		yourRating: "Your Rating",
+		selectRatingPrompt: "Please select a rating.",
+		reviewTitle: "Review Title",
+		summariseExperience: "Summarise your experience",
+		review: "Review",
+		tellOthers: "Tell others what you think...",
+		location: "Location",
+		locationPlaceholder: "e.g. Doha, Qatar",
+		language: "Language",
+		english: "English",
+		arabic: "Arabic",
+		other: "Other",
+		photosOptional: "Photos",
+		optionalUpTo5: "(optional · up to 5)",
+		add: "Add",
+		removeImage: "Remove image",
+		uploadingPhotos: "Uploading photos…",
+		submitting: "Submitting…",
+		submitReview: "Submit Review",
+		sortMostRelevant: "Most Relevant",
+		sortNewest: "Newest",
+		sortHighestRated: "Highest Rated",
+		sortLowestRated: "Lowest Rated",
+		sortMostHelpful: "Most Helpful",
+		backTo: (name: string) => `Back to ${name}`,
+		customerReviews: "Customer Reviews",
+		forProduct: "for",
+		filterByStars: "Filter by Stars",
+		allLanguages: "All",
+		filter: "Filter",
+		verifiedOnly: "Verified only",
+		withPhotos: "With photos",
+		reviews: "reviews",
+		sort: "Sort:",
+		starsOnly: (n: number) => `${n}★ only`,
+		noReviewsMatch: "No reviews match your filters.",
+		clearAllFilters: "Clear all filters",
+		reviewPages: "Review pages",
+	},
+	ar: {
+		starsOutOf5: (n: number) => `${n} من 5 نجوم`,
+		verifiedPurchase: "عملية شراء موثّقة",
+		helpfulQuestion: "مفيد؟",
+		star: (s: number) => (s === 1 ? "نجمة واحدة" : s === 2 ? "نجمتان" : `${s} نجوم`),
+		close: "إغلاق",
+		signInToWrite: "سجّل الدخول لكتابة تقييم",
+		needLoginToShare: "يجب تسجيل الدخول لمشاركة تجربتك.",
+		signIn: "تسجيل الدخول",
+		createAccount: "إنشاء حساب",
+		cancel: "إلغاء",
+		reviewSubmitted: "تم إرسال التقييم!",
+		pendingApproval: "شكرًا لك. تقييمك قيد المراجعة وسيظهر قريبًا.",
+		writeAReview: "أضف تقييمًا",
+		shareExperience: "شارك تجربتك لمساعدة المتسوقين الآخرين.",
+		yourRating: "تقييمك",
+		selectRatingPrompt: "يرجى اختيار تقييم.",
+		reviewTitle: "عنوان التقييم",
+		summariseExperience: "لخّص تجربتك",
+		review: "التقييم",
+		tellOthers: "أخبر الآخرين برأيك...",
+		location: "الموقع",
+		locationPlaceholder: "مثال: الدوحة، قطر",
+		language: "اللغة",
+		english: "الإنجليزية",
+		arabic: "العربية",
+		other: "أخرى",
+		photosOptional: "الصور",
+		optionalUpTo5: "(اختياري · حتى 5 صور)",
+		add: "إضافة",
+		removeImage: "إزالة الصورة",
+		uploadingPhotos: "جارٍ رفع الصور…",
+		submitting: "جارٍ الإرسال…",
+		submitReview: "إرسال التقييم",
+		sortMostRelevant: "الأكثر صلة",
+		sortNewest: "الأحدث",
+		sortHighestRated: "الأعلى تقييمًا",
+		sortLowestRated: "الأقل تقييمًا",
+		sortMostHelpful: "الأكثر فائدة",
+		backTo: (name: string) => `العودة إلى ${name}`,
+		customerReviews: "تقييمات العملاء",
+		forProduct: "لـ",
+		filterByStars: "تصفية حسب النجوم",
+		allLanguages: "الكل",
+		filter: "تصفية",
+		verifiedOnly: "الموثّقة فقط",
+		withPhotos: "مع صور",
+		reviews: "تقييمات",
+		sort: "ترتيب:",
+		starsOnly: (n: number) => `${n}★ فقط`,
+		noReviewsMatch: "لا توجد تقييمات مطابقة لعوامل التصفية.",
+		clearAllFilters: "مسح جميع عوامل التصفية",
+		reviewPages: "صفحات التقييمات",
+	},
+} as const;
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -71,8 +187,9 @@ export function meta({ data }: Route.MetaArgs) {
 // ── Stars ─────────────────────────────────────────────────────────────────────
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
+	const t = REVIEWS_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
-		<span className="flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
+		<span className="flex items-center gap-0.5" aria-label={t.starsOutOf5(value)}>
 			{[1, 2, 3, 4, 5].map((s) => {
 				const fill = value >= s ? 1 : value >= s - 0.5 ? 0.5 : 0;
 				return (
@@ -93,6 +210,8 @@ function Stars({ value, size = 14 }: { value: number; size?: number }) {
 // ── Review card ───────────────────────────────────────────────────────────────
 
 function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = REVIEWS_COPY[locale];
 	return (
 		<article className="border border-gray-100 rounded-xl p-5 bg-white shadow-sm">
 			<div className="flex items-start justify-between gap-3 mb-2">
@@ -103,7 +222,7 @@ function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: stri
 				{review.isVerifiedPurchase && (
 					<span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5 shrink-0">
 						<BadgeCheck size={11} />
-						Verified Purchase
+						{t.verifiedPurchase}
 					</span>
 				)}
 			</div>
@@ -122,11 +241,11 @@ function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: stri
 				<div className="text-xs text-gray-400">
 					<span className="font-medium text-gray-600">{review.authorName}</span>
 					{review.authorLocation && <span> · {review.authorLocation}</span>}
-					<span> · {new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+					<span> · {new Date(review.createdAt).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
 				</div>
 				{onVote && (
 					<div className="flex items-center gap-3 text-xs text-gray-400">
-						<span>Helpful?</span>
+						<span>{t.helpfulQuestion}</span>
 						<button onClick={() => onVote(review.id, "HELPFUL")} className={`flex items-center gap-1 hover:text-green-600 transition-colors ${review.myVote === "HELPFUL" ? "text-green-600 font-medium" : ""}`}>
 							<ThumbsUp size={12} /> {review.helpfulCount}
 						</button>
@@ -144,6 +263,7 @@ function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: stri
 
 function StarSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
 	const [hovered, setHovered] = useState(0);
+	const t = REVIEWS_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
 		<div className="flex gap-1">
 			{[1, 2, 3, 4, 5].map((s) => (
@@ -154,7 +274,7 @@ function StarSelector({ value, onChange }: { value: number; onChange: (v: number
 					onMouseEnter={() => setHovered(s)}
 					onMouseLeave={() => setHovered(0)}
 					className="transition-transform hover:scale-110"
-					aria-label={`${s} star${s > 1 ? "s" : ""}`}
+					aria-label={t.star(s)}
 				>
 					<Star
 						size={28}
@@ -170,6 +290,7 @@ function StarSelector({ value, onChange }: { value: number; onChange: (v: number
 // ── Write Review Modal ────────────────────────────────────────────────────────
 
 function WriteReviewModal({ productSlug, productId, onClose, customer }: { productSlug: string; productId: string; onClose: () => void; customer: ActiveCustomer | null }) {
+	const t = REVIEWS_COPY[getLocaleFromPathname(useLocation().pathname)];
 	const fetcher = useFetcher<{ ok: boolean; error?: string }>();
 	const [rating, setRating] = useState(0);
 	const [done, setDone] = useState(false);
@@ -247,7 +368,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 			<div className="fixed inset-0 bg-black/50" onClick={onClose} />
 			<div className="flex min-h-full items-center justify-center p-4">
 				<div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10">
-					<button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
+					<button onClick={onClose} className="absolute top-4 end-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.close}>
 						<X size={20} />
 					</button>
 
@@ -256,16 +377,16 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 							<div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
 								<BadgeCheck size={32} className="text-primary" />
 							</div>
-							<h3 className="text-lg font-bold text-gray-900 mb-2">Sign in to Write a Review</h3>
-							<p className="text-sm text-gray-500 mb-6">You need to be logged in to share your experience.</p>
+							<h3 className="text-lg font-bold text-gray-900 mb-2">{t.signInToWrite}</h3>
+							<p className="text-sm text-gray-500 mb-6">{t.needLoginToShare}</p>
 							<div className="flex flex-col gap-3">
 								<Link to={`/login?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full transition-colors text-sm">
-									Sign In
+									{t.signIn}
 								</Link>
 								<Link to={`/register?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center border border-primary text-primary font-semibold py-3 rounded-full hover:bg-primary/5 transition-colors text-sm">
-									Create Account
+									{t.createAccount}
 								</Link>
-								<button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+								<button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">{t.cancel}</button>
 							</div>
 						</div>
 					) : done ? (
@@ -273,50 +394,50 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 							<div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
 								<BadgeCheck size={32} className="text-green-600" />
 							</div>
-							<h3 className="text-lg font-bold text-gray-900 mb-2">Review Submitted!</h3>
-							<p className="text-sm text-gray-500 mb-6">Thank you. Your review is pending approval and will appear shortly.</p>
-							<button onClick={onClose} className="bg-primary text-white px-8 py-2.5 rounded-full text-sm font-semibold hover:bg-primary/90 transition-colors">Close</button>
+							<h3 className="text-lg font-bold text-gray-900 mb-2">{t.reviewSubmitted}</h3>
+							<p className="text-sm text-gray-500 mb-6">{t.pendingApproval}</p>
+							<button onClick={onClose} className="bg-primary text-white px-8 py-2.5 rounded-full text-sm font-semibold hover:bg-primary/90 transition-colors">{t.close}</button>
 						</div>
 					) : (
 						<>
-							<h2 className="text-lg font-bold text-gray-900 mb-1">Write a Review</h2>
-							<p className="text-sm text-gray-500 mb-5">Share your experience to help other shoppers.</p>
+							<h2 className="text-lg font-bold text-gray-900 mb-1">{t.writeAReview}</h2>
+							<p className="text-sm text-gray-500 mb-5">{t.shareExperience}</p>
 
 							<form onSubmit={handleSubmit} className="space-y-4">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-2">Your Rating <span className="text-red-500">*</span></label>
+									<label className="block text-sm font-medium text-gray-700 mb-2">{t.yourRating} <span className="text-red-500">*</span></label>
 									<StarSelector value={rating} onChange={setRating} />
-									{!rating && fetcher.data && <p className="text-xs text-red-500 mt-1">Please select a rating.</p>}
+									{!rating && fetcher.data && <p className="text-xs text-red-500 mt-1">{t.selectRatingPrompt}</p>}
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">Review Title</label>
-									<input name="title" type="text" placeholder="Summarise your experience" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+									<label className="block text-sm font-medium text-gray-700 mb-1">{t.reviewTitle}</label>
+									<input name="title" type="text" placeholder={t.summariseExperience} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">Review <span className="text-red-500">*</span></label>
-									<textarea name="body" required rows={4} placeholder="Tell others what you think..." className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+									<label className="block text-sm font-medium text-gray-700 mb-1">{t.review} <span className="text-red-500">*</span></label>
+									<textarea name="body" required rows={4} placeholder={t.tellOthers} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-									<input name="authorLocation" type="text" placeholder="e.g. Doha, Qatar" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+									<label className="block text-sm font-medium text-gray-700 mb-1">{t.location}</label>
+									<input name="authorLocation" type="text" placeholder={t.locationPlaceholder} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+									<label className="block text-sm font-medium text-gray-700 mb-1">{t.language}</label>
 									<select name="languageCode" defaultValue="en" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white">
-										<option value="en">English</option>
-										<option value="ar">Arabic</option>
-										<option value="other">Other</option>
+										<option value="en">{t.english}</option>
+										<option value="ar">{t.arabic}</option>
+										<option value="other">{t.other}</option>
 									</select>
 								</div>
 
 								{/* Image upload */}
 								<div>
 									<label className="block text-sm font-medium text-gray-700 mb-2">
-										Photos <span className="text-gray-400 font-normal">(optional · up to 5)</span>
+										{t.photosOptional} <span className="text-gray-400 font-normal">{t.optionalUpTo5}</span>
 									</label>
 									<div className="flex flex-wrap gap-2">
 										{previews.map((src, i) => (
@@ -325,8 +446,8 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 												<button
 													type="button"
 													onClick={() => removeImage(i)}
-													className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 transition-colors"
-													aria-label="Remove image"
+													className="absolute -top-1.5 -end-1.5 w-5 h-5 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 transition-colors"
+													aria-label={t.removeImage}
 												>
 													<X size={10} className="text-gray-500" />
 												</button>
@@ -335,7 +456,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 										{imageFiles.length < 5 && (
 											<label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors shrink-0">
 												<ImagePlus size={16} className="text-gray-400" />
-												<span className="text-[10px] text-gray-400 mt-0.5">Add</span>
+												<span className="text-[10px] text-gray-400 mt-0.5">{t.add}</span>
 												<input
 													type="file"
 													accept="image/jpeg,image/png,image/webp,image/gif"
@@ -358,7 +479,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 									disabled={busy || !rating}
 									className="w-full bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition-colors text-sm"
 								>
-									{uploading ? "Uploading photos…" : fetcher.state !== "idle" ? "Submitting…" : "Submit Review"}
+									{uploading ? t.uploadingPhotos : fetcher.state !== "idle" ? t.submitting : t.submitReview}
 								</button>
 							</form>
 						</>
@@ -371,16 +492,21 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const SORT_OPTIONS: { value: ReviewSortOrder; label: string }[] = [
-	{ value: "MOST_RELEVANT", label: "Most Relevant" },
-	{ value: "NEWEST", label: "Newest" },
-	{ value: "HIGHEST_RATED", label: "Highest Rated" },
-	{ value: "LOWEST_RATED", label: "Lowest Rated" },
-	{ value: "MOST_HELPFUL", label: "Most Helpful" },
-];
+function getSortOptions(t: (typeof REVIEWS_COPY)[keyof typeof REVIEWS_COPY]): { value: ReviewSortOrder; label: string }[] {
+	return [
+		{ value: "MOST_RELEVANT", label: t.sortMostRelevant },
+		{ value: "NEWEST", label: t.sortNewest },
+		{ value: "HIGHEST_RATED", label: t.sortHighestRated },
+		{ value: "LOWEST_RATED", label: t.sortLowestRated },
+		{ value: "MOST_HELPFUL", label: t.sortMostHelpful },
+	];
+}
 
 export default function ProductReviewsPage({ loaderData }: Route.ComponentProps) {
 	const { slug, productId, productName, summary, reviews, totalReviews, page, sort, ratingFilter, languageCode, verifiedOnly, withImagesOnly } = loaderData;
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = REVIEWS_COPY[locale];
+	const SORT_OPTIONS = getSortOptions(t);
 	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
 	const customer = rootData?.activeCustomer ?? null;
 	const [writeOpen, setWriteOpen] = useState(false);
@@ -420,19 +546,19 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 			<div className="bg-white border-b border-gray-200">
 				<div className="container mx-auto px-4 py-5">
 					<Link to={`/products/${slug}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary transition-colors mb-3">
-						<ChevronLeft size={14} />
-						Back to {productName}
+						<ChevronLeft size={14} className="rtl:rotate-180" />
+						{t.backTo(productName)}
 					</Link>
 					<div className="flex items-center justify-between gap-4 flex-wrap">
-						<h1 className="text-xl font-bold text-gray-900">Customer Reviews</h1>
+						<h1 className="text-xl font-bold text-gray-900">{t.customerReviews}</h1>
 						<button
 							onClick={() => setWriteOpen(true)}
 							className="bg-black hover:bg-gray-800 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
 						>
-							Write a Review
+							{t.writeAReview}
 						</button>
 					</div>
-					{productName && <p className="text-sm text-gray-500 mt-0.5">for <span className="font-medium text-gray-700">{productName}</span></p>}
+					{productName && <p className="text-sm text-gray-500 mt-0.5">{t.forProduct} <span className="font-medium text-gray-700">{productName}</span></p>}
 				</div>
 			</div>
 
@@ -448,7 +574,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 								<div className="flex flex-col items-center py-2">
 									<span className="text-5xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
 									<Stars value={summary.averageRating} size={18} />
-									<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} reviews</span>
+									<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} {t.reviews}</span>
 								</div>
 
 								<div className="space-y-1.5">
@@ -458,12 +584,12 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 										const isActive = ratingFilter === star;
 										return (
 											<Link key={star} to={buildUrl({ rating: isActive ? null : star, page: 1 })} className={`flex items-center gap-2 group rounded-lg px-1 py-0.5 transition-colors ${isActive ? "bg-amber-50" : "hover:bg-gray-50"}`}>
-												<span className="text-xs text-gray-500 w-4 text-right shrink-0">{star}</span>
+												<span className="text-xs text-gray-500 w-4 text-end shrink-0">{star}</span>
 												<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
 												<div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
 													<div className={`h-full rounded-full transition-all ${isActive ? "bg-amber-500" : "bg-amber-400 group-hover:bg-amber-500"}`} style={{ width: `${pct}%` }} />
 												</div>
-												<span className="text-xs text-gray-400 w-12 shrink-0 text-right">{count.toLocaleString()}</span>
+												<span className="text-xs text-gray-400 w-12 shrink-0 text-end">{count.toLocaleString()}</span>
 											</Link>
 										);
 									})}
@@ -472,7 +598,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 						) : (
 							/* No summary — show plain star filter buttons */
 							<div>
-								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Filter by Stars</p>
+								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.filterByStars}</p>
 								<div className="space-y-1">
 									{[5, 4, 3, 2, 1].map((star) => {
 										const isActive = ratingFilter === star;
@@ -481,7 +607,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 												<span className="flex gap-0.5">
 													{Array.from({ length: star }).map((_, i) => <Star key={i} size={11} className="text-amber-400" fill="currentColor" />)}
 												</span>
-												<span>{star} star{star !== 1 ? "s" : ""}</span>
+												<span>{t.star(star)}</span>
 											</Link>
 										);
 									})}
@@ -492,15 +618,15 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 						{/* Language filter — only when summary has > 1 language */}
 						{summary && summary.languageSummary.length > 1 && (
 							<div>
-								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Language</p>
+								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.language}</p>
 								<div className="space-y-1">
 									<Link to={buildUrl({ lang: null, page: 1 })} className={`flex justify-between text-sm px-2 py-1 rounded-lg transition-colors ${!languageCode ? "bg-primary/10 text-primary font-medium" : "hover:bg-gray-50 text-gray-600"}`}>
-										<span>All</span>
+										<span>{t.allLanguages}</span>
 										<span className="text-gray-400">{summary.totalReviews.toLocaleString()}</span>
 									</Link>
 									{summary.languageSummary.map((l) => (
 										<Link key={l.languageCode} to={buildUrl({ lang: l.languageCode === languageCode ? null : l.languageCode, page: 1 })} className={`flex justify-between text-sm px-2 py-1 rounded-lg transition-colors ${languageCode === l.languageCode ? "bg-primary/10 text-primary font-medium" : "hover:bg-gray-50 text-gray-600"}`}>
-											<span className="capitalize">{l.languageCode === "en" ? "English" : l.languageCode === "ar" ? "Arabic" : l.languageCode}</span>
+											<span className="capitalize">{l.languageCode === "en" ? t.english : l.languageCode === "ar" ? t.arabic : l.languageCode}</span>
 											<span className="text-gray-400">{l.count.toLocaleString()}</span>
 										</Link>
 									))}
@@ -510,15 +636,15 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 
 						{/* Quick filters — always visible */}
 						<div>
-							<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Filter</p>
+							<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.filter}</p>
 							<div className="space-y-1">
 								<Link to={buildUrl({ verified: verifiedOnly ? null : "true", page: 1 })} className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg transition-colors ${verifiedOnly ? "bg-primary/10 text-primary font-medium" : "hover:bg-gray-50 text-gray-600"}`}>
 									<BadgeCheck size={13} />
-									Verified only
+									{t.verifiedOnly}
 								</Link>
 								<Link to={buildUrl({ images: withImagesOnly ? null : "true", page: 1 })} className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg transition-colors ${withImagesOnly ? "bg-primary/10 text-primary font-medium" : "hover:bg-gray-50 text-gray-600"}`}>
 									<ImagePlus size={13} />
-									With photos
+									{t.withPhotos}
 								</Link>
 							</div>
 						</div>
@@ -528,9 +654,9 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 					<div className="space-y-4">
 						{/* Sort bar */}
 						<div className="flex items-center gap-3 flex-wrap">
-							<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} reviews</span>
-							<div className="ml-auto flex items-center gap-2">
-								<span className="text-sm text-gray-500 hidden sm:inline">Sort:</span>
+							<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} {t.reviews}</span>
+							<div className="ms-auto flex items-center gap-2">
+								<span className="text-sm text-gray-500 hidden sm:inline">{t.sort}</span>
 								<select
 									value={sort}
 									onChange={(e) => window.location.href = buildUrl({ sort: e.target.value, page: 1 })}
@@ -542,12 +668,12 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 							{/* Active filters */}
 							{ratingFilter && (
 								<Link to={buildUrl({ rating: null, page: 1 })} className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium hover:bg-amber-200 transition-colors">
-									{ratingFilter}★ only <X size={11} />
+									{t.starsOnly(ratingFilter)} <X size={11} />
 								</Link>
 							)}
 							{languageCode && (
 								<Link to={buildUrl({ lang: null, page: 1 })} className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium hover:bg-blue-200 transition-colors">
-									{languageCode === "en" ? "English" : languageCode === "ar" ? "Arabic" : languageCode} <X size={11} />
+									{languageCode === "en" ? t.english : languageCode === "ar" ? t.arabic : languageCode} <X size={11} />
 								</Link>
 							)}
 						</div>
@@ -555,8 +681,8 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 						{reviews.length === 0 ? (
 							<div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
 								<Star size={40} className="text-gray-200 mx-auto mb-3" fill="currentColor" />
-								<p className="text-gray-500 font-medium">No reviews match your filters.</p>
-								<Link to={`/products/${slug}/reviews`} className="text-sm text-primary hover:underline mt-2 inline-block">Clear all filters</Link>
+								<p className="text-gray-500 font-medium">{t.noReviewsMatch}</p>
+								<Link to={`/products/${slug}/reviews`} className="text-sm text-primary hover:underline mt-2 inline-block">{t.clearAllFilters}</Link>
 							</div>
 						) : (
 							<>
@@ -564,10 +690,10 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 
 								{/* Pagination */}
 								{totalPages > 1 && (
-									<nav aria-label="Review pages" className="flex items-center justify-center gap-1 pt-4">
+									<nav aria-label={t.reviewPages} className="flex items-center justify-center gap-1 pt-4">
 										{page > 1 && (
 											<Link to={buildUrl({ page: page - 1 })} className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors">
-												<ChevronLeft size={16} />
+												<ChevronLeft size={16} className="rtl:rotate-180" />
 											</Link>
 										)}
 										{Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -580,7 +706,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 										})}
 										{page < totalPages && (
 											<Link to={buildUrl({ page: page + 1 })} className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-primary hover:text-primary transition-colors">
-												<ChevronRight size={16} />
+												<ChevronRight size={16} className="rtl:rotate-180" />
 											</Link>
 										)}
 									</nav>
@@ -592,12 +718,12 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 			</div>
 
 			{/* Sticky Write Review button (mobile) */}
-			<div className="fixed bottom-6 right-6 z-40 lg:hidden">
+			<div className="fixed bottom-6 end-6 z-40 lg:hidden">
 				<button
 					onClick={() => setWriteOpen(true)}
 					className="bg-black hover:bg-gray-800 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-xl transition-colors"
 				>
-					Write a Review
+					{t.writeAReview}
 				</button>
 			</div>
 		</div>

@@ -27,6 +27,30 @@
 			color-scheme: dark;
 		}
 	}
+
+	/* Arabic pages (html[dir="rtl"], set in root.tsx from the /ar/* URL prefix)
+	   get the Arabic font sitewide by default — individual components don't need
+	   to opt in with .font-arabic. Note: this only covers typography; component
+	   layouts (flex/grid direction, icon ordering, physical margins/positioning
+	   like ml-/mr-/left-/right-) are NOT automatically mirrored for RTL and still
+	   need manual rtl: variants where a component's visual order should flip —
+	   that's a separate, larger pass, not covered by this rule. */
+	html[dir="rtl"] {
+		font-family: var(--font-arabic);
+	}
+}
+
+/* .font-heading is defined via @utility, which Tailwind v4 places in the
+   "utilities" cascade layer — a later layer than "base" always wins over an
+   earlier one regardless of selector specificity, so putting this override
+   inside @layer base (even with a more specific selector) still lost to
+   .font-heading. Left unlayered here instead: per the CSS Cascade Layers
+   spec, unlayered rules take priority over ALL layered rules, so this wins
+   over both the base rule above and the utilities-layer .font-heading rule.
+   Without it, Arabic headings would keep rendering in Urbanist (a Latin-only
+   font) instead of Noto Sans Arabic. */
+html[dir="rtl"] .font-heading {
+	font-family: var(--font-arabic);
 }
 
 .bg-secondary {

@@ -1,10 +1,11 @@
-import { data } from "react-router";
+import { data, useLocation } from "react-router";
 import type { Route } from "./+types/pages.$slug";
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
 import { ChevronRight, Home } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_CMS_PAGE_BY_SLUG, type CmsPageData } from "~/graphql/pages";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from "~/lib/i18n";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -32,20 +33,22 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
 
 // ── Meta ──────────────────────────────────────────────────────────────────────
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, location }: Route.MetaArgs) {
 	if (!data) return [{ title: "Page Not Found" }];
 	const { translation, page, slug } = data;
+	const locale = getLocaleFromPathname(location.pathname);
 	const plainText = translation.metaDescription
 		? translation.metaDescription.trim()
 		: translation.description
 			? translation.description.replace(/<[^>]+>/g, "").slice(0, 160).trim()
 			: `${translation.title} — ${SITE_NAME}`;
-	const canonicalUrl = `${SITE_URL}/pages/${slug}`;
+	const canonicalUrl = `${SITE_URL}${localizePath(`/pages/${slug}`, locale)}`;
 
 	return [
 		{ title: `${translation.title} — ${SITE_NAME}` },
 		{ name: "description", content: plainText },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		...hreflangTags(SITE_URL, `/pages/${slug}`),
 		{ property: "og:title", content: `${translation.title} — ${SITE_NAME}` },
 		{ property: "og:description", content: plainText },
 		{ property: "og:url", content: canonicalUrl },
@@ -59,7 +62,8 @@ export function meta({ data }: Route.MetaArgs) {
 
 export default function PageDetail({ loaderData }: Route.ComponentProps) {
 	const { page, translation, slug } = loaderData;
-	const canonicalUrl = `${SITE_URL}/pages/${slug}`;
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const canonicalUrl = `${SITE_URL}${localizePath(`/pages/${slug}`, locale)}`;
 
 	const jsonLd = [
 		{
@@ -74,7 +78,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 			"@context": "https://schema.org",
 			"@type": "BreadcrumbList",
 			itemListElement: [
-				{ "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+				{ "@type": "ListItem", position: 1, name: locale === "ar" ? "الرئيسية" : "Home", item: localeHomeUrl(SITE_URL, locale) },
 				{ "@type": "ListItem", position: 2, name: translation.title, item: canonicalUrl },
 			],
 		},
@@ -93,7 +97,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 					/>
 					<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 					<div className="absolute inset-0 flex flex-col justify-end container mx-auto px-4 pb-8">
-						<Breadcrumb title={translation.title} />
+						<Breadcrumb title={translation.title} locale={locale} />
 						<h1 className="text-2xl md:text-4xl font-bold text-white leading-tight drop-shadow-sm mt-3">
 							{translation.title}
 						</h1>
@@ -102,7 +106,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 			) : (
 				<div className="bg-gradient-to-br from-primary/10 via-stone-50 to-stone-100 border-b border-stone-200">
 					<div className="container mx-auto px-4 py-7 md:py-10">
-						<Breadcrumb title={translation.title} dark />
+						<Breadcrumb title={translation.title} dark locale={locale} />
 						<h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight mt-4">
 							{translation.title}
 						</h1>
@@ -119,7 +123,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 							dangerouslySetInnerHTML={{ __html: translation.description }}
 						/>
 					) : (
-						<p className="text-gray-500 italic">No content available for this page.</p>
+						<p className="text-gray-500 italic">{locale === "ar" ? "لا يوجد محتوى لهذه الصفحة." : "No content available for this page."}</p>
 					)}
 
 					<div className="mt-12 pt-8 border-t border-gray-100">
@@ -127,8 +131,8 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 							to="/"
 							className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
 						>
-							<ChevronRight size={14} className="rotate-180" aria-hidden="true" />
-							Back to Home
+							<ChevronRight size={14} className="rtl:rotate-0 rotate-180" aria-hidden="true" />
+							{locale === "ar" ? "العودة إلى الرئيسية" : "Back to Home"}
 						</Link>
 					</div>
 				</div>
@@ -139,7 +143,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 
 // ── Breadcrumb ────────────────────────────────────────────────────────────────
 
-function Breadcrumb({ title, dark }: { title: string; dark?: boolean }) {
+function Breadcrumb({ title, dark, locale }: { title: string; dark?: boolean; locale: "en" | "ar" }) {
 	const base = dark ? "text-gray-500" : "text-white/70";
 	const hover = dark ? "hover:text-primary" : "hover:text-white";
 	const current = dark ? "text-gray-700 font-medium" : "text-white font-medium";
@@ -150,11 +154,11 @@ function Breadcrumb({ title, dark }: { title: string; dark?: boolean }) {
 				<li>
 					<Link to="/" className={`${hover} transition-colors flex items-center gap-1`}>
 						<Home size={12} aria-hidden="true" />
-						Home
+						{locale === "ar" ? "الرئيسية" : "Home"}
 					</Link>
 				</li>
 				<li aria-hidden="true">
-					<ChevronRight size={12} />
+					<ChevronRight size={12} className="rtl:rotate-180" />
 				</li>
 				<li aria-current="page" className={`${current} truncate max-w-[240px]`}>
 					{title}

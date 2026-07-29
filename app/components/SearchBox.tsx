@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Search } from "lucide-react";
 import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionCollection, SearchSuggestionFacetValue } from "~/graphql/search";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
+import { formatPrice as formatCurrency } from "~/lib/currency";
 
 function highlight(text: string, term: string) {
 	const idx = text.toLowerCase().indexOf(term.toLowerCase());
@@ -19,25 +21,26 @@ interface ProductRowProps {
 	item: SearchSuggestionItem;
 	term: string;
 	onSelect: () => void;
+	locale: Locale;
 }
-function formatPrice(price: SearchSuggestionItem["price"]) {
-	const fmt = (cents: number) => new Intl.NumberFormat("en", { style: "currency", currency: "QAR", minimumFractionDigits: 0 }).format(cents / 100);
+function formatPrice(price: SearchSuggestionItem["price"], locale: Locale) {
+	const fmt = (cents: number) => formatCurrency(cents, "QAR", locale);
 	if ("value" in price) return fmt(price.value);
 	return price.min === price.max ? fmt(price.min) : `${fmt(price.min)} – ${fmt(price.max)}`;
 }
 
-function ProductRow({ item, term, onSelect }: ProductRowProps) {
+function ProductRow({ item, term, onSelect, locale }: ProductRowProps) {
 	return (
-		<button onMouseDown={onSelect} className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+		<button onMouseDown={onSelect} className="w-full text-start px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3 transition-colors">
 			{item.productAsset?.preview ? (
-				<img src={item.productAsset.preview + "?w=40&h=40&mode=crop"} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 bg-gray-100" />
+				<img src={item.productAsset.preview + "?preset=tiny"} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 bg-gray-100" />
 			) : (
 				<span className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-gray-300">
 					<Search size={14} />
 				</span>
 			)}
 			<span className="text-sm text-gray-800 truncate flex-1">{highlight(item.productName, term)}</span>
-			<span className="text-sm font-medium text-primary whitespace-nowrap">{formatPrice(item.price)}</span>
+			<span className="text-sm font-medium text-primary whitespace-nowrap">{formatPrice(item.price, locale)}</span>
 		</button>
 	);
 }
@@ -73,6 +76,14 @@ function SectionLabel({ label }: { label: string }) {
 	return <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 select-none">{label}</div>;
 }
 
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const SEARCH_COPY = {
+	en: { placeholder: "Search Products", search: "Search", products: "Products" },
+	ar: { placeholder: "ابحث عن المنتجات", search: "بحث", products: "المنتجات" },
+} as const;
+
 export default function SearchBox() {
 	const [term, setTerm] = useState("");
 	const [results, setResults] = useState<SearchSuggestionsResponse | null>(null);
@@ -82,6 +93,8 @@ export default function SearchBox() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = SEARCH_COPY[locale];
 
 	const fetchSuggestions = useCallback(async (q: string) => {
 		if (q.length < 2) {
@@ -91,7 +104,7 @@ export default function SearchBox() {
 		}
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${locale}`);
 			const data: SearchSuggestionsResponse = await res.json();
 			setResults(data);
 			const hasAny = data.items.length > 0 || data.collections.length > 0 || data.facetValues.length > 0;
@@ -102,7 +115,7 @@ export default function SearchBox() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [locale]);
 
 	useEffect(() => {
 		if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -126,26 +139,26 @@ export default function SearchBox() {
 		e.preventDefault();
 		if (term.trim()) {
 			setOpen(false);
-			navigate(`/search?q=${encodeURIComponent(term.trim())}`);
+			navigate(localizePath(`/search?q=${encodeURIComponent(term.trim())}`, locale));
 		}
 	};
 
 	const selectProduct = (slug: string) => {
 		setOpen(false);
 		setTerm("");
-		navigate(`/products/${slug}`);
+		navigate(localizePath(`/products/${slug}`, locale));
 	};
 
 	const selectCollection = (slug: string) => {
 		setOpen(false);
 		setTerm("");
-		navigate(`/c/${slug}`);
+		navigate(localizePath(`/c/${slug}`, locale));
 	};
 
 	const selectFacet = (facetName: string, valueName: string) => {
 		setOpen(false);
 		setTerm("");
-		navigate(`/search?facet=${encodeURIComponent(facetName)}=${encodeURIComponent(valueName)}`);
+		navigate(localizePath(`/search?facet=${encodeURIComponent(facetName)}=${encodeURIComponent(valueName)}`, locale));
 	};
 
 	const hasItems = results && results.items.length > 0;
@@ -167,23 +180,23 @@ export default function SearchBox() {
 								setOpen(true);
 							}
 						}}
-						placeholder="Search Products"
-						className="border border-stone-400 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pr-12 rounded-full bg-white"
+						placeholder={t.placeholder}
+						className="border border-stone-400 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pe-12 rounded-full bg-white"
 						autoComplete="off"
 					/>
-					<button type="submit" aria-label="Search" className="absolute right-0 text-gray-500 hover:text-primary h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center focus:outline-none">
+					<button type="submit" aria-label={t.search} className="absolute end-0 text-gray-500 hover:text-primary h-full px-3 -translate-y-1/2 top-1/2 cursor-pointer flex items-center justify-center focus:outline-none">
 						{loading ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent  animate-spin" /> : <Search size={18} />}
 					</button>
 				</div>
 			</form>
 
 			{open && (
-				<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
+				<div className="absolute top-full start-0 end-0 mt-1 bg-white border border-gray-200 shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
 					{hasItems && (
 						<>
-							<SectionLabel label="Products" />
+							<SectionLabel label={t.products} />
 							{results.items.map((item) => (
-								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.slug)} />
+								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.slug)} locale={locale} />
 							))}
 						</>
 					)}

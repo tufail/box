@@ -1,7 +1,10 @@
 ﻿import { useState } from "react";
-import { Link } from "react-router";
+import Link from "~/components/LocaleLink";
 import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
+import LocaleLink from "~/components/LocaleLink";
+import { NavLink, useLocation } from "react-router";
+import { getLocaleFromPathname } from "~/lib/i18n";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
 
@@ -54,14 +57,69 @@ function WhatsAppIcon() {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const trustBadges = [
-	{ icon: Headphones, title: "24/7 Support", desc: "Dedicated Support" },
-	{ icon: RotateCcw, title: "Easy returns and refunds", desc: "Hassle-free returns" },
-	{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours" },
-	{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
-];
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const FOOTER_COPY = {
+	en: {
+		trustBadges: [
+			{ icon: Headphones, title: "24/7 Support", desc: "Dedicated Support" },
+			{ icon: RotateCcw, title: "Easy returns and refunds", desc: "Hassle-free returns" },
+			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours" },
+			{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
+		],
+		getDirections: "Get directions on Google Maps",
+		hours: "Sat-Thu 9am to 8pm",
+		followUs: "Follow Us",
+		signUpForSavings: "Sign up for savings",
+		newsletterBlurb: "Be the first to get promo offers and reward perks straight to your inbox.",
+		newsletterSignup: "Newsletter signup",
+		emailAddress: "Email Address",
+		subscribe: "Subscribe",
+		languages: "Languages:",
+		english: "English",
+		arabic: "Arabic",
+		copyright: (year: number) => `Copyright © ${year} NutriBox. All rights reserved.`,
+		acceptedPaymentMethods: "Accepted payment methods",
+		paymentMethod: (n: number) => `Payment method ${n}`,
+		chatOnWhatsapp: "Chat with us on WhatsApp",
+	},
+	ar: {
+		trustBadges: [
+			{ icon: Headphones, title: "دعم على مدار الساعة", desc: "دعم مخصص" },
+			{ icon: RotateCcw, title: "إرجاع واسترداد سهل", desc: "إرجاع بدون تعقيد" },
+			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع خلال ساعتين" },
+			{ icon: ShieldCheck, title: "منتجات أصلية 100%", desc: "نتعامل فقط مع المنتجات الأصلية" },
+		],
+		getDirections: "الحصول على الاتجاهات عبر خرائط جوجل",
+		hours: "السبت-الخميس من 9 صباحًا حتى 8 مساءً",
+		followUs: "تابعنا",
+		signUpForSavings: "اشترك للحصول على التوفيرات",
+		newsletterBlurb: "كن أول من يحصل على العروض الترويجية ومكافآت الولاء مباشرة في بريدك الإلكتروني.",
+		newsletterSignup: "الاشتراك في النشرة الإخبارية",
+		emailAddress: "البريد الإلكتروني",
+		subscribe: "اشتراك",
+		languages: "اللغات:",
+		english: "الإنجليزية",
+		arabic: "العربية",
+		copyright: (year: number) => `جميع الحقوق محفوظة © ${year} نوتري بوكس.`,
+		acceptedPaymentMethods: "طرق الدفع المقبولة",
+		paymentMethod: (n: number) => `طريقة الدفع ${n}`,
+		chatOnWhatsapp: "تحدث معنا عبر واتساب",
+	},
+} as const;
 
 const paymentMethods = [1, 2, 3, 4, 5];
+
+// PageSection.name comes from the CMS pages plugin and has no `translations` field on
+// the backend at all (confirmed via introspection — unlike CmsPage.title, which has the
+// translations relation but no Arabic rows entered yet), so it can never come back
+// translated from the API regardless of locale. This is a frontend-only stopgap keyed
+// by the section's stable slug; real fix is adding translation support on the backend.
+const SECTION_LABEL_OVERRIDES: Record<string, { en: string; ar: string }> = {
+	company: { en: "Company", ar: "الشركة" },
+	help: { en: "Help", ar: "المساعدة" },
+};
 
 // Snapchat/TikTok hrefs are placeholders ("#") until those accounts are set up.
 const socialLinks = [
@@ -80,6 +138,8 @@ interface FooterProps {
 
 export default function Footer({ pageSections }: FooterProps) {
 	const [email, setEmail] = useState("");
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = FOOTER_COPY[locale];
 
 	return (
 		<>
@@ -88,10 +148,10 @@ export default function Footer({ pageSections }: FooterProps) {
 				<div className="border-t border-stone-200 bg-white py-5">
 					<div className="container mx-auto px-4">
 						<div className="grid grid-cols-2 md:grid-cols-4">
-							{trustBadges.map(({ icon: Icon, title, desc }, i) => (
+							{t.trustBadges.map(({ icon: Icon, title, desc }, i) => (
 								<div key={title} className={`flex items-center gap-3 py-4 px-4 md:py-3 ${i !== 0 ? "md:border-l md:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-100 md:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-gray-100 md:border-l md:border-gray-200" : ""}`}>
 									<span className="flex-shrink-0 w-12 h-12 rounded-full bg-lime-100 flex items-center justify-center">
-										<Icon size={22} strokeWidth={1.5} className={`shrink-0 ${title === "Easy returns and refunds" ? "text-primary" : "text-gray-800"}`} aria-hidden="true" />
+										<Icon size={22} strokeWidth={1.5} className={`shrink-0 ${i === 1 ? "text-primary" : "text-gray-800"}`} aria-hidden="true" />
 									</span>
 									<div>
 										<p className="font-semibold text-xs md:text-sm text-gray-900 leading-tight">{title}</p>
@@ -110,19 +170,13 @@ export default function Footer({ pageSections }: FooterProps) {
 							{/* Col 1 — Company info */}
 							<address className="not-italic">
 								<h3 className="font-bold text-white mb-2 text-sm">NutriBox</h3>
-							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
 								<div className="space-y-3 text-xs text-white">
 									<div className="flex items-start gap-2">
 										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" aria-hidden="true" />
 										<span className="leading-relaxed">
 											AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
-											<a
-												href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7"
-												target="_blank"
-												rel="noopener noreferrer"
-												aria-label="Get directions on Google Maps"
-												className="inline-flex align-text-top text-white/70 hover:text-lime-300 transition-colors"
-											>
+											<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" aria-label={t.getDirections} className="inline-flex align-text-top text-white/70 hover:text-lime-300 transition-colors">
 												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
 											</a>
 										</span>
@@ -133,7 +187,7 @@ export default function Footer({ pageSections }: FooterProps) {
 											<a href="tel:+97470157900" className="text-white hover:text-lime-300 transition-colors">
 												+974 7015 7900
 											</a>
-											<p className="text-xs text-white/50 mt-0.5">Sat-Thu 9am to 8pm</p>
+											<p className="text-xs text-white/50 mt-0.5">{t.hours}</p>
 										</div>
 									</div>
 									<div className="flex items-center gap-2">
@@ -144,8 +198,8 @@ export default function Footer({ pageSections }: FooterProps) {
 									</div>
 								</div>
 								<div className="mt-5">
-									<h4 className="font-bold text-white mb-2 text-sm">Follow Us</h4>
-							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-3" />
+									<h4 className="font-bold text-white mb-2 text-sm">{t.followUs}</h4>
+									<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-3" />
 									<div className="flex items-center gap-3">
 										{socialLinks.map(({ href, label, Icon }) => (
 											<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-white hover:text-lime-300 transition-colors">
@@ -158,10 +212,12 @@ export default function Footer({ pageSections }: FooterProps) {
 
 							{/* Cols 2–3 — Dynamic page sections (Help, Company, …) */}
 							{pageSections.length > 0
-								? pageSections.slice(0, 2).map((section, idx) => (
-										<nav key={section.id} aria-label={section.name}>
-											<h3 className="font-bold text-white mb-2 text-sm">{section.name}</h3>
-										<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+								? pageSections.slice(0, 2).map((section, idx) => {
+										const label = SECTION_LABEL_OVERRIDES[section.slug]?.[locale] ?? section.name;
+										return (
+										<nav key={section.id} aria-label={label}>
+											<h3 className="font-bold text-white mb-2 text-sm">{label}</h3>
+											<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
 											<ul className="space-y-2.5">
 												{section.pages.map((page) => {
 													const url = page.externalUrl?.trim();
@@ -183,30 +239,43 @@ export default function Footer({ pageSections }: FooterProps) {
 												})}
 											</ul>
 										</nav>
-									))
+										);
+									})
 								: null}
 
 							{/* Col 4 — Newsletter */}
 							<div>
-								<h3 className="font-bold text-white mb-2 text-sm">Sign up for savings</h3>
-							<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
-								<p className="text-xs text-white mb-4 leading-relaxed">Be the first to get promo offers and reward perks straight to your inbox.</p>
+								<h3 className="font-bold text-white mb-2 text-sm">{t.signUpForSavings}</h3>
+								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+								<p className="text-xs text-white mb-4 leading-relaxed">{t.newsletterBlurb}</p>
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
 										setEmail("");
 									}}
 									className="flex"
-									aria-label="Newsletter signup"
+									aria-label={t.newsletterSignup}
 								>
 									<label htmlFor="footer-email" className="sr-only">
-										Email Address
+										{t.emailAddress}
 									</label>
-									<input id="footer-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" required autoComplete="email" className="flex-1 min-w-0 px-4 py-2.5 text-sm text-gray-900 bg-white rounded-l-full focus:outline-none focus:ring-2 focus:ring-primary" />
-									<button type="submit" className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-2.5 rounded-r-full transition-colors whitespace-nowrap cursor-pointer">
-										Subscribe
+									<input id="footer-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" className="flex-1 min-w-0 px-4 py-2.5 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-primary" />
+									<button type="submit" className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-2.5 rounded-e-full transition-colors whitespace-nowrap cursor-pointer">
+										{t.subscribe}
 									</button>
 								</form>
+								<div className="mt-7 text-xs text-white">
+									{t.languages}{" "}
+									<strong>
+										<NavLink title="English" to="/" className="hover:text-lime-300">
+											{t.english}
+										</NavLink>{" "}
+										|{" "}
+										<NavLink title="Arabic" to="/ar" className="hover:text-lime-300">
+											{t.arabic}
+										</NavLink>
+									</strong>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -214,11 +283,11 @@ export default function Footer({ pageSections }: FooterProps) {
 					{/* Bottom bar */}
 					<div className="border-t border-white/20">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-xs text-white">Copyright &copy; {new Date().getFullYear()} NutriBox. All rights reserved.</p>
-							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label="Accepted payment methods">
+							<p className="text-xs text-white">{t.copyright(new Date().getFullYear())}</p>
+							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label={t.acceptedPaymentMethods}>
 								{paymentMethods.map((m) => (
 									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">
-										<img src={`/images/payments/PAY-${m}.jpg`} alt={`Payment method ${m}`} className="h-6" width={40} height={24} />
+										<img src={`/images/payments/PAY-${m}.jpg`} alt={t.paymentMethod(m)} className="h-6" width={40} height={24} />
 									</span>
 								))}
 							</div>
@@ -228,7 +297,7 @@ export default function Footer({ pageSections }: FooterProps) {
 			</footer>
 
 			{/* WhatsApp floating button */}
-			<a href="https://wa.me/97470157900" target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors">
+			<a href="https://wa.me/97470157900" target="_blank" rel="noopener noreferrer" aria-label={t.chatOnWhatsapp} className="fixed bottom-6 end-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-xl transition-colors">
 				<WhatsAppIcon />
 			</a>
 		</>
