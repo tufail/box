@@ -75,7 +75,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const input: SearchPageVariables["input"] = {
     term: q || undefined,
-    groupByProduct: true,
+    groupByProduct: false,
     take: PAGE_SIZE,
     skip: (page - 1) * PAGE_SIZE,
     sort: sortToInput(sort),
@@ -255,7 +255,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((product) => (
-                <ProductCard key={product.productId} product={product} vendureBase={vendureBase} />
+                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} />
               ))}
             </div>
           )}

@@ -1,12 +1,16 @@
 import Link from "~/components/LocaleLink";
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router";
+import { useFetcher, useLocation } from "react-router";
 import AddToCartButton from "./AddToCartButton";
 import type { SearchProductItem } from "~/graphql/product";
+import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
+import { getAddToCartErrorMessage } from "~/graphql/order";
 import VendureImage from "./VendureImage";
 import { TrendingUp, Star } from "lucide-react";
 import { getLocaleFromPathname } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
+import { useCart } from "~/context/CartContext";
+import { useNotification } from "~/context/NotificationContext";
 
 type Message = { text: string; icon: React.ReactNode };
 
@@ -19,18 +23,12 @@ const CARD_COPY = {
 		off: (percent: number) => `${percent}% OFF`,
 		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} in ${collection}`,
-		showOptions: "Show Options",
-		addToCart: "Add to Cart",
-		sold: "Sold out",
 	},
 	ar: {
 		soldOut: "نفدت الكمية",
 		off: (percent: number) => `خصم ${percent}%`,
 		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} في ${collection}`,
-		showOptions: "عرض الخيارات",
-		addToCart: "أضف إلى السلة",
-		sold: "نفدت الكمية",
 	},
 } as const;
 
@@ -75,34 +73,71 @@ interface ProductCardProps {
 	product: SearchProductItem;
 	vendureBase: string;
 	eager?: boolean;
-	showVariantName?: boolean;
-	forceAddToCart?: boolean;
-	onAddToCart?: (product: SearchProductItem) => void;
 }
 
 function minPrice(price: SearchProductItem["price"]): number {
 	return price.__typename === "PriceRange" ? price.min : price.value;
 }
 
-export default function ProductCard({ product, vendureBase, eager = false, showVariantName = false, forceAddToCart = false, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, vendureBase, eager = false }: ProductCardProps) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CARD_COPY[locale];
+	const { openCart, setCartCount } = useCart();
+	const { notify } = useNotification();
+	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
+	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
+
 	const priceQAR = minPrice(product.price) / 100;
 	const discount = product.customProductVariantMappings?.discount ?? 0;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
 	const discountPercent = discount > 0 ? Math.round((discount / 100 / (priceQAR + discount / 100)) * 100) : 0;
-	const variantCount = product.customProductMappings?.variantCount ?? 1;
 	const sold30Days = product.customProductMappings?.soldCount30d ?? 0;
 	const bestSellerRank = product.customProductMappings?.bestSellerRank ?? null;
 	const bestSellerCollection = product.customProductMappings?.bestSellerCollection ?? null;
-	// Every search result already represents one specific (grouped or ungrouped) variant, so
-	// always link straight to it — the clean URL is just the variant's own slug (it already
-	// embeds the product slug, e.g. "whey-protein-chocolate-2kg"). Only fall back to the bare
-	// product link if that slug hasn't been indexed yet.
+	// Every search result already represents one specific variant, so always
+	// link straight to it — the clean URL is just the variant's own slug (it
+	// already embeds the product slug, e.g. "whey-protein-chocolate-2kg"). Only
+	// fall back to the bare product link if that slug hasn't been indexed yet.
 	const productHref = product.customProductVariantMappings?.slug
 		? `/products/${product.customProductVariantMappings.slug}`
 		: `/products/${product.slug}`;
-	const displayName = showVariantName && product.productVariantName ? product.productVariantName : product.productName;
+	const displayName = product.productVariantName || product.productName;
+	const imageSrc = product.productVariantAsset?.preview ?? product.productAsset?.preview;
+
+	useEffect(() => {
+		if (cartFetcher.state !== "idle" || !cartFetcher.data) return;
+		const item = cartFetcher.data.addItemToOrder;
+		if (!item) return;
+
+		if (item.__typename === "Order") {
+			setCartCount((item as AddToCartOrderResult).totalQuantity);
+			setCartFeedback("success");
+			openCart();
+			const timer = setTimeout(() => setCartFeedback("idle"), 2500);
+			return () => clearTimeout(timer);
+		}
+
+		// InsufficientStockError: partial success — some qty was added
+		if (item.__typename === "InsufficientStockError") {
+			const err = item as InsufficientStockError;
+			if (err.quantityAvailable > 0 && err.order) {
+				setCartCount(err.order.totalQuantity);
+				openCart();
+			}
+			notify(getAddToCartErrorMessage(item)!, "warning");
+		} else {
+			notify(getAddToCartErrorMessage(item)!, "error");
+		}
+
+		setCartFeedback("error");
+		const timer = setTimeout(() => setCartFeedback("idle"), 3000);
+		return () => clearTimeout(timer);
+	}, [cartFetcher.state, cartFetcher.data]);
+
+	function handleAddToCart() {
+		if (!product.inStock) return;
+		cartFetcher.submit({ productVariantId: product.productVariantId, quantity: 1 }, { method: "POST", action: "/api/cart", encType: "application/json" });
+	}
 
 	// Build animated message list: base messages + sold30Days + rank
 	const messageArray: Message[] = [
@@ -143,8 +178,8 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 						</div>
 					)}
 
-					{product.productAsset ? (
-						<VendureImage src={product.productAsset.preview} vendureBase={vendureBase} alt={product.productName} width={300} height={300} objectFit="contain" eager={eager} imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
+					{imageSrc ? (
+						<VendureImage src={imageSrc} vendureBase={vendureBase} alt={displayName} width={300} height={300} objectFit="contain" eager={eager} imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
 					) : (
 						<div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl font-bold bg-gray-50 rounded-xl">{product.productName[0]}</div>
 					)}
@@ -154,10 +189,8 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 			{/* Info */}
 			<div className="flex flex-col items-center text-center flex-1 mt-1">
 				<Link to={productHref}>
-					<p className="text-sm font-light text-gray-900 line-clamp-2 leading-snug hover:text-primary hover:underline transition-colors">{displayName}</p>
+					<p className="text-sm font-light text-gray-900 hover:text-primary hover:underline transition-colors">{displayName}</p>
 				</Link>
-
-				{product.productVariantName && <p className="text-xs text-gray-500 mt-0.5">{product.productVariantName}</p>}
 
 				<div className="flex items-center justify-center gap-2 mt-2">
 					<span className="text-base font-bold text-gray-900">{formatPrice(priceQAR * 100, "QAR", locale)}</span>
@@ -170,13 +203,7 @@ export default function ProductCard({ product, vendureBase, eager = false, showV
 
 			{/* CTA button */}
 			<div className="mt-3">
-				{forceAddToCart ? (
-					<AddToCartButton inStock={product.inStock} onClick={() => onAddToCart?.(product)} />
-				) : (
-					<Link to={productHref} className={`w-full block text-center font-bold text-sm py-2.5 rounded-full transition-colors ${product.inStock ? "bg-[#3b8578] text-white hover:bg-[#2e6b61] cursor-pointer" : "bg-gray-100 text-gray-400 pointer-events-none"}`}>
-						{product.inStock ? (variantCount > 1 ? t.showOptions : t.addToCart) : t.sold}
-					</Link>
-				)}
+				<AddToCartButton inStock={product.inStock} state={cartFetcher.state !== "idle" ? "loading" : cartFeedback} onClick={handleAddToCart} />
 			</div>
 		</div>
 	);

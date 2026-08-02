@@ -198,35 +198,35 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 				<div>
-					<label className={labelCls}>
+					<label htmlFor="address-firstName" className={labelCls}>
 						{t.firstName} <span className="text-red-500">*</span>
 					</label>
-					<input name="firstName" required defaultValue={initial?.firstName} className={fieldErrors.firstName ? errCls : inputCls} />
+					<input id="address-firstName" name="firstName" required autoComplete="given-name" defaultValue={initial?.firstName} className={fieldErrors.firstName ? errCls : inputCls} />
 					{fieldErrors.firstName && <p className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</p>}
 				</div>
 				<div>
-					<label className={labelCls}>
+					<label htmlFor="address-lastName" className={labelCls}>
 						{t.lastName} <span className="text-red-500">*</span>
 					</label>
-					<input name="lastName" required defaultValue={initial?.lastName} className={fieldErrors.lastName ? errCls : inputCls} />
+					<input id="address-lastName" name="lastName" required autoComplete="family-name" defaultValue={initial?.lastName} className={fieldErrors.lastName ? errCls : inputCls} />
 					{fieldErrors.lastName && <p className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</p>}
 				</div>
 				<div className="sm:col-span-2">
-					<label className={labelCls}>
+					<label htmlFor="address-streetLine1" className={labelCls}>
 						{t.addressLabel} <span className="text-red-500">*</span>
 					</label>
-					<input name="streetLine1" required defaultValue={initial?.streetLine1} className={fieldErrors.streetLine1 ? errCls : inputCls} />
+					<input id="address-streetLine1" name="streetLine1" required autoComplete="address-line1" defaultValue={initial?.streetLine1} className={fieldErrors.streetLine1 ? errCls : inputCls} />
 					{fieldErrors.streetLine1 && <p className="text-xs text-red-600 mt-1">{fieldErrors.streetLine1}</p>}
 				</div>
 				<div className="sm:col-span-2">
-					<label className={labelCls}>{t.street}</label>
-					<input name="streetLine2" defaultValue={initial?.streetLine2} className={inputCls} />
+					<label htmlFor="address-streetLine2" className={labelCls}>{t.street}</label>
+					<input id="address-streetLine2" name="streetLine2" autoComplete="address-line2" defaultValue={initial?.streetLine2} className={inputCls} />
 				</div>
 				<div>
-					<label className={labelCls}>
+					<label htmlFor="address-city" className={labelCls}>
 						{t.municipality} <span className="text-red-500">*</span>
 					</label>
-					<select name="city" required defaultValue={initial?.city ?? ""} onChange={handleCityChange} className={fieldErrors.city ? errCls : inputCls}>
+					<select id="address-city" name="city" required defaultValue={initial?.city ?? ""} onChange={handleCityChange} className={fieldErrors.city ? errCls : inputCls}>
 						<option value="" disabled>
 							{t.selectMunicipality}
 						</option>
@@ -239,10 +239,10 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 					{fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
 				</div>
 				<div>
-					<label className={labelCls}>
+					<label htmlFor="address-postalCode" className={labelCls}>
 						{t.zone} <span className="text-red-500">*</span>
 					</label>
-					<select name="postalCode" required defaultValue={initial?.postalCode ?? ""} className={fieldErrors.postalCode ? errCls : inputCls}>
+					<select id="address-postalCode" name="postalCode" required defaultValue={initial?.postalCode ?? ""} className={fieldErrors.postalCode ? errCls : inputCls}>
 						<option value="" disabled>
 							{t.selectZone}
 						</option>
@@ -255,10 +255,10 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 					{fieldErrors.postalCode && <p className="text-xs text-red-600 mt-1">{fieldErrors.postalCode}</p>}
 				</div>
 				<div className="sm:col-span-2">
-					<label className={labelCls}>
+					<label htmlFor="address-phoneNumber" className={labelCls}>
 						{t.phoneNumber} <span className="text-red-500">*</span>
 					</label>
-					<input name="phoneNumber" type="tel" required defaultValue={initial?.phoneNumber} placeholder="+974 xxxx xxxx" className={fieldErrors.phoneNumber ? errCls : inputCls} />
+					<input id="address-phoneNumber" name="phoneNumber" type="tel" required autoComplete="tel" defaultValue={initial?.phoneNumber} placeholder="+974 xxxx xxxx" className={fieldErrors.phoneNumber ? errCls : inputCls} />
 					{fieldErrors.phoneNumber && <p className="text-xs text-red-600 mt-1">{fieldErrors.phoneNumber}</p>}
 				</div>
 			</div>

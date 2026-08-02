@@ -111,10 +111,10 @@ export default function ForgotPasswordPage() {
 
 						<form onSubmit={handleSubmit} className="space-y-5">
 							<div>
-								<label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+								<label htmlFor="forgot-emailAddress" className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
 									{t.emailAddress} <span className="text-red-500">*</span>
 								</label>
-								<input name="emailAddress" type="email" required autoComplete="email" placeholder="you@example.com" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors" />
+								<input id="forgot-emailAddress" name="emailAddress" type="email" required autoComplete="email" placeholder="you@example.com" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors" />
 							</div>
 
 							{error && (

@@ -113,10 +113,11 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className={labelCls}>
+              <label htmlFor="login-email" className={labelCls}>
                 {t.emailAddress} <span className="text-red-500">*</span>
               </label>
               <input
+                id="login-email"
                 name="email"
                 type="email"
                 required
@@ -127,7 +128,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className={labelCls} style={{ marginBottom: 0 }}>
+                <label htmlFor="login-password" className={labelCls} style={{ marginBottom: 0 }}>
                   {t.password} <span className="text-red-500">*</span>
                 </label>
                 <Link
@@ -139,6 +140,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required

@@ -303,8 +303,6 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
                   key={product.productVariantId}
                   product={product}
                   vendureBase={vendureBase}
-                  showVariantName
-                  forceAddToCart
                 />
               ))}
             </div>

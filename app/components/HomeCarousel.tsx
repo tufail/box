@@ -42,6 +42,15 @@ function depthOf(index: number, selected: number, total: number) {
 	return Math.min(d, DEPTH_STYLES.length - 1);
 }
 
+function normalizeDestination(href?: string) {
+	if (!href) return undefined;
+	const value = href.trim();
+	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
+		return undefined;
+	}
+	return value;
+}
+
 export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }: { items?: CarouselSlide[]; vendureBase?: string }) {
 	const total = items.length;
 	const [selectedIndex, setSelectedIndex] = useState(0);
@@ -49,6 +58,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const prevSlideLabel = locale === "ar" ? "الشريحة السابقة" : "Previous slide";
 	const nextSlideLabel = locale === "ar" ? "الشريحة التالية" : "Next slide";
+	const getSlideAriaLabel = (slide: CarouselSlide) => (slide.href ? (locale === "ar" ? `انتقل إلى ${slide.label}` : `Go to ${slide.label}`) : slide.label);
 
 	useEffect(() => {
 		selectedIndexRef.current = selectedIndex;
@@ -58,7 +68,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 		(newIndex: number) => {
 			setSelectedIndex(((newIndex % total) + total) % total);
 		},
-		[total]
+		[total],
 	);
 
 	// Restarting on selectedIndex gives each newly-active slide a full AUTOPLAY_DELAY
@@ -85,21 +95,20 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 
 	return (
 		<div className="relative group">
-			<div
-				className={`relative h-[220px] sm:h-[240px] ${total > 1 ? "pr-3" : ""}`}
-				onTouchStart={onTouchStart}
-				onTouchEnd={onTouchEnd}
-			>
+			<div className={`relative h-[220px] sm:h-[240px] ${total > 1 ? "pr-3" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 				{items.map((slide, index) => {
 					const depth = depthOf(index, selectedIndex, total);
 					const style = DEPTH_STYLES[depth];
 					const isFront = depth === 0;
 					const isPeekVisible = depth > 0 && depth <= 2;
 
+					const resolvedHref = isFront ? normalizeDestination(slide.href) : undefined;
+
 					return (
 						<a
 							key={slide.id}
-							href={isFront ? slide.href || undefined : undefined}
+							href={resolvedHref}
+							aria-label={getSlideAriaLabel(slide)}
 							className="absolute left-0 right-0 rounded-xl overflow-hidden block"
 							style={{
 								top: style.inset,
@@ -119,52 +128,30 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 							}}
 						>
 							<picture className="block w-full h-full">
-								{slide.mobileImage && (
-									<source
-										media="(max-width: 767px)"
-										srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { preset: "large", format: "webp" })}
-									/>
-								)}
-								<img
-									src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })}
-									alt={slide.label}
-									className="w-full h-full object-cover block"
-									draggable={false}
-									loading={index === 0 ? "eager" : "lazy"}
-									fetchPriority={index === 0 ? "high" : "auto"}
-								/>
+								{slide.mobileImage && <source media="(max-width: 767px)" srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { preset: "large", format: "webp" })} />}
+								<img src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })} alt={slide.label} className="w-full h-full object-cover block" draggable={false} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} />
 							</picture>
 
 							{!isFront && <div className="absolute inset-0 bg-black/25" />}
 
-							{isFront && !slide.hideTitle && (() => {
-								const position = slide.titlePosition ?? "bottom-left";
-								const isTop = position.startsWith("top");
-								const isRightAlign = position.endsWith("right");
-								// Darken from whichever corner the title sits in, fading toward the opposite corner.
-								const gradientDirection = isTop
-									? isRightAlign ? "bg-gradient-to-bl" : "bg-gradient-to-br"
-									: isRightAlign ? "bg-gradient-to-tl" : "bg-gradient-to-tr";
-								return (
-									<>
-										<div
-											className={`absolute inset-0 pointer-events-none ${gradientDirection} from-black/60 via-black/15 via-40% to-transparent`}
-										/>
-										<div
-											className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"}`}
-										>
-											<h2 className="font-heading text-white font-black text-xl sm:text-3xl md:text-4xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">
-												{slide.label}
-											</h2>
-											{slide.href && (
-												<span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">
-													Shop Now
-												</span>
-											)}
-										</div>
-									</>
-								);
-							})()}
+							{isFront &&
+								!slide.hideTitle &&
+								(() => {
+									const position = slide.titlePosition ?? "bottom-left";
+									const isTop = position.startsWith("top");
+									const isRightAlign = position.endsWith("right");
+									// Darken from whichever corner the title sits in, fading toward the opposite corner.
+									const gradientDirection = isTop ? (isRightAlign ? "bg-gradient-to-bl" : "bg-gradient-to-br") : isRightAlign ? "bg-gradient-to-tl" : "bg-gradient-to-tr";
+									return (
+										<>
+											<div className={`absolute inset-0 pointer-events-none ${gradientDirection} from-black/60 via-black/15 via-40% to-transparent`} />
+											<div className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"}`}>
+												<h2 className="font-heading text-white font-black text-xl sm:text-3xl md:text-4xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
+												{resolvedHref && <span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">{locale === "ar" ? "تسوق الآن" : "Shop Now"}</span>}
+											</div>
+										</>
+									);
+								})()}
 						</a>
 					);
 				})}
@@ -172,19 +159,11 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 
 			{total > 1 && (
 				<>
-					<button
-						onClick={() => goTo(selectedIndex - 1)}
-						aria-label={prevSlideLabel}
-						className="absolute start-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
-					>
+					<button onClick={() => goTo(selectedIndex - 1)} aria-label={prevSlideLabel} className="absolute start-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100">
 						<ChevronLeft size={14} className="rtl:rotate-180" />
 					</button>
 
-					<button
-						onClick={() => goTo(selectedIndex + 1)}
-						aria-label={nextSlideLabel}
-						className="absolute end-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
-					>
+					<button onClick={() => goTo(selectedIndex + 1)} aria-label={nextSlideLabel} className="absolute end-2.5 top-1/2 -translate-y-1/2 z-40 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100">
 						<ChevronRight size={14} className="rtl:rotate-180" />
 					</button>
 
@@ -192,18 +171,8 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 						{items.map((slide, index) => {
 							const isActive = index === selectedIndex;
 							return (
-								<button
-									key={slide.id}
-									onClick={() => goTo(index)}
-									aria-label={`Go to slide ${index + 1}`}
-									className={`relative h-2.5 rounded-full overflow-hidden transition-all ${isActive ? "w-7 bg-white/30" : "w-2.5 bg-white/50 hover:bg-white/75"}`}
-								>
-									{isActive && (
-										<span
-											className="absolute inset-y-0 left-0 bg-white rounded-full animate-dot-fill"
-											style={{ animationDuration: `${AUTOPLAY_DELAY}ms` }}
-										/>
-									)}
+								<button key={slide.id} onClick={() => goTo(index)} aria-label={`Go to slide ${index + 1}`} className={`relative h-2.5 rounded-full overflow-hidden transition-all ${isActive ? "w-7 bg-white/30" : "w-2.5 bg-white/50 hover:bg-white/75"}`}>
+									{isActive && <span className="absolute inset-y-0 left-0 bg-white rounded-full animate-dot-fill" style={{ animationDuration: `${AUTOPLAY_DELAY}ms` }} />}
 								</button>
 							);
 						})}

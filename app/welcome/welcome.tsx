@@ -9,6 +9,7 @@ import type { BannerItem } from "~/graphql/banner";
 import type { HomeCollectionItem } from "~/graphql/collection";
 import { ChevronRight } from "lucide-react";
 import { useLocation } from "react-router";
+import Link from "~/components/LocaleLink";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
@@ -36,13 +37,9 @@ const WELCOME_COPY = {
 function StackBanner({ locale }: { locale: Locale }) {
 	const t = WELCOME_COPY[locale];
 	return (
-		<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+		<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات والمجموعات" : "Explore products and collections"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
-				<img
-					src="/images/stack.png"
-					alt={t.personalizedStackAlt}
-					className="w-full h-full object-contain animate-float"
-				/>
+				<img src="/images/stack.png" alt={t.personalizedStackAlt} className="w-full h-full object-contain animate-float" />
 			</div>
 			<div className="flex-1 min-w-0 flex items-center">
 				<p className="text-primary font-extrabold text-base leading-snug">{t.buildYourStack}</p>
@@ -53,7 +50,7 @@ function StackBanner({ locale }: { locale: Locale }) {
 					<ChevronRight size={16} className="text-white relative z-10 drop-shadow rtl:rotate-180" />
 				</div>
 			</div>
-		</div>
+		</Link>
 	);
 }
 
@@ -92,7 +89,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					{/* Side banners — row below on tablet, column beside on desktop */}
 					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:ps-6 self-stretch">
 						{/* NutriQuick delivery banner */}
-						<div className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
 								<img src="/images/clock-3d.png" alt={t.fastDeliveryAlt} className="w-full h-full object-contain animate-vibrate" />
 							</div>
@@ -107,7 +104,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 								<div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full" />
 								<ChevronRight size={16} className="text-white relative z-10 drop-shadow rtl:rotate-180" />
 							</div>
-						</div>
+						</Link>
 
 						{/* Personalized stack banner */}
 						<StackBanner locale={locale} />

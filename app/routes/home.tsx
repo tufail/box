@@ -63,13 +63,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
       env,
       SEARCH_TOP_SELLING,
-      { input: { take: 12, groupByProduct: true, sort: { salesCount: "DESC" } } },
+      { input: { take: 12, groupByProduct: false, sort: { salesCount: "DESC" } } },
       cacheOpts
     ),
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
       env,
       SEARCH_NEW_ARRIVALS,
-      { input: { take: 12, groupByProduct: true } },
+      { input: { take: 12, groupByProduct: false } },
       cacheOpts
     ),
     graphqlRequest<BannerData, BannerVariables>(

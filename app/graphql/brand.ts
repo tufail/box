@@ -26,7 +26,7 @@ export interface BrandFacetData {
 
 export const GET_BRAND_FACET_QUERY = `
 	query GetBrandFacet {
-		facets(options: { filter: { code: { eq: "brand" } } }) {
+		facets(options: { filter: { code: { eq: "brands" } } }) {
 			items {
 				id
 				code
@@ -78,6 +78,7 @@ export const BRAND_PRODUCTS_QUERY = `
 				description
 				inStock
 				productAsset { id preview }
+				productVariantAsset { id preview }
 				price {
 					__typename
 					... on PriceRange { min max }

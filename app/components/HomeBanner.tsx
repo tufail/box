@@ -26,6 +26,15 @@ function BannerShimmer() {
 
 type BannerState = "loading" | BannerItem | null;
 
+function normalizeDestination(href?: string) {
+	if (!href) return undefined;
+	const value = href.trim();
+	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
+		return undefined;
+	}
+	return value;
+}
+
 export default function HomeBanner({ slug }: { slug: string }) {
 	const [state, setState] = useState<BannerState>("loading");
 
@@ -55,11 +64,12 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	);
 
 	const wrapperClass = "block overflow-hidden rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow";
+	const resolvedHref = normalizeDestination(state.url);
 
 	return (
 		<div className="container mx-auto px-4 py-8 md:py-10">
-			{state.url ? (
-				<a href={state.url} className={`group ${wrapperClass}`}>
+			{resolvedHref ? (
+				<a href={resolvedHref} className={`group ${wrapperClass}`}>
 					{picture}
 				</a>
 			) : (

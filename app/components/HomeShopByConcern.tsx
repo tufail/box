@@ -120,23 +120,26 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 	const hasMore = items.length < totalItems;
 
 	return (
-		<section className="pt-8 md:pt-10 pb-8 md:pb-10 container mx-auto px-4">
+		<section className="pt-8 md:pt-10 pb-8 md:pb-10 container mx-auto px-4" aria-labelledby="shop-by-concern-title" aria-describedby="shop-by-concern-description">
 			<div className="mb-8 md:mb-10 text-center">
-				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black">{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}</h2>
-				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "اعثر على ما يناسب أهدافك" : "Find what fits your goals"}</p>
+				<h2 id="shop-by-concern-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
+					{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}
+				</h2>
+				<p id="shop-by-concern-description" className="text-gray-500 text-sm mt-2">
+					{locale === "ar" ? "اعثر على ما يناسب أهدافك" : "Find what fits your goals"}
+				</p>
 			</div>
 
 			{/* Tabs — sliding pill, measured against each tab's own box so it works with
 			    variable-width, horizontally-scrolling tabs */}
 			<div className="relative mb-6">
-				<div ref={scrollRef} onScroll={updateScrollState} className="relative flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-					<div
-						className="absolute rounded-full bg-black transition-all duration-300 ease-out"
-						style={{ left: pillRect.left, top: pillRect.top, width: pillRect.width, height: pillRect.height }}
-					/>
+				<div ref={scrollRef} onScroll={updateScrollState} className="relative flex gap-2 overflow-x-auto pb-2 scrollbar-hide" role="tablist" aria-label={locale === "ar" ? "اختيارات الاحتياج" : "Concern filters"}>
+					<div className="absolute rounded-full bg-black transition-all duration-300 ease-out" style={{ left: pillRect.left, top: pillRect.top, width: pillRect.width, height: pillRect.height }} />
 					{tabs.map((c) => (
 						<button
 							key={c.id}
+							role="tab"
+							aria-selected={activeSlug === c.slug}
 							ref={(el) => {
 								if (el) tabRefs.current.set(c.slug, el);
 							}}
@@ -204,7 +207,7 @@ export default function HomeShopByConcern({ collections, vendureBase }: { collec
 			{hasMore && (
 				<div className="mt-8 flex justify-center">
 					<button onClick={handleLoadMore} disabled={loadingMore} className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors disabled:opacity-60">
-						{loadingMore ? (locale === "ar" ? "جارٍ التحميل…" : "Loading…") : (locale === "ar" ? "تحميل المزيد" : "Load More")}
+						{loadingMore ? (locale === "ar" ? "جارٍ التحميل…" : "Loading…") : locale === "ar" ? "تحميل المزيد" : "Load More"}
 					</button>
 				</div>
 			)}

@@ -510,7 +510,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {items.map((product) => (
-                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} showVariantName forceAddToCart />
+                <ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} />
               ))}
             </div>
           )}

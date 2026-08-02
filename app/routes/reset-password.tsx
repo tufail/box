@@ -82,11 +82,12 @@ function PasswordField({
   const t = COPY[getLocaleFromPathname(useLocation().pathname)];
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+      <label htmlFor={name} className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
         {label} <span className="text-red-500">*</span>
       </label>
       <div className="relative">
         <input
+          id={name}
           name={name}
           type={show ? "text" : "password"}
           required

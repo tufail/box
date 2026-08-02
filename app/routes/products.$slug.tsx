@@ -5,17 +5,19 @@ import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Sun, Leaf, Droplet, Maximize2, X, Truck, Info } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
 import SortDropdown from "~/components/SortDropdown";
-import ProductHighlights, { type HighlightItem } from "~/components/ProductHighlights";
+import ProductHighlights from "~/components/ProductHighlights";
+import ProductQA from "~/components/ProductQA";
 import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
+import type { SubscriptionPlan } from "~/graphql/subscription";
 import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
@@ -52,6 +54,7 @@ const PDP_COPY = {
 		soldOutBadge: "Sold Out",
 		qualityPromise: "Quality Promise",
 		qualityPromiseBody: "This product is guaranteed authentic and backed by our easy returns & refunds policy.",
+		productHighlights: "Product Highlights",
 		productRankings: "Product rankings:",
 		rankIn: (rank: number) => `#${rank} in`,
 		shippingInfo: "Shipping Info",
@@ -93,6 +96,14 @@ const PDP_COPY = {
 		sortHighestRated: "Highest Rated",
 		sortLowestRated: "Lowest Rated",
 		sortMostHelpful: "Most Helpful",
+		selectFrequency: "Select Frequency:",
+		subscribeAndSave: "Subscribe & Save",
+		saveAmount: (amount: string) => `Save ${amount}`,
+		deliverEvery: "Deliver Every",
+		recommended: "(recommended)",
+		skipModifyCancel: "Skip, modify or cancel at any time",
+		oneTimePurchase: "One-Time Purchase",
+		freeTrialDays: (n: number) => `Includes a ${n}-day free trial`,
 	},
 	ar: {
 		previousImage: "الصورة السابقة",
@@ -118,6 +129,7 @@ const PDP_COPY = {
 		soldOutBadge: "نفدت الكمية",
 		qualityPromise: "ضمان الجودة",
 		qualityPromiseBody: "هذا المنتج مضمون الأصالة ومدعوم بسياسة الإرجاع والاسترداد السهلة لدينا.",
+		productHighlights: "أبرز مميزات المنتج",
 		productRankings: "تصنيفات المنتج:",
 		rankIn: (rank: number) => `#${rank} في`,
 		shippingInfo: "معلومات الشحن",
@@ -159,19 +171,16 @@ const PDP_COPY = {
 		sortHighestRated: "الأعلى تقييمًا",
 		sortLowestRated: "الأقل تقييمًا",
 		sortMostHelpful: "الأكثر فائدة",
+		selectFrequency: "اختر عدد مرات التوصيل:",
+		subscribeAndSave: "اشترك ووفّر",
+		saveAmount: (amount: string) => `وفّر ${amount}`,
+		deliverEvery: "التوصيل كل",
+		recommended: "(موصى به)",
+		skipModifyCancel: "يمكنك التخطي أو التعديل أو الإلغاء في أي وقت",
+		oneTimePurchase: "شراء لمرة واحدة",
+		freeTrialDays: (n: number) => `يشمل تجربة مجانية لمدة ${n} يومًا`,
 	},
 } as const;
-
-// TODO: placeholder data — replace with real values once the "highlights" custom
-// field is confirmed on the backend and mapped from `product.customFields`.
-const DUMMY_HIGHLIGHTS: HighlightItem[] = [
-	{ type: "gauge", label: "Potency", value: 75, displayValue: "High" },
-	{ type: "icon", label: "Best Time to Take", icon: <Sun size={24} className="text-amber-600" />, value: "Morning", iconBg: "#fef3c7" },
-	{ type: "icon", label: "Dietary Type", icon: <Leaf size={24} className="text-green-600" />, value: "Vegan", iconBg: "#dcfce7" },
-	{ type: "tags", label: "Certifications", tags: [{ text: "GMP Certified", color: "#0ea5e9" }, { text: "Non-GMO", color: "#8b5cf6" }] },
-	{ type: "gauge", label: "Absorption Speed", value: 85, displayValue: "Fast" },
-	{ type: "icon", label: "Serving Form", icon: <Droplet size={24} className="text-blue-600" />, value: "Powder", iconBg: "#dbeafe" },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -215,6 +224,146 @@ function groupHasPriceVariation(variants: ProductDetailVariant[], selected: Reco
 	return new Set(prices).size > 1;
 }
 
+// Variant.name is already a complete, well-formed title (e.g. "Dymatize ISO100
+// ... - 5 lbs Cookies & Cream - 74 Servings") — used as-is rather than
+// recombined with product.name. Only whitespace artifacts from the backend
+// (e.g. a stray tab before "75 Servings") are normalized here.
+function variantDisplayTitle(variant: ProductDetailVariant | null) {
+	return variant?.name ? variant.name.replace(/\s+/g, " ").trim() : null;
+}
+
+// Renders a plan's interval as a human-readable "Deliver Every" label, e.g.
+// intervalCount=2, interval=WEEKLY -> "2 weeks" / "أسبوعين".
+function intervalLabel(plan: SubscriptionPlan, locale: "en" | "ar") {
+	const n = plan.intervalCount;
+	const unitsEn: Record<SubscriptionPlan["interval"], [string, string]> = {
+		DAILY: ["day", "days"],
+		WEEKLY: ["week", "weeks"],
+		BIWEEKLY: ["2 weeks", "2 weeks"],
+		MONTHLY: ["month", "months"],
+		QUARTERLY: ["quarter", "quarters"],
+		SEMI_ANNUAL: ["6 months", "6 months"],
+		ANNUAL: ["year", "years"],
+	};
+	const unitsAr: Record<SubscriptionPlan["interval"], string> = {
+		DAILY: "يوم",
+		WEEKLY: "أسبوع",
+		BIWEEKLY: "أسبوعين",
+		MONTHLY: "شهر",
+		QUARTERLY: "ربع سنة",
+		SEMI_ANNUAL: "6 أشهر",
+		ANNUAL: "سنة",
+	};
+	if (locale === "ar") {
+		return n > 1 && plan.interval !== "BIWEEKLY" ? `${n} ${unitsAr[plan.interval]}` : unitsAr[plan.interval];
+	}
+	const [singular, plural] = unitsEn[plan.interval];
+	if (plan.interval === "BIWEEKLY" || plan.interval === "SEMI_ANNUAL") return plural;
+	return n > 1 ? `${n} ${plural}` : singular;
+}
+
+// Custom "Deliver Every" plan picker — replaces a native <select> (which can't be
+// fully styled, especially its options popup) with the same accessible, keyboard-
+// navigable, click-outside-to-close pattern already used by SortDropdown, just
+// with trigger/list markup that fits inline inside the stone-100 box instead of
+// SortDropdown's standalone pill button.
+function PlanFrequencySelect({ plans, value, onChange, disabled, locale, recommendedLabel }: { plans: SubscriptionPlan[]; value: string | null; onChange: (id: string) => void; disabled: boolean; locale: "en" | "ar"; recommendedLabel: string }) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+	useEffect(() => {
+		function handleClick(e: MouseEvent) {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		}
+		document.addEventListener("mousedown", handleClick);
+		return () => document.removeEventListener("mousedown", handleClick);
+	}, []);
+
+	const currentIndex = plans.findIndex((p) => p.id === value);
+	const current = plans[currentIndex] ?? plans[0];
+
+	function optionLabel(plan: SubscriptionPlan, i: number) {
+		return `${intervalLabel(plan, locale)}${i === 0 && plans.length > 1 ? ` ${recommendedLabel}` : ""}`;
+	}
+
+	function closeAndFocusTrigger() {
+		setOpen(false);
+		triggerRef.current?.focus();
+	}
+	function select(index: number) {
+		onChange(plans[index].id);
+		closeAndFocusTrigger();
+	}
+	function onTriggerKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+		if (disabled) return;
+		if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			setOpen(true);
+			requestAnimationFrame(() => optionRefs.current[Math.max(currentIndex, 0)]?.focus());
+		}
+	}
+	function onListKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+		const focusedIndex = optionRefs.current.findIndex((el) => el === document.activeElement);
+		if (e.key === "Escape") {
+			e.preventDefault();
+			closeAndFocusTrigger();
+		} else if (e.key === "ArrowDown") {
+			e.preventDefault();
+			optionRefs.current[(focusedIndex + 1) % plans.length]?.focus();
+		} else if (e.key === "ArrowUp") {
+			e.preventDefault();
+			optionRefs.current[(focusedIndex - 1 + plans.length) % plans.length]?.focus();
+		} else if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			if (focusedIndex >= 0) select(focusedIndex);
+		} else if (e.key === "Tab") {
+			setOpen(false);
+		}
+	}
+
+	if (plans.length === 0) return null;
+
+	return (
+		<div ref={ref} className="relative">
+			<button
+				ref={triggerRef}
+				type="button"
+				disabled={disabled}
+				onClick={() => setOpen((o) => !o)}
+				onKeyDown={onTriggerKeyDown}
+				aria-haspopup="listbox"
+				aria-expanded={open}
+				className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				<span>{current ? optionLabel(current, currentIndex < 0 ? 0 : currentIndex) : ""}</span>
+				<ChevronDown size={14} className={`text-gray-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+			</button>
+
+			{open && !disabled && (
+				<div role="listbox" onKeyDown={onListKeyDown} className="absolute start-0 end-0 top-full mt-2 bg-white border border-gray-200 shadow-lg rounded-xl z-30 py-1 max-h-64 overflow-auto">
+					{plans.map((p, i) => (
+						<button
+							key={p.id}
+							ref={(el) => {
+								optionRefs.current[i] = el;
+							}}
+							type="button"
+							role="option"
+							aria-selected={p.id === value}
+							onClick={() => select(i)}
+							className={`w-full text-start px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${p.id === value ? "font-bold text-gray-900" : "text-gray-700"}`}
+						>
+							{optionLabel(p, i)}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -225,12 +374,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 	if (!product) return [{ title: "Product — NutriBox Qatar" }];
 
-	const baseTitle = product.customFields?.metaTitle ?? product.name;
-	const title = variantName ? `${baseTitle} — ${variantName} — NutriBox Qatar` : `${baseTitle} — NutriBox Qatar`;
+	const baseTitle = variantName ?? product.customFields?.metaTitle ?? product.name;
+	const title = `${baseTitle} — NutriBox Qatar`;
 	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
 	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
-	const brand = product.facetValues.find((f: { name: string; facet: { name: string } }) => f.facet.name.toLowerCase() === "brand")?.name ?? null;
+	const brand = product.facetValues.find((f) => f.facet.code === "brands")?.name ?? null;
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 
 	return [
@@ -284,21 +433,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		}
 		if (!product) throw new Response("Not Found", { status: 404 });
 
-		const activeVariant = activeVariantId
-			? (product.variants.find((v) => v.id === activeVariantId) ?? product.variants[0])
-			: product.variants[0];
+		const activeVariant = activeVariantId ? (product.variants.find((v) => v.id === activeVariantId) ?? product.variants[0]) : product.variants[0];
 		// A raw variant id isn't a resolvable path on its own — fall back to the bare
 		// product URL if this variant's slug hasn't been backfilled/indexed yet.
-		const canonicalUrl = activeVariant?.customFields?.slug
-			? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}`
-			: `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
+		const canonicalUrl = activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
 
 		const collectionSlug = product.collections[0]?.slug;
 		const [simResult, summaryResult, currentProductResult] = await Promise.allSettled([
-			collectionSlug ? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: true, take: 9, sort: { salesCount: "DESC" } } }, { request }) : Promise.resolve(null),
+			collectionSlug ? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: false, take: 9, sort: { salesCount: "DESC" } } }, { request }) : Promise.resolve(null),
 			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 			// Dedicated search for current product to get sold count + best seller data
-			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: true, take: 5 } }, { request }),
+			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, { request }),
 		]);
 
 		const allSearchItems = simResult.status === "fulfilled" && simResult.value ? simResult.value.data.search.items : [];
@@ -315,10 +460,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled" ? (summaryResult.value.data.productRatingSummaryBySlug ?? null) : null;
 
-		// Variant.name is Vendure's auto-generated "Product Name - Option" string, which
-		// would duplicate the product name if appended as-is — use just the option values
-		// (e.g. "Strawberry, 5 lbs") as the distinguishing suffix instead.
-		const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
+		const activeVariantName = variantDisplayTitle(activeVariant);
 
 		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, locale };
 	} catch (e) {
@@ -467,9 +609,7 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 				</div>
 			)}
 
-			{lightboxOpen && (
-				<GalleryLightbox images={resolved} vendureBase={vendureBase} name={name} initialIndex={currentIdx} onClose={() => setLightboxOpen(false)} />
-			)}
+			{lightboxOpen && <GalleryLightbox images={resolved} vendureBase={vendureBase} name={name} initialIndex={currentIdx} onClose={() => setLightboxOpen(false)} />}
 		</div>
 	);
 }
@@ -546,13 +686,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 					}}
 					onMouseMove={(e) => zoomed && updateOrigin(e)}
 				>
-					<img
-						src={vendureImageUrl(images[index], vendureBase, { preset: "xlarge", format: "webp" })}
-						alt={name}
-						className="w-full h-full object-contain select-none transition-transform duration-300 ease-out"
-						style={{ transform: zoomed ? "scale(2.2)" : "scale(1)", transformOrigin: origin }}
-						draggable={false}
-					/>
+					<img src={vendureImageUrl(images[index], vendureBase, { preset: "xlarge", format: "webp" })} alt={name} className="w-full h-full object-contain select-none transition-transform duration-300 ease-out" style={{ transform: zoomed ? "scale(2.2)" : "scale(1)", transformOrigin: origin }} draggable={false} />
 				</div>
 
 				{images.length > 1 && (
@@ -578,19 +712,19 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 				</div>
 			)}
 		</div>,
-		document.body
+		document.body,
 	);
 }
 
 // ── Product info tabs (Description / Full Specs / Warnings) ────────────────
 
-function ProductInfoTabs({ description, warnings, qa = "" }: { description: string; warnings: string; qa?: string }) {
+function ProductInfoTabs({ description, warnings, productId, productSlug }: { description: string; warnings: string; productId: string; productSlug: string }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = PDP_COPY[locale];
 	const TABS = [
 		{ key: "description", label: t.tabDescription, content: description, emptyText: t.noDescription },
 		{ key: "warnings", label: t.tabDisclaimer, content: warnings, emptyText: t.noDisclaimer },
-		{ key: "qa", label: t.tabQA, content: qa, emptyText: t.noQA },
+		{ key: "qa", label: t.tabQA, content: null as string | null, emptyText: t.noQA },
 	] as const;
 	const [active, setActive] = useState<(typeof TABS)[number]["key"]>("description");
 	const activeIndex = TABS.findIndex((t) => t.key === active);
@@ -603,30 +737,21 @@ function ProductInfoTabs({ description, warnings, qa = "" }: { description: stri
 		<div className="flex flex-col items-center text-center">
 			{/* Sliding pill tab bar */}
 			<div className="relative inline-flex bg-white border border-gray-200 shadow-sm rounded-full p-1 mb-6">
-				<div
-					className="absolute top-1 bottom-1 start-1 rounded-full bg-black transition-transform duration-300 ease-out"
-					style={{ width: TAB_WIDTH, transform: `translateX(${(locale === "ar" ? -1 : 1) * activeIndex * TAB_WIDTH}px)` }}
-				/>
+				<div className="absolute top-1 bottom-1 start-1 rounded-full bg-black transition-transform duration-300 ease-out" style={{ width: TAB_WIDTH, transform: `translateX(${(locale === "ar" ? -1 : 1) * activeIndex * TAB_WIDTH}px)` }} />
 				{TABS.map((t) => (
-					<button
-						key={t.key}
-						type="button"
-						onClick={() => setActive(t.key)}
-						style={{ width: TAB_WIDTH }}
-						className={`relative z-10 py-2.5 text-sm font-bold rounded-full transition-colors whitespace-nowrap text-center ${active === t.key ? "text-white" : "text-gray-600 hover:text-black"}`}
-					>
+					<button key={t.key} type="button" onClick={() => setActive(t.key)} style={{ width: TAB_WIDTH }} className={`relative z-10 py-2.5 text-sm font-bold rounded-full transition-colors whitespace-nowrap text-center ${active === t.key ? "text-white" : "text-gray-600 hover:text-black"}`}>
 						{t.label}
 					</button>
 				))}
 			</div>
 
-			<div className="prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1">
-				{activeTab.content ? (
-					<div dangerouslySetInnerHTML={{ __html: activeTab.content }} />
-				) : (
-					<p className="text-gray-400 italic text-center">{activeTab.emptyText}</p>
-				)}
-			</div>
+			{active === "qa" ? (
+				<div className="w-full max-w-2xl mx-auto text-start">
+					<ProductQA productId={productId} productSlug={productSlug} embedded />
+				</div>
+			) : (
+				<div className="prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1">{activeTab.content ? <div dangerouslySetInnerHTML={{ __html: activeTab.content }} /> : <p className="text-gray-400 italic text-center">{activeTab.emptyText}</p>}</div>
+			)}
 		</div>
 	);
 }
@@ -645,6 +770,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		}
 		return Object.fromEntries(optionGroups.map((g) => [g.code, g.values[0]]));
 	})();
+	const [purchaseType, setPurchaseType] = useState<"subscribe" | "once">("once");
+	const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 	const [selected, setSelected] = useState<Record<string, string>>(initialSelected);
 	const [qty, setQty] = useState(1);
 	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
@@ -666,6 +794,31 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			.then((r) => r.json() as Promise<{ rankings: VariantRanking[] }>)
 			.then((d) => setVariantRankings(d.rankings ?? []))
 			.catch(() => setVariantRankings([]));
+	}, [activeVariant?.id, locale]);
+
+	// Subscribe & Save — which plans (if any) this variant is eligible for.
+	// Empty array = variant isn't enrolled in any subscription plan on the backend.
+	useEffect(() => {
+		if (!activeVariant?.id) return;
+		let cancelled = false;
+		fetch(`/api/subscription-plans?variantId=${encodeURIComponent(activeVariant.id)}&lang=${locale}`)
+			.then((r) => r.json() as Promise<{ plans: SubscriptionPlan[] }>)
+			.then((d) => {
+				if (cancelled) return;
+				const plans = (d.plans ?? []).filter((p) => p.isActive);
+				setSubscriptionPlans(plans);
+				setSelectedPlanId(plans[0]?.id ?? null);
+				setPurchaseType(plans.length > 0 ? "subscribe" : "once");
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setSubscriptionPlans([]);
+				setSelectedPlanId(null);
+				setPurchaseType("once");
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, [activeVariant?.id, locale]);
 
 	useEffect(() => {
@@ -704,6 +857,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const discountPct = hasDiscount ? Math.round(100 - (price! / rrp!) * 100) : 0;
 	const inStock = activeVariant ? isInStock(activeVariant.stockLevel) : false;
 
+	// Subscribe & Save
+	const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId) ?? null;
+	const subscribePrice = selectedPlan && price !== null ? Math.round(price * (1 - selectedPlan.discountPercent / 100)) : null;
+
 	// Images
 	const allImages: string[] = [];
 	if (product.featuredAsset) allImages.push(product.featuredAsset.preview);
@@ -712,7 +869,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	}
 
 	// Brand/category from facetValues
-	const brand = product.facetValues.find((f) => f.facet.name.toLowerCase() === "brand")?.name ?? null;
+	const brandFacetValue = product.facetValues.find((f) => f.facet.code === "brands");
+	const brand = brandFacetValue?.name ?? null;
 	const category = product.facetValues.find((f) => f.facet.name.toLowerCase() === "category")?.name ?? null;
 
 	// Breadcrumb
@@ -755,8 +913,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	// product-level URL where multiple offers (one per variant) are the correct
 	// representation, since the page itself covers the whole variant set.
 	const isVariantPage = !!activeVariant?.customFields?.slug;
-	const activeVariantName = activeVariant?.options?.length ? activeVariant.options.map((o) => o.name).join(", ") : null;
-	const jsonLdName = isVariantPage && activeVariantName ? `${product.name} — ${activeVariantName}` : product.name;
+	const activeVariantName = variantDisplayTitle(activeVariant);
+	const jsonLdName = isVariantPage && activeVariantName ? activeVariantName : product.name;
 	// Structured-data description should summarize the product, not reproduce the
 	// full page body — prefer the AI Overview field (written specifically for AI
 	// assistants/AI search overviews reading this markup), then the curated meta
@@ -842,10 +1000,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					<div className="flex flex-col">
 						{/* Title — full width */}
 						<div className="mb-4">
-							<h1 className="font-heading text-3xl md:text-4xl font-extrabold text-black leading-snug">{activeVariantName ? `${product.name} — ${activeVariantName}` : product.name}</h1>
+							<h1 className="font-heading text-xl md:text-3xl font-extrabold text-black leading-snug">{activeVariantName || product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
-									{t.by} <span className="text-primary font-medium">{brand}</span>
+									{t.by} <Link to={`/brands/${brandFacetValue!.code}`} className="text-primary font-medium hover:underline">{brand}</Link>
 								</p>
 							)}
 							{ratingSummary && ratingSummary.totalReviews > 0 && (
@@ -875,7 +1033,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										)}
 									</div>
 									<div className="inline-flex gap-2">
-										{activeVariant?.sku && <span className="text-xs text-gray-400">{t.sku}: {activeVariant.sku}</span>}
+										{activeVariant?.sku && (
+											<span className="text-xs text-gray-400">
+												{t.sku}: {activeVariant.sku}
+											</span>
+										)}
 										{sold30Days > 0 && (
 											<span className="flex items-center gap-1.5 text-xs font-normal text-red-600">
 												<TrendingUp size={15} className="text-red-500" />
@@ -897,6 +1059,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													const available = matchedVariant ? isInStock(matchedVariant.stockLevel) : false;
 													const isActive = selected[group.code] === val;
 													const variantHref = `/products/${matchedVariant?.customFields?.slug || product.slug}`;
+													// Tiny per-option thumbnail — only for products the merchandising team
+													// has flagged as featured, since most option pills are plain text.
+													const thumbSrc = product.customFields?.isFeatured ? matchedVariant?.featuredAsset?.preview : null;
 													return (
 														<Link
 															key={val}
@@ -911,18 +1076,20 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																}
 																setSelected({ ...selected, [group.code]: val });
 															}}
-															className={`relative px-4 py-2.5 rounded-full border text-sm transition-colors text-center min-w-[80px] ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none"}`}
+															className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none"}`}
 														>
-															<span className="block">{val}</span>
-															{!available ? (
+															{thumbSrc && <img src={vendureImageUrl(thumbSrc, vendureBase, { preset: "tiny", format: "webp" })} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-100 bg-white" />}
+															<span className={thumbSrc ? "flex flex-col leading-tight" : "block"}>
+																<span className="block">{val}</span>
+																{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "—"}</span>}
+															</span>
+															{!available && (
 																<>
 																	<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
 																		<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
 																	</span>
 																	<span className="absolute -top-1.5 end-1 bg-gray-700 text-white text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shadow-sm leading-none">{t.soldOutBadge}</span>
 																</>
-															) : (
-																showPrice && <span className={`block text-xs mt-0.5 ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "—"}</span>
 															)}
 														</Link>
 													);
@@ -932,15 +1099,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									);
 								})}
 
-								{/* Quality Promise */}
-								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
-									<ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-									<div>
-										<p className="text-sm font-semibold text-green-700">{t.qualityPromise}</p>
-										<p className="text-xs text-green-600 mt-0.5">{t.qualityPromiseBody}</p>
-									</div>
-								</div>
-
+								<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} />
 								{/* Product-level additional info */}
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
 								{/* ── Sales & Rankings ── */}
@@ -962,18 +1121,72 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
 								<div className="bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
-									{/* Price */}
-									<div>
-										<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</div>
-										{hasDiscount && rrp !== null && (
-											<div className="flex items-center gap-2 mt-1 flex-wrap">
-												<span className="text-sm text-gray-400 line-through">{formatCurrency(rrp, activeVariant?.currencyCode ?? "QAR", locale)}</span>
-												<span className="bg-lime-300 text-black text-xs font-bold px-2 py-0.5 rounded-full">{t.percentOff(discountPct)}</span>
-											</div>
-										)}
-									</div>
+									{/* Price — hidden when Subscribe & Save is available, since that box
+									    already shows its own (crossed-out / discounted) price breakdown */}
+									{subscriptionPlans.length === 0 && (
+										<div>
+											<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</div>
+											{hasDiscount && rrp !== null && (
+												<div className="flex items-center gap-2 mt-1 flex-wrap">
+													<span className="text-sm text-gray-400 line-through">{formatCurrency(rrp, activeVariant?.currencyCode ?? "QAR", locale)}</span>
+													<span className="bg-lime-300 text-black text-xs font-bold px-2 py-0.5 rounded-full">{t.percentOff(discountPct)}</span>
+												</div>
+											)}
+										</div>
+									)}
 
 									<div className="flex flex-col gap-3">
+										{subscriptionPlans.length > 0 && (
+											<div className="w-full max-w-xl mx-auto">
+												<div className="flex justify-between items-center mb-3">
+													<h3 className="text-sm font-black tracking-wider text-gray-800 uppercase">{t.selectFrequency}</h3>
+												</div>
+
+												<div className="flex flex-col gap-3">
+													<div onClick={() => setPurchaseType("subscribe")} className={`relative cursor-pointer rounded-xl border p-4 transition-colors duration-150 ${purchaseType === "subscribe" ? "border-primary ring-1 ring-lime-400" : "border-gray-300"}`}>
+														{price !== null && subscribePrice !== null && (
+															<span className="absolute -top-3 end-4 bg-lime-300 text-black text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+																{t.saveAmount(formatCurrency(price - subscribePrice, activeVariant?.currencyCode ?? "QAR", locale))}
+															</span>
+														)}
+														<div className="flex items-start gap-3">
+															<div className="mt-1 shrink-0 flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 bg-white">{purchaseType === "subscribe" && <div className="w-3 h-3 rounded-full bg-lime-500" />}</div>
+
+															<div className="w-full">
+																<div className="flex justify-between items-baseline">
+																	<div className="flex items-center gap-1.5 font-bold text-gray-900 text-base">{t.subscribeAndSave}</div>
+																	{price !== null && subscribePrice !== null && (
+																		<div className="text-right">
+																			<div className="text-xs text-gray-500 line-through font-medium">{formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale)}</div>
+																			<div className="text-lg font-extrabold text-orange-500 leading-tight">{formatCurrency(subscribePrice, activeVariant?.currencyCode ?? "QAR", locale)}</div>
+																		</div>
+																	)}
+																</div>
+
+																<div className="mt-4 bg-stone-100 border border-gray-300 rounded-xl p-3 relative">
+																	<label className="block text-[10px] font-black tracking-widest text-gray-500 uppercase mb-1">{t.deliverEvery}</label>
+																	<PlanFrequencySelect plans={subscriptionPlans} value={selectedPlanId} onChange={setSelectedPlanId} disabled={purchaseType !== "subscribe"} locale={locale} recommendedLabel={t.recommended} />
+																</div>
+
+																{selectedPlan && selectedPlan.trialDays > 0 && <p className="text-xs text-emerald-600 mt-2 font-medium">{t.freeTrialDays(selectedPlan.trialDays)}</p>}
+
+																<p className="text-xs text-gray-500 mt-3 italic">{t.skipModifyCancel}</p>
+															</div>
+														</div>
+													</div>
+
+													<div onClick={() => setPurchaseType("once")} className={`cursor-pointer rounded-xl border p-4 bg-stone-100 transition-colors duration-150 ${purchaseType === "once" ? "border-lime-100 ring-1 ring-lime-500" : "border-gray-300"}`}>
+														<div className="flex items-center justify-between gap-3">
+															<div className="flex items-center gap-3">
+																<div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 bg-white">{purchaseType === "once" && <div className="w-3 h-3 rounded-full bg-lime-500" />}</div>
+																<span className="font-bold text-gray-900 text-base">{t.oneTimePurchase}</span>
+															</div>
+															<span className="font-extrabold text-gray-900 text-base">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</span>
+														</div>
+													</div>
+												</div>
+											</div>
+										)}
 										{/* Quantity stepper + shipping info */}
 										<div className="flex items-center justify-between gap-3">
 											<div className="flex items-center border border-gray-300 bg-white rounded-full overflow-hidden">
@@ -1005,9 +1218,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											disabled={!inStock || cartFetcher.state !== "idle"}
 											onClick={() => {
 												if (!activeVariant || !inStock) return;
-												cartFetcher.submit({ productVariantId: activeVariant.id, quantity: qty }, { method: "POST", action: "/api/cart", encType: "application/json" });
+												const payload: { productVariantId: string; quantity: number; subscriptionPlanId?: string } = { productVariantId: activeVariant.id, quantity: qty };
+												if (purchaseType === "subscribe" && selectedPlanId) payload.subscriptionPlanId = selectedPlanId;
+												cartFetcher.submit(payload, { method: "POST", action: "/api/cart", encType: "application/json" });
 											}}
-											className={`w-full text-white font-semibold text-sm py-3 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
+											className={`w-full text-white font-bold text-base py-4 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
 										>
 											{!inStock ? t.outOfStockBtn : cartFetcher.state !== "idle" ? t.adding : cartFeedback === "success" ? t.addedToCart : cartFeedback === "error" ? t.failedTryAgain : t.addToCart}
 										</button>
@@ -1017,14 +1232,23 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								<ProductBundleOffers productId={product.id} triggerVariantId={activeVariant?.id ?? ""} triggerVariantPrice={activeVariant?.priceWithTax || activeVariant?.price || 0} triggerImage={activeVariant?.featuredAsset?.preview || product.featuredAsset?.preview} placement="below" vendureBase={vendureBase} />
 
 								{/* WhatsApp Inquiry */}
-								<a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I'm interested in this product and would like to enquire:\n\n*${product.name}*\n\n${typeof window !== "undefined" ? window.location.href : ""}`)}`} target="_blank" rel="noopener noreferrer" translate="no" className="flex mt-4 items-center justify-center gap-2 w-full bg-green-500 hover:bg-[#128C7E] text-white font-semibold text-sm py-3 rounded-full transition-colors">
+								{/* <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I'm interested in this product and would like to enquire:\n\n*${product.name}*\n\n${typeof window !== "undefined" ? window.location.href : ""}`)}`} target="_blank" rel="noopener noreferrer" translate="no" className="flex mt-4 items-center justify-center gap-2 w-full bg-green-500 hover:bg-[#128C7E] text-white font-semibold text-sm py-3 rounded-full transition-colors">
 									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
 										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
 									</svg>
 									{t.whatsappEnquiry}
-								</a>
+								</a> */}
+								{/* Quality Promise — sits in the cart column, right above the trust badges */}
+								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3 mt-5">
+									<ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+									<div>
+										<p className="text-sm font-semibold text-green-700">{t.qualityPromise}</p>
+										<p className="text-xs text-green-600 mt-0.5">{t.qualityPromiseBody}</p>
+									</div>
+								</div>
+
 								{/* Trust badges */}
-								<ul className="space-y-1.5 mt-5">
+								<ul className="space-y-1.5 mt-3">
 									{t.trustBadges.map((item) => (
 										<li key={item} className="flex items-start gap-2 text-xs text-gray-500">
 											<span className="text-primary mt-0.5">•</span>
@@ -1039,23 +1263,18 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					{/* end detail column */}
 				</div>
 
-				{/* ── Highlights (placeholder data — see DUMMY_HIGHLIGHTS) ── */}
-				<ProductHighlights title={product.name} items={DUMMY_HIGHLIGHTS} />
-
 				{/* ── Description / Disclaimer / Q&A tabs + Nutrition Facts ──
 				    Prefer the selected variant's own values; fall back to the product's
 				    defaults only when this variant hasn't got its own override. */}
 				{(() => {
-					const nutritionInfo = activeVariant?.customFields?.additionalInfo || product.customFields?.additionalInfo || "";
-					const disclaimer = activeVariant?.customFields?.keyInfo ?? "";
+					const nutritionInfo = activeVariant?.customFields?.keyInfo || product.customFields?.keyInfo || "";
+					const variantInfo = activeVariant?.customFields?.additionalInfo ?? "";
+					const disclaimer = product.customFields?.disclaimer ?? "";
 					if (!product.description && !nutritionInfo && !disclaimer) return null;
 					return (
 						<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
 							<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-								<ProductInfoTabs
-									description={product.description ?? ""}
-									warnings={disclaimer}
-								/>
+								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} />
 							</div>
 
 							{/* Nutrition Facts */}
@@ -1196,7 +1415,9 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 		<div ref={ref} className="relative inline-block" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
 			<button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 cursor-pointer" aria-expanded={open} aria-haspopup="true">
 				<Stars value={summary.averageRating} size={14} />
-				<span className="text-sm text-gray-600 font-medium">{summary.totalReviews.toLocaleString()} {t.reviewsCap}</span>
+				<span className="text-sm text-gray-600 font-medium">
+					{summary.totalReviews.toLocaleString()} {t.reviewsCap}
+				</span>
 				<ChevronDown size={13} className={`text-gray-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
 			</button>
 
@@ -1208,7 +1429,9 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 							<span className="text-3xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
 							<div>
 								<Stars value={summary.averageRating} size={14} />
-								<p className="text-xs text-gray-400 mt-0.5">{summary.totalReviews.toLocaleString()} {t.reviews}</p>
+								<p className="text-xs text-gray-400 mt-0.5">
+									{summary.totalReviews.toLocaleString()} {t.reviews}
+								</p>
 							</div>
 						</div>
 
@@ -1337,7 +1560,9 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 					<div className="flex flex-col items-center py-2">
 						<span className="text-5xl font-black text-gray-900">{summary.averageRating.toFixed(1)}</span>
 						<Stars value={summary.averageRating} size={18} />
-						<span className="text-xs text-gray-500 mt-1">{summary.totalReviews.toLocaleString()} {t.reviews}</span>
+						<span className="text-xs text-gray-500 mt-1">
+							{summary.totalReviews.toLocaleString()} {t.reviews}
+						</span>
 					</div>
 
 					<div className="space-y-1.5">
@@ -1375,7 +1600,9 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 				{/* Right — sort + reviews */}
 				<div id="reviews" className="space-y-3">
 					<div className="flex items-center justify-between gap-3 pb-1">
-						<span className="text-sm text-gray-500">{totalReviews.toLocaleString()} {t.reviews}</span>
+						<span className="text-sm text-gray-500">
+							{totalReviews.toLocaleString()} {t.reviews}
+						</span>
 						<SortDropdown options={SORT_OPTIONS} value={sort} onChange={handleSortChange} />
 					</div>
 

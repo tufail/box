@@ -50,9 +50,12 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 	if (products.length === 0) return null;
 
 	return (
-		<section className="py-8 md:py-10 container mx-auto px-4">
-			<div className="mb-8 md:mb-10">
-				<h2 className="font-heading text-3xl md:text-4xl font-extrabold text-black text-center">{resolvedTitle}</h2>
+		<section className="py-8 md:py-10 container mx-auto px-4" aria-labelledby="home-top-selling-title">
+			<div className="mb-8 md:mb-10 text-center">
+				<h2 id="home-top-selling-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
+					{resolvedTitle}
+				</h2>
+				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "أشهر المنتجات المفضلة لدى العملاء." : "Browse our most-loved products and best-value picks."}</p>
 			</div>
 
 			<div className="relative">
@@ -61,9 +64,9 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 				</button>
 
 				<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
-					<div className="flex -mx-2">
+					<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
 						{products.map((product, index) => (
-							<div key={product.productId} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2">
+							<div key={product.productVariantId} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2" role="listitem">
 								<ProductCard product={product} vendureBase={vendureBase} eager={index < 4} />
 							</div>
 						))}
@@ -77,10 +80,7 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 
 			{viewAllHref && (
 				<div className="mt-8 flex justify-center">
-					<Link
-						to={viewAllHref}
-						className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors"
-					>
+					<Link to={viewAllHref} aria-label={locale === "ar" ? "عرض جميع المنتجات" : "View all products"} className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors">
 						{locale === "ar" ? "عرض الكل" : "View All"}
 					</Link>
 				</div>

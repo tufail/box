@@ -1,6 +1,6 @@
 import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
-import { User, Package, Share2, Lock, ChevronRight, MapPin, Wallet, HeartPulse } from "lucide-react";
+import { User, Package, Share2, Lock, ChevronRight, MapPin, Wallet, HeartPulse, RefreshCw } from "lucide-react";
 import type { CustomerProfile } from "~/graphql/account";
 import { getLocaleFromPathname, stripLocalePrefix } from "~/lib/i18n";
 
@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { path: "/account/orders", labelEn: "My Orders", labelAr: "طلباتي", icon: Package },
   { path: "/account/addresses", labelEn: "Addresses", labelAr: "العناوين", icon: MapPin },
   { path: "/account/wallet", labelEn: "My Wallet", labelAr: "محفظتي", icon: Wallet },
+  { path: "/account/subscriptions", labelEn: "Subscriptions", labelAr: "الاشتراكات", icon: RefreshCw },
   { path: "/account/wellness", labelEn: "Wellness Plan", labelAr: "خطة العافية", icon: HeartPulse },
   { path: "/account/social", labelEn: "Social Accounts", labelAr: "الحسابات الاجتماعية", icon: Share2 },
   { path: "/account/reset-password", labelEn: "Security", labelAr: "الأمان", icon: Lock },

@@ -176,6 +176,7 @@ export const COLLECTION_PAGE_QUERY = `
         description
         inStock
         productAsset { id preview }
+        productVariantAsset { id preview }
         price {
           __typename
           ... on PriceRange { min max }

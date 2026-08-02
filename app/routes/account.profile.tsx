@@ -143,8 +143,8 @@ function ProfileForm({ customer, t }: { customer: CustomerProfile; t: (typeof CO
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <label className={labelCls}>{t.title}</label>
-            <select name="title" defaultValue={customer.title ?? ""} className={inputCls}>
+            <label htmlFor="profile-title" className={labelCls}>{t.title}</label>
+            <select id="profile-title" name="title" defaultValue={customer.title ?? ""} className={inputCls}>
               <option value="">{t.selectPlaceholder}</option>
               <option value="Mr">{t.mr}</option>
               <option value="Mrs">{t.mrs}</option>
@@ -156,34 +156,39 @@ function ProfileForm({ customer, t }: { customer: CustomerProfile; t: (typeof CO
           <div className="hidden sm:block" />
 
           <div>
-            <label className={labelCls}>
+            <label htmlFor="profile-firstName" className={labelCls}>
               {t.firstName} <span className="text-red-500">*</span>
             </label>
             <input
+              id="profile-firstName"
               name="firstName"
               type="text"
               required
+              autoComplete="given-name"
               defaultValue={customer.firstName}
               className={inputCls}
             />
           </div>
 
           <div>
-            <label className={labelCls}>
+            <label htmlFor="profile-lastName" className={labelCls}>
               {t.lastName} <span className="text-red-500">*</span>
             </label>
             <input
+              id="profile-lastName"
               name="lastName"
               type="text"
               required
+              autoComplete="family-name"
               defaultValue={customer.lastName}
               className={inputCls}
             />
           </div>
 
           <div>
-            <label className={labelCls}>{t.emailAddress}</label>
+            <label htmlFor="profile-email" className={labelCls}>{t.emailAddress}</label>
             <input
+              id="profile-email"
               type="email"
               value={customer.emailAddress}
               readOnly
@@ -195,10 +200,12 @@ function ProfileForm({ customer, t }: { customer: CustomerProfile; t: (typeof CO
           </div>
 
           <div>
-            <label className={labelCls}>{t.phoneNumber}</label>
+            <label htmlFor="profile-phoneNumber" className={labelCls}>{t.phoneNumber}</label>
             <input
+              id="profile-phoneNumber"
               name="phoneNumber"
               type="tel"
+              autoComplete="tel"
               defaultValue={customer.phoneNumber ?? ""}
               placeholder="+974 xxxx xxxx"
               className={inputCls}

@@ -99,8 +99,23 @@ function BrandsDropdown() {
 	const close = () => { setOpen(false); setSearch(""); };
 
 	return (
-		<div ref={ref} className="relative" onMouseEnter={openNow} onMouseLeave={scheduleClose}>
-			<button className="font-medium flex items-center gap-1 py-2 group" aria-expanded={open}>
+		<div
+			ref={ref}
+			className="relative"
+			onMouseEnter={openNow}
+			onMouseLeave={scheduleClose}
+			onFocus={openNow}
+			onBlur={(e) => {
+				if (!ref.current?.contains(e.relatedTarget as Node)) scheduleClose();
+			}}
+			onKeyDown={(e) => {
+				if (e.key === "Escape" && open) {
+					close();
+					ref.current?.querySelector("button")?.focus();
+				}
+			}}
+		>
+			<button type="button" className="font-medium flex items-center gap-1 py-2 group" aria-haspopup="true" aria-expanded={open}>
 				<span className="text-black text-sm transition-colors">{locale === "ar" ? "العلامات التجارية" : "Brands"}</span>
 				<span className={`text-black transition-all duration-300 ${open ? "-rotate-180" : ""}`}>
 					<ChevronDown size={18} strokeWidth={1.5} />
@@ -322,9 +337,28 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 				{navItems.map((item, index) => {
 					const hasDropdown = item.columns.length > 0;
 					return (
-						<div key={index} onMouseEnter={() => hasDropdown && openDesktop(index)} onMouseLeave={scheduleCloseDesktop}>
-							<button className="font-medium flex items-center gap-1 py-2 group" aria-expanded={desktopOpen === index} aria-haspopup={hasDropdown ? "true" : undefined}>
-								<Link to={itemHref(item)} className="text-black text-sm transition-colors">
+						<div
+							key={index}
+							onMouseEnter={() => hasDropdown && openDesktop(index)}
+							onMouseLeave={scheduleCloseDesktop}
+							onFocus={() => hasDropdown && openDesktop(index)}
+							onBlur={(e) => {
+								if (!e.currentTarget.contains(e.relatedTarget as Node)) scheduleCloseDesktop();
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Escape" && desktopOpen === index) {
+									setDesktopOpen(null);
+									(e.currentTarget.querySelector("a") as HTMLElement | null)?.focus();
+								}
+							}}
+						>
+							<div className="font-medium flex items-center gap-1 py-2 group">
+								<Link
+									to={itemHref(item)}
+									className="text-black text-sm transition-colors"
+									aria-expanded={hasDropdown ? desktopOpen === index : undefined}
+									aria-haspopup={hasDropdown ? "true" : undefined}
+								>
 									{item.label}
 								</Link>
 								{hasDropdown && (
@@ -332,7 +366,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 										<ChevronDown size={18} strokeWidth={1.5} />
 									</span>
 								)}
-							</button>
+							</div>
 
 							{hasDropdown && (
 								<div

@@ -1,6 +1,6 @@
 import { useFetcher, Link, useLocation } from "react-router";
-import { useEffect } from "react";
-import { X, ShoppingCart, Trash2, Minus, Plus, RotateCcw, AlertTriangle, Package } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { X, ShoppingCart, Trash2, Minus, Plus, RotateCcw, AlertTriangle, Package, Repeat } from "lucide-react";
 import type { ActiveOrder, ActiveOrderData, OrderLineItem } from "~/graphql/order";
 import type { BundleGroup } from "~/graphql/bundle";
 import { formatBundleDiscount } from "~/graphql/bundle";
@@ -8,6 +8,7 @@ import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
+import { useFocusTrap } from "~/hooks/useFocusTrap";
 
 interface CartSidePanelProps {
 	isOpen: boolean;
@@ -36,6 +37,8 @@ const CART_COPY = {
 		yourCartIsEmpty: "Your cart is empty",
 		continueShopping: "Continue Shopping",
 		youSave: "You save:",
+		subscribeAndSave: "Subscribe & Save",
+		saveAmount: (amount: string) => `Save ${amount}`,
 		subtotal: "Subtotal",
 		total: "Total",
 		proceedToCheckout: "Proceed to Checkout",
@@ -58,6 +61,8 @@ const CART_COPY = {
 		yourCartIsEmpty: "سلتك فارغة",
 		continueShopping: "متابعة التسوق",
 		youSave: "توفّر:",
+		subscribeAndSave: "اشترك ووفّر",
+		saveAmount: (amount: string) => `وفّر ${amount}`,
 		subtotal: "المجموع الفرعي",
 		total: "الإجمالي",
 		proceedToCheckout: "المتابعة إلى الدفع",
@@ -188,6 +193,8 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
 	const { setCartCount, cartRefreshKey } = useCart();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CART_COPY[locale];
+	const panelRef = useRef<HTMLDivElement>(null);
+	useFocusTrap(panelRef, isOpen, onClose);
 
 	useEffect(() => {
 		if (isOpen) fetcher.load("/api/cart");
@@ -220,7 +227,15 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
 			<div className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} onClick={onClose} aria-hidden="true" />
 
 			{/* Panel */}
-			<div role="dialog" aria-modal="true" aria-label={t.shoppingCart} className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-xl flex flex-col transition-transform duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
+			<div
+				ref={panelRef}
+				role="dialog"
+				aria-modal="true"
+				aria-hidden={!isOpen}
+				aria-label={t.shoppingCart}
+				tabIndex={-1}
+				className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-xl flex flex-col transition-transform duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+			>
 				{/* Header */}
 				<div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
 					<h2 className="text-lg font-bold flex items-center gap-2">
@@ -283,10 +298,21 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
 										<li key={line.id} className="flex gap-3 items-start">
 											<div className="w-20 h-20 bg-gray-100 rounded overflow-hidden shrink-0">{image ? <img src={image} alt={line.productVariant.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl font-bold">{line.productVariant.product.name[0]}</div>}</div>
 											<div className="flex-1 min-w-0">
-												<Link to={`/products/${line.productVariant.product.slug}`} onClick={onClose} className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 leading-snug">
-													{line.productVariant.product.name}
+												<Link to={`/products/${line.productVariant.customFields?.slug || line.productVariant.product.slug}`} onClick={onClose} className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 leading-snug">
+													{line.productVariant.name}
 												</Link>
-												<p className="text-xs text-gray-500 mt-0.5">{line.productVariant.name}</p>
+												{line.customFields?.subscriptionPlanId && (
+													<div className="flex items-center gap-1.5 flex-wrap mt-1">
+														<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+															<Repeat size={10} /> {t.subscribeAndSave}
+														</span>
+														{line.productVariant.priceWithTax > line.unitPriceWithTax && (
+															<span className="text-[10px] font-semibold text-orange-600">
+																{t.saveAmount(formatPrice((line.productVariant.priceWithTax - line.unitPriceWithTax) * line.quantity, order.currencyCode, locale))}
+															</span>
+														)}
+													</div>
+												)}
 												<LineControls line={line} currencyCode={order.currencyCode} onCartUpdated={handleCartUpdated} />
 											</div>
 										</li>

@@ -17,6 +17,8 @@ export interface OrderLineItem {
     id: string;
     name: string;
     sku: string;
+    priceWithTax: number;
+    customFields?: { slug: string | null } | null;
     product: {
       name: string;
       slug: string;
@@ -27,6 +29,7 @@ export interface OrderLineItem {
     bundleGroupId?: string | null;
     bundleDefinitionId?: string | null;
     bundleName?: string | null;
+    subscriptionPlanId?: string | null;
   } | null;
 }
 
@@ -144,6 +147,7 @@ export interface AddToCartResult {
 export interface AddToCartVariables {
   productVariantId: string;
   quantity: number;
+  customFields?: { subscriptionPlanId?: string | null };
 }
 
 export function getAddToCartErrorMessage(result: AddToCartResultUnion): string | null {
@@ -166,8 +170,8 @@ export function getAddToCartErrorMessage(result: AddToCartResultUnion): string |
 }
 
 export const ADD_TO_CART_MUTATION = `
-  mutation AddItemToOrder($productVariantId: ID!, $quantity: Int!) {
-    addItemToOrder(productVariantId: $productVariantId, quantity: $quantity) {
+  mutation AddItemToOrder($productVariantId: ID!, $quantity: Int!, $customFields: OrderLineCustomFieldsInput) {
+    addItemToOrder(productVariantId: $productVariantId, quantity: $quantity, customFields: $customFields) {
       __typename
       ... on Order {
         id
@@ -363,13 +367,15 @@ export const ACTIVE_ORDER_QUERY = `
           id
           name
           sku
+          priceWithTax
+          customFields { slug }
           product {
             name
             slug
             featuredAsset { preview }
           }
         }
-        customFields { bundleGroupId bundleDefinitionId bundleName }
+        customFields { bundleGroupId bundleDefinitionId bundleName subscriptionPlanId }
       }
     }
   }

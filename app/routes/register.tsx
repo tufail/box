@@ -90,6 +90,7 @@ function PasswordInput({
   return (
     <div className="relative">
       <input
+        id={name}
         name={name}
         type={show ? "text" : "password"}
         required
@@ -212,29 +213,30 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>
+                <label htmlFor="register-firstName" className={labelCls}>
                   {t.firstName} <span className="text-red-500">*</span>
                 </label>
-                <input name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
+                <input id="register-firstName" name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>
+                <label htmlFor="register-lastName" className={labelCls}>
                   {t.lastName} <span className="text-red-500">*</span>
                 </label>
-                <input name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
+                <input id="register-lastName" name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
               </div>
             </div>
 
             <div>
-              <label className={labelCls}>
+              <label htmlFor="register-emailAddress" className={labelCls}>
                 {t.emailAddress} <span className="text-red-500">*</span>
               </label>
-              <input name="emailAddress" type="email" required autoComplete="email" className={inputCls} />
+              <input id="register-emailAddress" name="emailAddress" type="email" required autoComplete="email" className={inputCls} />
             </div>
 
             <div>
-              <label className={labelCls}>{t.phoneNumber}</label>
+              <label htmlFor="register-phoneNumber" className={labelCls}>{t.phoneNumber}</label>
               <input
+                id="register-phoneNumber"
                 name="phoneNumber"
                 type="tel"
                 placeholder="+974 xxxx xxxx"
@@ -244,7 +246,7 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
             </div>
 
             <div>
-              <label className={labelCls}>
+              <label htmlFor="password" className={labelCls}>
                 {t.password} <span className="text-red-500">*</span>
               </label>
               <PasswordInput name="password" placeholder={t.minPasswordChars} />
@@ -252,15 +254,9 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
 
             {/* Newsletter consent */}
             <div className="pt-1">
-              <label
-                className="flex items-start gap-2.5 cursor-pointer select-none"
-                onClick={() => setNewsletter((v) => !v)}
-              >
-                <div
-                  className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white ${
-                    newsletter ? "border-primary" : "border-gray-300"
-                  }`}
-                >
+              <label htmlFor="register-newsletter" className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input id="register-newsletter" type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} className="peer sr-only" />
+                <div className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white border-gray-300 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1">
                   {newsletter && <Check size={12} strokeWidth={3} className="text-primary" />}
                 </div>
                 <input type="hidden" name="emailOffers" value={newsletter ? "true" : "false"} />

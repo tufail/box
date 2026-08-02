@@ -11,7 +11,8 @@
 	//   wrangler secret put VENDURE_SHOP_API
 	// or add an [env.production] block below.
 	"vars": {
-		"VENDURE_SHOP_API": "http://localhost:3000/shop-api",
+		"VENDURE_SHOP_API": "https://app-admin.nutribox.qa/shop-api",
+		"VENDURE_CHANNEL_TOKEN": "ui7ypb5t0hwzab57hz4r",
 		// NOTE: these two do NOT reach SocialAuthButtons.tsx — that's client-side code
 		// reading import.meta.env.VITE_*, which Vite resolves at BUILD time from the
 		// frontend's own .env file, not from this Workers runtime config. Listed here

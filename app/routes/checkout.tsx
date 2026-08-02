@@ -5,7 +5,7 @@ import type { Route } from "./+types/checkout";
 import { graphqlRequest } from "workers/graphqlClient";
 import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData, type OrderDiscount } from "~/graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer, type ShippingMethod, type PaymentMethod } from "~/graphql/checkout";
-import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X } from "lucide-react";
+import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X, Repeat } from "lucide-react";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
 import { useCart } from "~/context/CartContext";
@@ -80,6 +80,8 @@ const CHECKOUT_COPY = {
 		item: "item",
 		items: "items",
 		qty: "Qty",
+		subscribeAndSave: "Subscribe & Save",
+		saveAmount: (amount: string) => `Save ${amount}`,
 		bundleDiscount: "Combo/Bundle Discount",
 		discount: "Discount",
 		subtotal: "Subtotal",
@@ -145,6 +147,8 @@ const CHECKOUT_COPY = {
 		item: "عنصر",
 		items: "عناصر",
 		qty: "الكمية",
+		subscribeAndSave: "اشترك ووفّر",
+		saveAmount: (amount: string) => `وفّر ${amount}`,
 		bundleDiscount: "خصم الباقة/الكومبو",
 		discount: "خصم",
 		subtotal: "المجموع الفرعي",
@@ -278,11 +282,11 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2", defaultValue }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string; defaultValue?: string }) {
 	return (
 		<div className={className}>
-			<label className="block text-sm font-medium text-gray-700 mb-1">
+			<label htmlFor={`checkout-${name}`} className="block text-sm font-medium text-gray-700 mb-1">
 				{label}
 				{required && <span className="text-red-500 ms-1">*</span>}
 			</label>
-			<input name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue} className="w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
+			<input id={`checkout-${name}`} name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue} className="w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
 		</div>
 	);
 }
@@ -290,12 +294,13 @@ function Field({ label, name, type = "text", required, placeholder, className = 
 function Select({ label, name, autoComplete, placeholder, required, className = "sm:col-span-2", defaultValue = "", onChange, children }: { label: string; name: string; autoComplete?: string; placeholder?: string; required?: boolean; className?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }) {
 	return (
 		<div className={className}>
-			<label className="block text-sm font-medium text-gray-700 mb-1">
+			<label htmlFor={`checkout-${name}`} className="block text-sm font-medium text-gray-700 mb-1">
 				{label}
 				{required && <span className="text-red-500 ms-1">*</span>}
 			</label>
 			<div className="relative">
 				<select
+					id={`checkout-${name}`}
 					name={name}
 					autoComplete={autoComplete}
 					required={required}
@@ -335,8 +340,9 @@ function TermsHint({ t }: { t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY
 function NewsletterConsent({ checked, onChange, t }: { checked: boolean; onChange: (v: boolean) => void; t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
 	return (
 		<div className="mt-4">
-			<label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => onChange(!checked)}>
-				<div className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white ${checked ? "border-green-500" : "border-gray-300"}`}>{checked && <Check size={12} strokeWidth={3} className="text-green-500" />}</div>
+			<label htmlFor="checkout-newsletter" className="flex items-start gap-2.5 cursor-pointer select-none">
+				<input id="checkout-newsletter" type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+				<div className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white border-gray-300 peer-checked:border-green-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1">{checked && <Check size={12} strokeWidth={3} className="text-green-500" />}</div>
 				<input type="hidden" name="emailOffers" value={checked ? "true" : "false"} />
 				<span className="text-sm text-gray-700">{t.emailMeOffers}</span>
 			</label>
@@ -1031,6 +1037,18 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 							<div className="flex-1 min-w-0">
 								<p className="text-sm font-medium text-gray-900 leading-tight line-clamp-2">{line.productVariant.product.name}</p>
 								<p className="text-xs text-gray-500 mt-0.5 truncate">{line.productVariant.name}</p>
+								{line.customFields?.subscriptionPlanId && (
+									<div className="flex items-center gap-1.5 flex-wrap mt-1">
+										<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+											<Repeat size={10} /> {t.subscribeAndSave}
+										</span>
+										{line.productVariant.priceWithTax > line.unitPriceWithTax && (
+											<span className="text-[10px] font-semibold text-orange-600">
+												{t.saveAmount(fmt((line.productVariant.priceWithTax - line.unitPriceWithTax) * line.quantity, order.currencyCode, locale))}
+											</span>
+										)}
+									</div>
+								)}
 								<p className="text-xs text-gray-400 mt-0.5">{t.qty}: {line.quantity}</p>
 							</div>
 							<div className="flex flex-col items-end flex-shrink-0">

@@ -136,7 +136,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const input: BrandPageVariables["input"] = {
 			facetValueIds: [brand.id, ...fv],
 			facetValueOperator: "AND",
-			groupByProduct: true,
+			groupByProduct: false,
 			take: PAGE_SIZE,
 			skip: (page - 1) * PAGE_SIZE,
 			...(sortInput && { sort: sortInput }),
@@ -366,7 +366,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 					) : (
 						<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
 							{items.map((product) => (
-								<ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} showVariantName forceAddToCart />
+								<ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} />
 							))}
 						</div>
 					)}

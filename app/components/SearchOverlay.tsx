@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import type { SearchSuggestionsResponse, SearchSuggestionItem } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
+import { useFocusTrap } from "~/hooks/useFocusTrap";
 
 function highlight(text: string, term: string) {
 	const idx = text.toLowerCase().indexOf(term.toLowerCase());
@@ -50,28 +51,19 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 	const [results, setResults] = useState<SearchSuggestionsResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
+	const dialogRef = useRef<HTMLDivElement>(null);
 	const navigate = useNavigate();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = OVERLAY_COPY[locale];
 
-	useEffect(() => {
-		if (open) {
-			const t = setTimeout(() => inputRef.current?.focus(), 50);
-			return () => clearTimeout(t);
-		}
-		setTerm("");
-		setResults(null);
-	}, [open]);
+	useFocusTrap(dialogRef, open, onClose);
 
 	useEffect(() => {
-		if (!open) return;
-		function onKey(e: KeyboardEvent) {
-			if (e.key === "Escape") onClose();
+		if (!open) {
+			setTerm("");
+			setResults(null);
 		}
-		document.addEventListener("keydown", onKey);
-		return () => document.removeEventListener("keydown", onKey);
-	}, [open, onClose]);
+	}, [open]);
 
 	const fetchSuggestions = useCallback(async (q: string) => {
 		if (q.length < 2) {
@@ -120,11 +112,14 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 		<div className="fixed inset-0 z-[200]">
 			<div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 			<div className="relative mx-auto mt-20 w-full max-w-2xl px-4">
-				<div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-drop-in">
+				<div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t.placeholder} tabIndex={-1} className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-drop-in">
 					<form onSubmit={submit} className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
 						<Search size={18} strokeWidth={1.5} className="text-gray-400 flex-shrink-0" />
+						<label htmlFor="search-overlay-input" className="sr-only">
+							{t.placeholder}
+						</label>
 						<input
-							ref={inputRef}
+							id="search-overlay-input"
 							type="text"
 							value={term}
 							onChange={(e) => setTerm(e.target.value)}

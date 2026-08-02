@@ -39,6 +39,8 @@ const CONTENT_ROUTES: [path: string, file: string][] = [
 	["account/reset-password", "routes/account.reset-password.tsx"],
 	["account/wallet", "routes/account.wallet.tsx"],
 	["account/wellness", "routes/account.wellness.tsx"],
+	["account/subscriptions", "routes/account.subscriptions.tsx"],
+	["subscription-checkout", "routes/subscription-checkout.tsx"],
 ];
 
 export default [
@@ -63,4 +65,7 @@ export default [
 	route("api/product-reviews", "routes/api.product-reviews.ts"),
 	route("api/variant-rankings", "routes/api.variant-rankings.ts"),
 	route("api/concern-products", "routes/api.concern-products.ts"),
+	route("api/subscription-plans", "routes/api.subscription-plans.ts"),
+	route("api/subscriptions", "routes/api.subscriptions.ts"),
+	route("api/questions", "routes/api.questions.ts"),
 ] satisfies RouteConfig;

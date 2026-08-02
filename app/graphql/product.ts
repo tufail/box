@@ -2,6 +2,26 @@ import { graphql, type ResultOf } from "./graphql";
 
 // ─── Product detail ──────────────────────────────────────────────────────────
 
+export type HighlightValueType = "BOOLEAN" | "TEXT" | "NUMBER";
+
+export interface HighlightGroup {
+  label: string;
+  sortOrder: number;
+}
+
+export interface HighlightTypeInfo {
+  label: string;
+  valueType: HighlightValueType;
+  unit: string | null;
+  group: HighlightGroup | null;
+}
+
+export interface ProductHighlightValue {
+  booleanValue: boolean;
+  textValue: string | null;
+  highlightType: HighlightTypeInfo;
+}
+
 export interface ProductDetailVariant {
   id: string;
   name: string;
@@ -14,6 +34,7 @@ export interface ProductDetailVariant {
   assets: { preview: string }[];
   customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null; gtin12: string | null; sizeSpecifications: string | null } | null;
   options: { code: string; name: string; group: { code: string; name: string } }[];
+  highlights: ProductHighlightValue[];
 }
 
 export interface ProductDetailItem {
@@ -31,10 +52,11 @@ export interface ProductDetailItem {
     videoUrl: string | null;
     displayType: string | null;
     additionalInfo: string | null;
+    disclaimer: string | null;
     salesCount: number | null;
   } | null;
   variants: ProductDetailVariant[];
-  facetValues: { name: string; facet: { name: string } }[];
+  facetValues: { name: string; code: string; facet: { name: string; code: string } }[];
   collections: { id: string; name: string; slug: string }[];
 }
 
@@ -59,6 +81,7 @@ const PRODUCT_DETAIL_FIELDS = `
     videoUrl
     displayType
     additionalInfo
+    disclaimer
     salesCount
   }
   variants {
@@ -73,8 +96,13 @@ const PRODUCT_DETAIL_FIELDS = `
     assets { preview }
     customFields { rrp keyInfo additionalInfo slug gtin12 sizeSpecifications }
     options { code name group { code name } }
+    highlights {
+      booleanValue
+      textValue
+      highlightType { label valueType unit group { label sortOrder } }
+    }
   }
-  facetValues { name facet { name } }
+  facetValues { name code facet { name code } }
   collections { id name slug }
 `;
 
@@ -143,6 +171,7 @@ export interface SearchProductItem {
   description: string;
   inStock: boolean;
   productAsset: { id: string; preview: string } | null;
+  productVariantAsset: { id: string; preview: string } | null;
   price: SearchResultPrice;
   customProductVariantMappings: {
     isOnSale: boolean;
@@ -231,10 +260,12 @@ export const SEARCH_PAGE_QUERY = `
         productId
         productVariantId
         productName
+        productVariantName
         slug
         description
         inStock
         productAsset { id preview }
+        productVariantAsset { id preview }
         price {
           __typename
           ... on PriceRange { min max }
@@ -263,10 +294,15 @@ export const SEARCH_NEW_ARRIVALS = `
         productId
         productVariantId
         productName
+        productVariantName
         slug
         description
         inStock
         productAsset {
+          id
+          preview
+        }
+        productVariantAsset {
           id
           preview
         }
@@ -301,10 +337,15 @@ export const SEARCH_TOP_SELLING = `
         productId
         productVariantId
         productName
+        productVariantName
         slug
         description
         inStock
         productAsset {
+          id
+          preview
+        }
+        productVariantAsset {
           id
           preview
         }

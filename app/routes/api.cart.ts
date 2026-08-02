@@ -117,11 +117,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     // Default: add to cart
-    const { productVariantId, quantity } = body as unknown as AddToCartVariables;
+    const { productVariantId, quantity, subscriptionPlanId } = body as unknown as AddToCartVariables & { subscriptionPlanId?: string };
     const { data, token } = await graphqlRequest<AddToCartResult, AddToCartVariables>(
       env,
       ADD_TO_CART_MUTATION,
-      { productVariantId: String(productVariantId), quantity: Number(quantity) },
+      {
+        productVariantId: String(productVariantId),
+        quantity: Number(quantity),
+        customFields: subscriptionPlanId ? { subscriptionPlanId: String(subscriptionPlanId) } : undefined,
+      },
       { request }
     );
     return new Response(JSON.stringify({ addItemToOrder: data.addItemToOrder }), { headers: makeHeaders(token) });

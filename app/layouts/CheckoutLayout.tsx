@@ -9,8 +9,8 @@ import { getLocaleFromPathname, toggleLocalePath } from "~/lib/i18n";
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const COPY = {
-	en: { secureCheckout: "Secure Checkout" },
-	ar: { secureCheckout: "الدفع الآمن" },
+	en: { secureCheckout: "Secure Checkout", skipToContent: "Skip to content" },
+	ar: { secureCheckout: "الدفع الآمن", skipToContent: "التخطي إلى المحتوى" },
 } as const;
 
 export default function CheckoutLayout({ children }: { children?: React.ReactNode }) {
@@ -27,6 +27,12 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 
 	return (
 		<div className="min-h-screen flex flex-col bg-gray-50">
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:start-2 focus:z-[300] focus:bg-white focus:text-primary focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:font-semibold"
+			>
+				{t.skipToContent}
+			</a>
 			<header className="bg-white border-b border-gray-200">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link to="/" className="font-bold text-xl">
@@ -55,7 +61,7 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 				</div>
 			</header>
 
-			<main className="flex-1 container mx-auto px-4 py-8">{children}</main>
+			<main id="main-content" tabIndex={-1} className="flex-1 container mx-auto px-4 py-8">{children}</main>
 
 			<Footer pageSections={rootData?.pageSections ?? []} />
 		</div>

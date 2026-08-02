@@ -1,5 +1,5 @@
 import type { Route } from "./+types/products.$slug.reviews";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import { data } from "react-router";
@@ -12,6 +12,7 @@ import {
 	type ProductReviewsData, type ReviewItem, type ReviewSortOrder,
 } from "~/graphql/product";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
+import { useFocusTrap } from "~/hooks/useFocusTrap";
 
 const TAKE = 10;
 
@@ -261,15 +262,17 @@ function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: stri
 
 // ── Star selector (write review) ──────────────────────────────────────────────
 
-function StarSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StarSelector({ value, onChange, labelledBy }: { value: number; onChange: (v: number) => void; labelledBy?: string }) {
 	const [hovered, setHovered] = useState(0);
 	const t = REVIEWS_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
-		<div className="flex gap-1">
+		<div className="flex gap-1" role="radiogroup" aria-labelledby={labelledBy}>
 			{[1, 2, 3, 4, 5].map((s) => (
 				<button
 					key={s}
 					type="button"
+					role="radio"
+					aria-checked={value === s}
 					onClick={() => onChange(s)}
 					onMouseEnter={() => setHovered(s)}
 					onMouseLeave={() => setHovered(0)}
@@ -298,6 +301,8 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 	const [previews, setPreviews] = useState<string[]>([]);
 	const [uploading, setUploading] = useState(false);
 	const [uploadError, setUploadError] = useState<string | null>(null);
+	const dialogRef = useRef<HTMLDivElement>(null);
+	useFocusTrap(dialogRef, true, onClose);
 
 	useEffect(() => {
 		if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -367,7 +372,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 		<div className="fixed inset-0 z-50 overflow-y-auto">
 			<div className="fixed inset-0 bg-black/50" onClick={onClose} />
 			<div className="flex min-h-full items-center justify-center p-4">
-				<div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10">
+				<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="write-review-title" tabIndex={-1} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10">
 					<button onClick={onClose} className="absolute top-4 end-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.close}>
 						<X size={20} />
 					</button>
@@ -377,7 +382,7 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 							<div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
 								<BadgeCheck size={32} className="text-primary" />
 							</div>
-							<h3 className="text-lg font-bold text-gray-900 mb-2">{t.signInToWrite}</h3>
+							<h3 id="write-review-title" className="text-lg font-bold text-gray-900 mb-2">{t.signInToWrite}</h3>
 							<p className="text-sm text-gray-500 mb-6">{t.needLoginToShare}</p>
 							<div className="flex flex-col gap-3">
 								<Link to={`/login?redirect=${encodeURIComponent(`/products/${productSlug}/reviews#write`)}`} onClick={onClose} className="w-full text-center bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full transition-colors text-sm">
@@ -394,40 +399,40 @@ function WriteReviewModal({ productSlug, productId, onClose, customer }: { produ
 							<div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
 								<BadgeCheck size={32} className="text-green-600" />
 							</div>
-							<h3 className="text-lg font-bold text-gray-900 mb-2">{t.reviewSubmitted}</h3>
+							<h3 id="write-review-title" className="text-lg font-bold text-gray-900 mb-2">{t.reviewSubmitted}</h3>
 							<p className="text-sm text-gray-500 mb-6">{t.pendingApproval}</p>
 							<button onClick={onClose} className="bg-primary text-white px-8 py-2.5 rounded-full text-sm font-semibold hover:bg-primary/90 transition-colors">{t.close}</button>
 						</div>
 					) : (
 						<>
-							<h2 className="text-lg font-bold text-gray-900 mb-1">{t.writeAReview}</h2>
+							<h2 id="write-review-title" className="text-lg font-bold text-gray-900 mb-1">{t.writeAReview}</h2>
 							<p className="text-sm text-gray-500 mb-5">{t.shareExperience}</p>
 
 							<form onSubmit={handleSubmit} className="space-y-4">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-2">{t.yourRating} <span className="text-red-500">*</span></label>
-									<StarSelector value={rating} onChange={setRating} />
+									<label id="review-rating-label" className="block text-sm font-medium text-gray-700 mb-2">{t.yourRating} <span className="text-red-500">*</span></label>
+									<StarSelector value={rating} onChange={setRating} labelledBy="review-rating-label" />
 									{!rating && fetcher.data && <p className="text-xs text-red-500 mt-1">{t.selectRatingPrompt}</p>}
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">{t.reviewTitle}</label>
-									<input name="title" type="text" placeholder={t.summariseExperience} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+									<label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">{t.reviewTitle}</label>
+									<input id="review-title" name="title" type="text" placeholder={t.summariseExperience} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">{t.review} <span className="text-red-500">*</span></label>
-									<textarea name="body" required rows={4} placeholder={t.tellOthers} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+									<label htmlFor="review-body" className="block text-sm font-medium text-gray-700 mb-1">{t.review} <span className="text-red-500">*</span></label>
+									<textarea id="review-body" name="body" required rows={4} placeholder={t.tellOthers} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">{t.location}</label>
-									<input name="authorLocation" type="text" placeholder={t.locationPlaceholder} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+									<label htmlFor="review-authorLocation" className="block text-sm font-medium text-gray-700 mb-1">{t.location}</label>
+									<input id="review-authorLocation" name="authorLocation" type="text" placeholder={t.locationPlaceholder} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">{t.language}</label>
-									<select name="languageCode" defaultValue="en" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white">
+									<label htmlFor="review-languageCode" className="block text-sm font-medium text-gray-700 mb-1">{t.language}</label>
+									<select id="review-languageCode" name="languageCode" defaultValue="en" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white">
 										<option value="en">{t.english}</option>
 										<option value="ar">{t.arabic}</option>
 										<option value="other">{t.other}</option>

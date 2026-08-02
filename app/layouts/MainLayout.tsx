@@ -15,6 +15,7 @@ import SocialAuthButtons from "../components/SocialAuthButtons";
 import SearchOverlay from "../components/SearchOverlay";
 import { useWishlist } from "../context/WishlistContext";
 import { getLocaleFromPathname, stripLocalePrefix, toggleLocalePath } from "~/lib/i18n";
+import { useFocusTrap } from "~/hooks/useFocusTrap";
 
 interface MainLayoutProps {
 	children: React.ReactNode;
@@ -31,6 +32,7 @@ const LAYOUT_COPY = {
 		freeDelivery: "FREE DELIVERY ON ORDERS OVER QAR 99",
 		authentic: "100% Authentic Products",
 		fastShipping: "Fast Shipping Across Qatar",
+		skipToContent: "Skip to content",
 		openMenu: "Open menu",
 		search: "Search",
 		wishlist: "Wishlist",
@@ -78,6 +80,7 @@ const LAYOUT_COPY = {
 		freeDelivery: "توصيل مجاني للطلبات فوق 99 ريال قطري",
 		authentic: "منتجات أصلية 100%",
 		fastShipping: "شحن سريع في جميع أنحاء قطر",
+		skipToContent: "التخطي إلى المحتوى",
 		openMenu: "فتح القائمة",
 		search: "بحث",
 		wishlist: "المفضلة",
@@ -133,6 +136,8 @@ function CompleteProfileModal({ onClose }: { onClose: () => void }) {
 	const fetcher = useFetcher<{ customer?: unknown; error?: string }>();
 	const loading = fetcher.state !== "idle";
 	const t = LAYOUT_COPY[getLocaleFromPathname(useLocation().pathname)];
+	const dialogRef = useRef<HTMLDivElement>(null);
+	useFocusTrap(dialogRef, true, onClose);
 
 	useEffect(() => {
 		if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -163,9 +168,9 @@ function CompleteProfileModal({ onClose }: { onClose: () => void }) {
 		<div className="fixed inset-0 z-50 overflow-y-auto">
 			<div className="fixed inset-0 bg-black/50" />
 			<div className="flex min-h-full items-center justify-center p-4">
-				<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 z-10">
+				<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="complete-profile-title" tabIndex={-1} className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 z-10">
 					<div className="mb-4">
-						<h2 className="text-lg font-bold text-gray-900">{t.completeProfileTitle}</h2>
+						<h2 id="complete-profile-title" className="text-lg font-bold text-gray-900">{t.completeProfileTitle}</h2>
 						<p className="text-sm text-gray-500 mt-1">{t.completeProfileSubtitle}</p>
 					</div>
 
@@ -181,16 +186,16 @@ function CompleteProfileModal({ onClose }: { onClose: () => void }) {
 						<form onSubmit={handleSubmit} className="space-y-4">
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label htmlFor="complete-profile-firstName" className="block text-sm font-medium text-gray-700 mb-1">
 										{t.firstName} <span className="text-red-500">*</span>
 									</label>
-									<input name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
+									<input id="complete-profile-firstName" name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label htmlFor="complete-profile-lastName" className="block text-sm font-medium text-gray-700 mb-1">
 										{t.lastName} <span className="text-red-500">*</span>
 									</label>
-									<input name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
+									<input id="complete-profile-lastName" name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
 								</div>
 							</div>
 							{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-3 py-2 text-sm">{error}</div>}
@@ -218,14 +223,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	const fetcher = useFetcher<{ error?: string; registered?: boolean }>();
 	const loading = fetcher.state !== "idle";
 	const t = LAYOUT_COPY[getLocaleFromPathname(useLocation().pathname)];
-
-	useEffect(() => {
-		function onKey(e: KeyboardEvent) {
-			if (e.key === "Escape") onClose();
-		}
-		document.addEventListener("keydown", onKey);
-		return () => document.removeEventListener("keydown", onKey);
-	}, [onClose]);
+	const dialogRef = useRef<HTMLDivElement>(null);
+	useFocusTrap(dialogRef, true, onClose);
 
 	useEffect(() => {
 		if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -289,12 +288,12 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 			{/* Centering wrapper â€" scrolls when card is taller than viewport */}
 			<div className="flex min-h-full items-center justify-center p-4">
 				{/* Card */}
-				<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10 animate-drop-in">
+				<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" tabIndex={-1} className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10 animate-drop-in">
 					<button onClick={onClose} className="absolute top-4 end-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.close}>
 						<X size={20} />
 					</button>
 
-					<h2 className="text-xl font-bold text-gray-900 mb-5">{t.myAccount}</h2>
+					<h2 id="auth-modal-title" className="text-xl font-bold text-gray-900 mb-5">{t.myAccount}</h2>
 
 					{registered ? (
 						<div className="text-center py-6">
@@ -339,21 +338,21 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 									<SocialAuthButtons dividerLabel={t.orSignInWithEmail} onSuccess={onSocialSuccess} />
 									<form onSubmit={handleLogin} className="space-y-4">
 										<div>
-											<label className={labelCls}>
+											<label htmlFor="login-email" className={labelCls}>
 												{t.emailAddress} <span className="text-red-500">*</span>
 											</label>
-											<input name="email" type="email" required className={inputCls} />
+											<input id="login-email" name="email" type="email" required autoComplete="email" className={inputCls} />
 										</div>
 										<div>
 											<div className="flex items-center justify-between mb-1">
-												<label className={labelCls} style={{ marginBottom: 0 }}>
+												<label htmlFor="login-password" className={labelCls} style={{ marginBottom: 0 }}>
 													{t.password} <span className="text-red-500">*</span>
 												</label>
 												<a href="/forgot-password" className="text-xs font-medium text-[var(--color-primary)] hover:underline">
 													{t.forgotPassword}
 												</a>
 											</div>
-											<input name="password" type="password" required className={inputCls} />
+											<input id="login-password" name="password" type="password" required autoComplete="current-password" className={inputCls} />
 										</div>
 										{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm">{error}</div>}
 										<button type="submit" disabled={loading} className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
@@ -369,39 +368,40 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 									<form onSubmit={handleRegister} className="space-y-4">
 										<div className="grid grid-cols-2 gap-3">
 											<div>
-												<label className={labelCls}>
+												<label htmlFor="register-firstName" className={labelCls}>
 													{t.firstName} <span className="text-red-500">*</span>
 												</label>
-												<input name="firstName" type="text" required className={inputCls} />
+												<input id="register-firstName" name="firstName" type="text" required autoComplete="given-name" className={inputCls} />
 											</div>
 											<div>
-												<label className={labelCls}>
+												<label htmlFor="register-lastName" className={labelCls}>
 													{t.lastName} <span className="text-red-500">*</span>
 												</label>
-												<input name="lastName" type="text" required className={inputCls} />
+												<input id="register-lastName" name="lastName" type="text" required autoComplete="family-name" className={inputCls} />
 											</div>
 										</div>
 										<div>
-											<label className={labelCls}>
+											<label htmlFor="register-emailAddress" className={labelCls}>
 												{t.emailAddress} <span className="text-red-500">*</span>
 											</label>
-											<input name="emailAddress" type="email" required className={inputCls} />
+											<input id="register-emailAddress" name="emailAddress" type="email" required autoComplete="email" className={inputCls} />
 										</div>
 										<div>
-											<label className={labelCls}>{t.phoneNumber}</label>
-											<input name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className={inputCls} />
+											<label htmlFor="register-phoneNumber" className={labelCls}>{t.phoneNumber}</label>
+											<input id="register-phoneNumber" name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" autoComplete="tel" className={inputCls} />
 										</div>
 										<div>
-											<label className={labelCls}>
+											<label htmlFor="register-password" className={labelCls}>
 												{t.password} <span className="text-red-500">*</span>
 											</label>
-											<input name="password" type="password" required placeholder={t.minPasswordChars} className={inputCls} />
+											<input id="register-password" name="password" type="password" required autoComplete="new-password" placeholder={t.minPasswordChars} className={inputCls} />
 										</div>
 
 										{/* Newsletter consent */}
 										<div>
-											<label className="flex items-start gap-2.5 cursor-pointer select-none" onClick={() => setNewsletter((v) => !v)}>
-												<div className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border flex items-center justify-center transition-colors ${newsletter ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300"}`}>{newsletter && <Check size={12} strokeWidth={3} className="text-black" />}</div>
+											<label htmlFor="register-newsletter" className="flex items-start gap-2.5 cursor-pointer select-none">
+												<input id="register-newsletter" type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} className="peer sr-only" />
+												<div className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border flex items-center justify-center transition-colors bg-white border-gray-300 peer-checked:bg-lime-300 peer-checked:border-lime-300 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1">{newsletter && <Check size={12} strokeWidth={3} className="text-black" />}</div>
 												<input type="hidden" name="emailOffers" value={newsletter ? "true" : "false"} />
 												<span className="text-sm text-gray-700">{t.emailMeOffers}</span>
 											</label>
@@ -507,6 +507,12 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 
 	return (
 		<div className="min-h-screen flex flex-col">
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:start-2 focus:z-[300] focus:bg-white focus:text-primary focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:font-semibold"
+			>
+				{t.skipToContent}
+			</a>
 			<div className="bg-black py-2 relative">
 				<p className="flex items-center justify-center gap-2.5 text-[10px] font-semibold text-white text-center tracking-wide uppercase px-16">
 					<span>{t.freeDelivery}</span>
@@ -529,11 +535,11 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			<header className={`bg-white border-b border-stone-200 sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
 				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4 relative">
 					<div className="flex items-center gap-2 flex-shrink-0">
-						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu}>
+						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu} aria-haspopup="true" aria-expanded={mobileMenuOpen}>
 							<Menu size={22} strokeWidth={1.5} />
 						</button>
 						<LocaleLink to="/" className="font-bold text-xl md:ms-0">
-							<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-10 w-auto inline-block" />
+							<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-12 w-auto inline-block" />
 						</LocaleLink>
 					</div>
 					<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
@@ -551,8 +557,17 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 						</button>
 
 						{activeCustomer ? (
-							<div className="relative" ref={accountRef}>
-								<button onClick={() => setAccountOpen((o) => !o)} className="flex items-center gap-1.5 text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label={t.account}>
+							<div
+								className="relative"
+								ref={accountRef}
+								onKeyDown={(e) => {
+									if (e.key === "Escape" && accountOpen) {
+										setAccountOpen(false);
+										(e.currentTarget.querySelector("button") as HTMLElement | null)?.focus();
+									}
+								}}
+							>
+								<button onClick={() => setAccountOpen((o) => !o)} className="flex items-center gap-1.5 text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label={t.account} aria-haspopup="true" aria-expanded={accountOpen}>
 									<CircleUser size={24} strokeWidth={1.5} />
 									<span className="hidden md:inline text-sm font-medium">{activeCustomer.firstName || t.account}</span>
 									<ChevronDown size={14} strokeWidth={1.5} className={`hidden md:inline-block transition-transform duration-200 ${accountOpen ? "rotate-180" : ""}`} />
@@ -598,7 +613,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 				</div>
 			</header>
 
-			<main>{children}</main>
+			<main id="main-content" tabIndex={-1}>{children}</main>
 
 			{stripLocalePrefix(routerLocation.pathname) === "/" && <SeoFooterContent megaMenu={megaMenu} />}
 
