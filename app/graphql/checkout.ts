@@ -254,3 +254,21 @@ export const CONFIRM_SADAD_CALLBACK_MUTATION = `
     }
   }
 `;
+
+// SkipCash is a hosted-checkout gateway: unlike Sadad (which returns form params we
+// POST ourselves), this returns a payUrl to redirect the browser to directly. No
+// Payment/Order is touched by this call — that only happens once SkipCash's webhook
+// confirms the transaction server-side (see src/plugins/skipcash-payment on the backend).
+export interface SkipCashCheckoutResult {
+  payUrl: string;
+  skipcashPaymentId: string;
+}
+
+export const INITIATE_SKIPCASH_PAYMENT_MUTATION = `
+  mutation InitiateSkipCashPayment {
+    initiateSkipCashPayment {
+      payUrl
+      skipcashPaymentId
+    }
+  }
+`;

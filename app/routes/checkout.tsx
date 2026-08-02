@@ -12,6 +12,7 @@ import { useCart } from "~/context/CartContext";
 import { qatarZones } from "~/constants/qatar";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
 import type { SadadPaymentMetadata } from "~/types/sadad";
+import type { SkipCashCheckoutResult } from "~/graphql/checkout";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
@@ -67,6 +68,7 @@ const CHECKOUT_COPY = {
 		noPaymentMethods: "No payment methods available. Make sure a shipping method has been selected.",
 		paymentFailed: "Payment failed. Please try again.",
 		processingPayment: "Processing Payment…",
+		redirectingToSkipCash: "Redirecting to SkipCash secure payment…",
 		placeOrder: (price: string) => `Place Order · ${price}`,
 		securePaymentNote: "Your payment information is secure and encrypted",
 		couponLockedNote: "Coupon codes cannot be changed while payment is in progress.",
@@ -131,6 +133,7 @@ const CHECKOUT_COPY = {
 		noPaymentMethods: "لا توجد طرق دفع متاحة. تأكد من اختيار طريقة شحن.",
 		paymentFailed: "فشلت عملية الدفع. يرجى المحاولة مرة أخرى.",
 		processingPayment: "جارٍ معالجة الدفع…",
+		redirectingToSkipCash: "جارٍ التحويل إلى الدفع الآمن عبر SkipCash…",
 		placeOrder: (price: string) => `إتمام الطلب · ${price}`,
 		securePaymentNote: "معلومات الدفع الخاصة بك آمنة ومشفّرة",
 		couponLockedNote: "لا يمكن تغيير رموز الخصم أثناء معالجة الدفع.",
@@ -800,17 +803,19 @@ function ShippingStep({
 
 // ── Step 4: Payment ───────────────────────────────────────────────────────────
 
-function PaymentStep({ isActive, total, currency, onComplete }: { isActive: boolean; total: number; currency: string; onComplete: (orderCode: string) => void }) {
+function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isActive: boolean; total: number; currency: string; orderCode: string; onComplete: (orderCode: string) => void }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
 	const [methods, setMethods] = useState<PaymentMethod[]>([]);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [sadadMetadata, setSadadMetadata] = useState<SadadPaymentMetadata | null>(null);
+	const [skipcashRedirecting, setSkipcashRedirecting] = useState(false);
 	const loadFetcher = useFetcher<{ paymentMethods?: PaymentMethod[]; error?: string }>();
 	const payFetcher = useFetcher<{
 		addPaymentToOrder?: Record<string, unknown>;
 		sadadMetadata?: SadadPaymentMetadata;
+		skipcashCheckout?: SkipCashCheckoutResult;
 		error?: string;
 	}>();
 	const loading = payFetcher.state !== "idle";
@@ -843,6 +848,16 @@ function PaymentStep({ isActive, total, currency, onComplete }: { isActive: bool
 			setSadadMetadata(d.sadadMetadata);
 			return;
 		}
+		if (d.skipcashCheckout) {
+			// SkipCash is a hosted redirect, not an embedded form like Sadad — this leaves
+			// the SPA entirely. SkipCash's Return URL is a fixed portal setting (no way to
+			// embed the order code dynamically), so stash it for checkout.success.tsx to
+			// pick back up via sessionStorage when the customer comes back.
+			sessionStorage.setItem("pendingOrderCode", orderCode);
+			setSkipcashRedirecting(true);
+			window.location.href = d.skipcashCheckout.payUrl;
+			return;
+		}
 		if (d.addPaymentToOrder) {
 			const r = d.addPaymentToOrder;
 			if (r.__typename === "Order") {
@@ -866,6 +881,15 @@ function PaymentStep({ isActive, total, currency, onComplete }: { isActive: bool
 
 	if (sadadMetadata) {
 		return <SadadCheckoutForm metadata={sadadMetadata} />;
+	}
+
+	if (skipcashRedirecting) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+				<div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+				<p className="text-gray-600">{t.redirectingToSkipCash}</p>
+			</div>
+		);
 	}
 
 	return (
@@ -1123,6 +1147,7 @@ export default function CheckoutPage() {
 							isActive={step === 3}
 							total={order.totalWithTax}
 							currency={order.currencyCode}
+							orderCode={order.code}
 							onComplete={(orderCode) => {
 								complete(3);
 								setCartCount(0);

@@ -11,11 +11,34 @@ import {
   TRANSITION_ORDER_TO_STATE_MUTATION,
   ADD_PAYMENT_TO_ORDER_MUTATION,
   APPLY_COUPON_CODE_MUTATION,
+  INITIATE_SKIPCASH_PAYMENT_MUTATION,
   type ShippingMethod,
   type PaymentMethod,
+  type SkipCashCheckoutResult,
 } from "~/graphql/checkout";
 
 type GQLResult = Record<string, unknown>;
+
+// Must match the `code` the SkipCash PaymentMethod is created with in the Vendure
+// Admin dashboard (Settings -> Payment methods) — NOT the handler code
+// ("skipcash-payment" on the backend), which only identifies which handler that
+// PaymentMethod uses. Same convention as Sadad's "pay-online" below.
+const SKIPCASH_METHOD_CODE = "skipcash-payment";
+
+// graphqlRequest throws `new Error(JSON.stringify(errors))` on any GraphQL error —
+// initiateSkipCashPayment throws a real UserInputError (not a typed union result)
+// for e.g. "not configured for this channel" or "QAR only", so unwrap that message
+// instead of showing the user a generic failure.
+function extractGraphQLErrorMessage(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback;
+  try {
+    const parsed = JSON.parse(err.message);
+    const message = Array.isArray(parsed) ? parsed[0]?.message : undefined;
+    return typeof message === "string" && message ? message : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function makeHeaders(token?: string | null): Headers {
   const headers = new Headers({ "Content-Type": "application/json" });
@@ -232,6 +255,32 @@ export async function action({ request, context }: Route.ActionArgs) {
           return new Response(
             JSON.stringify({ error: (transResult.message as string) || "Cannot proceed to payment" }),
             { headers: makeHeaders(transToken) }
+          );
+        }
+      }
+
+      // SkipCash is a hosted-checkout gateway — no Payment/Order is created by this
+      // call, unlike the generic addPaymentToOrder path below. It only returns a
+      // payUrl to redirect the customer to; the order is only ever settled once
+      // SkipCash's webhook confirms the transaction server-side.
+      if (method === SKIPCASH_METHOD_CODE) {
+        try {
+          const { data, token } = await graphqlRequest<{ initiateSkipCashPayment: SkipCashCheckoutResult }>(
+            env,
+            INITIATE_SKIPCASH_PAYMENT_MUTATION,
+            undefined,
+            { request, ...(transToken ? { authToken: transToken } : {}) }
+          );
+          return new Response(
+            JSON.stringify({ skipcashCheckout: data.initiateSkipCashPayment }),
+            { headers: makeHeaders(token ?? transToken) }
+          );
+        } catch (err) {
+          console.error("[api.checkout] initiateSkipCashPayment failed:", err);
+          const message = extractGraphQLErrorMessage(err, "SkipCash payment could not be initiated");
+          return new Response(
+            JSON.stringify({ error: message }),
+            { status: 502, headers: makeHeaders(transToken) }
           );
         }
       }

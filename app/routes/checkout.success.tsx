@@ -1,4 +1,5 @@
-import { useLocation, useLoaderData } from "react-router";
+import { useEffect, useState } from "react";
+import { useLocation, useLoaderData, useNavigate } from "react-router";
 import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
@@ -6,7 +7,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { GET_ORDER_BY_CODE_QUERY } from "~/graphql/checkout";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import type { VendurePayment } from "~/types/sadad";
-import { getLocaleFromPathname } from "~/lib/i18n";
+import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
 export function meta() {
@@ -29,6 +30,10 @@ const COPY = {
     paymentProcessing: "Payment Processing…",
     beingConfirmed: "is being confirmed. This usually takes a few seconds.",
     continueShopping: "Continue Shopping",
+    takingLonger: "Still Processing",
+    takingLongerBody: "This is taking longer than expected. If you completed payment, it will be confirmed shortly — otherwise, you can try again.",
+    checkAgain: "Check Again",
+    tryAgain: "Try Payment Again",
   },
   ar: {
     orderConfirmed: "تم تأكيد الطلب!",
@@ -39,8 +44,19 @@ const COPY = {
     paymentProcessing: "جارٍ معالجة الدفع…",
     beingConfirmed: "قيد التأكيد. عادةً ما يستغرق ذلك بضع ثوانٍ.",
     continueShopping: "متابعة التسوق",
+    takingLonger: "لا تزال المعالجة جارية",
+    takingLongerBody: "يستغرق هذا وقتًا أطول من المعتاد. إذا أتممت الدفع، فسيتم تأكيده قريبًا — وإلا يمكنك المحاولة مرة أخرى.",
+    checkAgain: "تحقق مرة أخرى",
+    tryAgain: "إعادة محاولة الدفع",
   },
 } as const;
+
+// If a webhook hasn't settled the order within this window, stop auto-refreshing
+// and offer a manual retry instead of polling forever — matters most for SkipCash,
+// which (unlike Sadad's signed checkout.callback.tsx) has no verified callback to
+// redirect a failed/cancelled payment to /checkout/failed, so a declined SkipCash
+// payment lands on this same page and would otherwise spin indefinitely.
+const POLL_TIMEOUT_MS = 90_000;
 
 interface OrderByCodeData {
   orderByCode: {
@@ -58,7 +74,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const orderCode = url.searchParams.get("orderCode") ?? "";
 
   if (!orderCode) {
-    throw new Response("Missing orderCode", { status: 400 });
+    // SkipCash's Return URL is a fixed setting in its merchant portal — it can't
+    // carry a dynamic order code the way our own checkout.callback.tsx (Sadad) can.
+    // The page component falls back to a sessionStorage breadcrumb set right before
+    // the customer was redirected to SkipCash, then re-navigates here with ?orderCode=.
+    return { order: null, paymentState: null };
   }
 
   const env = context.cloudflare.env;
@@ -74,15 +94,58 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw new Response("Order not found", { status: 404 });
   }
 
-  const sadadPayment = order.payments?.find((p) => p.method === "pay-online");
-  return { order, paymentState: sadadPayment?.state ?? "Unknown" };
+  // Gateway-agnostic: any Settled payment means the order is paid, regardless of
+  // which method (Sadad, SkipCash, ...) processed it.
+  const settledPayment = order.payments?.find((p) => p.state === "Settled");
+  return { order, paymentState: settledPayment?.state ?? "Unknown" };
 }
 
 export default function CheckoutSuccessPage() {
   const { order, paymentState } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const locale = getLocaleFromPathname(useLocation().pathname);
   const t = COPY[locale];
   const isSettled = paymentState === "Settled";
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!order || isSettled) return;
+    const pollKey = `successPollStart:${order.code}`;
+    const startedAt = sessionStorage.getItem(pollKey);
+    const start = startedAt ? Number(startedAt) : Date.now();
+    if (!startedAt) sessionStorage.setItem(pollKey, String(start));
+    if (Date.now() - start > POLL_TIMEOUT_MS) {
+      setTimedOut(true);
+    }
+  }, [order, isSettled]);
+
+  useEffect(() => {
+    if (isSettled && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
+  }, [isSettled, order]);
+
+  useEffect(() => {
+    if (order) return;
+    // No ?orderCode= on the URL — most likely SkipCash's static Return URL landed us
+    // here directly. Re-navigate with the order code stashed before redirecting to
+    // SkipCash (see PaymentStep in checkout.tsx), which re-runs the loader for real.
+    const pending = sessionStorage.getItem("pendingOrderCode");
+    if (pending) {
+      sessionStorage.removeItem("pendingOrderCode");
+      navigate(localizePath(`/checkout/success?orderCode=${encodeURIComponent(pending)}`, locale), { replace: true });
+    } else {
+      navigate(localizePath("/", locale), { replace: true });
+    }
+  }, [order]);
+
+  if (!order) {
+    return (
+      <CheckoutLayout>
+        <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </CheckoutLayout>
+    );
+  }
 
   return (
     <CheckoutLayout>
@@ -113,6 +176,25 @@ export default function CheckoutSuccessPage() {
                   {formatPrice(order.totalWithTax, order.currencyCode, locale)}
                 </span>
               </div>
+            </div>
+          </>
+        ) : timedOut ? (
+          <>
+            <div className="w-20 h-20 bg-yellow-100 rounded flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">⏳</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.takingLonger}</h1>
+            <p className="text-gray-500 leading-relaxed mb-6">{t.takingLongerBody}</p>
+            <div className="flex flex-col gap-3 max-w-xs mx-auto mb-8">
+              <Link
+                to={`/checkout/success?orderCode=${encodeURIComponent(order.code)}`}
+                className="inline-flex items-center justify-center bg-primary text-white font-semibold py-3 px-6 rounded hover:bg-primary/90 transition-colors"
+              >
+                {t.checkAgain}
+              </Link>
+              <Link to="/checkout" className="text-gray-500 text-sm underline hover:text-gray-700 transition-colors">
+                {t.tryAgain}
+              </Link>
             </div>
           </>
         ) : (
