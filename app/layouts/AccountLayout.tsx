@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { path: "/account/addresses", labelEn: "Addresses", labelAr: "العناوين", icon: MapPin },
   { path: "/account/wallet", labelEn: "My Wallet", labelAr: "محفظتي", icon: Wallet },
   { path: "/account/subscriptions", labelEn: "Subscriptions", labelAr: "الاشتراكات", icon: RefreshCw },
-  { path: "/account/wellness", labelEn: "Wellness Plan", labelAr: "خطة العافية", icon: HeartPulse },
+  { path: "/wellness", labelEn: "Wellness Plan", labelAr: "خطة العافية", icon: HeartPulse },
   { path: "/account/social", labelEn: "Social Accounts", labelAr: "الحسابات الاجتماعية", icon: Share2 },
   { path: "/account/reset-password", labelEn: "Security", labelAr: "الأمان", icon: Lock },
 ];

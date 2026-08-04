@@ -1,6 +1,8 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ActivityLevel = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "ATHLETE";
+export type WellnessGender = "MEN" | "WOMEN" | "NO_PREFERENCE";
+export type WellnessTier = "CORE" | "COMPLETE";
 
 export interface WellnessGoal {
   code: string;
@@ -13,6 +15,8 @@ export interface WellnessProfile {
   activityLevel: ActivityLevel;
   bodyWeightKg: number;
   dietaryRestrictions: string[];
+  genderPreference: WellnessGender;
+  trainingStyles: string[];
 }
 
 export interface WellnessPlanItem {
@@ -21,6 +25,7 @@ export interface WellnessPlanItem {
   variantSku: string;
   dosingInstructions: string;
   sortOrder: number;
+  tier: WellnessTier;
 }
 
 export interface WellnessPlan {
@@ -32,6 +37,7 @@ export interface WellnessPlan {
 export interface WellnessQuizOptionsData {
   wellnessGoals: WellnessGoal[];
   suggestedDietaryRestrictions: string[];
+  suggestedTrainingStyles: string[];
 }
 
 export interface MyWellnessProfileData {
@@ -44,10 +50,16 @@ export interface WellnessProfileInput {
   activityLevel: ActivityLevel;
   bodyWeightKg: number;
   dietaryRestrictions: string[];
+  genderPreference?: WellnessGender;
+  trainingStyles?: string[];
 }
 
 export interface SaveWellnessProfileResult {
   saveWellnessProfile: WellnessPlan;
+}
+
+export interface PreviewWellnessPlanResult {
+  previewWellnessPlan: WellnessPlan;
 }
 
 export interface WellnessCartOrder {
@@ -65,6 +77,26 @@ export interface AddWellnessPlanToCartResult {
   addWellnessPlanToCart: WellnessCartOrder;
 }
 
+export interface AddWellnessItemsToCartResult {
+  addWellnessItemsToCart: WellnessCartOrder;
+}
+
+export interface WellnessCartItemInput {
+  variantId: string;
+  quantity: number;
+}
+
+export interface CaptureWellnessLeadInput {
+  firstName?: string;
+  email: string;
+  marketingOptIn?: boolean;
+  goalCode?: string;
+}
+
+export interface CaptureWellnessLeadResult {
+  captureWellnessLead: boolean;
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export const WELLNESS_QUIZ_OPTIONS_QUERY = `
@@ -75,6 +107,7 @@ export const WELLNESS_QUIZ_OPTIONS_QUERY = `
       description
     }
     suggestedDietaryRestrictions
+    suggestedTrainingStyles
   }
 `;
 
@@ -85,6 +118,8 @@ export const MY_WELLNESS_PROFILE_QUERY = `
       activityLevel
       bodyWeightKg
       dietaryRestrictions
+      genderPreference
+      trainingStyles
     }
     myWellnessPlan {
       goalCode
@@ -95,6 +130,7 @@ export const MY_WELLNESS_PROFILE_QUERY = `
         variantSku
         dosingInstructions
         sortOrder
+        tier
       }
     }
   }
@@ -102,19 +138,28 @@ export const MY_WELLNESS_PROFILE_QUERY = `
 
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
+const WELLNESS_PLAN_FIELDS = `
+  goalCode
+  generatedAt
+  items {
+    variantId
+    variantName
+    variantSku
+    dosingInstructions
+    sortOrder
+  }
+`;
+
 export const SAVE_WELLNESS_PROFILE_MUTATION = `
   mutation SaveWellnessProfile($input: WellnessProfileInput!) {
-    saveWellnessProfile(input: $input) {
-      goalCode
-      generatedAt
-      items {
-        variantId
-        variantName
-        variantSku
-        dosingInstructions
-        sortOrder
-      }
-    }
+    saveWellnessProfile(input: $input) { ${WELLNESS_PLAN_FIELDS} }
+  }
+`;
+
+// Guest-safe: computes a plan from the given answers without saving anything.
+export const PREVIEW_WELLNESS_PLAN_MUTATION = `
+  mutation PreviewWellnessPlan($input: WellnessProfileInput!) {
+    previewWellnessPlan(input: $input) { ${WELLNESS_PLAN_FIELDS} }
   }
 `;
 
@@ -130,5 +175,28 @@ export const ADD_WELLNESS_PLAN_TO_CART_MUTATION = `
         productVariant { id name sku }
       }
     }
+  }
+`;
+
+// Guest-safe: adds the given variant/quantity pairs (from a preview result) to the session's active order.
+export const ADD_WELLNESS_ITEMS_TO_CART_MUTATION = `
+  mutation AddWellnessItemsToCart($items: [WellnessCartItemInput!]!) {
+    addWellnessItemsToCart(items: $items) {
+      id
+      code
+      totalWithTax
+      lines {
+        id
+        quantity
+        productVariant { id name sku }
+      }
+    }
+  }
+`;
+
+// Guest-safe: captures a marketing lead (email + opt-in) from someone who took the quiz.
+export const CAPTURE_WELLNESS_LEAD_MUTATION = `
+  mutation CaptureWellnessLead($input: WellnessLeadInput!) {
+    captureWellnessLead(input: $input)
   }
 `;
