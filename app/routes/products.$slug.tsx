@@ -1154,7 +1154,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 															<div className="w-full">
 																<div className="flex justify-between items-baseline">
-																	<div className="flex items-center gap-1.5 font-bold text-gray-900 text-base">{t.subscribeAndSave}</div>
+																	<div className="flex items-center gap-1.5 font-bold text-gray-900 text-sm">{t.subscribeAndSave}</div>
 																	{price !== null && subscribePrice !== null && (
 																		<div className="text-right">
 																			<div className="text-xs text-gray-500 line-through font-medium">{formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale)}</div>
@@ -1179,7 +1179,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 														<div className="flex items-center justify-between gap-3">
 															<div className="flex items-center gap-3">
 																<div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 bg-white">{purchaseType === "once" && <div className="w-3 h-3 rounded-full bg-lime-500" />}</div>
-																<span className="font-bold text-gray-900 text-base">{t.oneTimePurchase}</span>
+																<span className="font-bold text-gray-900 text-sm">{t.oneTimePurchase}</span>
 															</div>
 															<span className="font-extrabold text-gray-900 text-base">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</span>
 														</div>
@@ -1267,7 +1267,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				    Prefer the selected variant's own values; fall back to the product's
 				    defaults only when this variant hasn't got its own override. */}
 				{(() => {
-					const nutritionInfo = activeVariant?.customFields?.keyInfo || product.customFields?.keyInfo || "";
+					const nutritionInfo = activeVariant?.customFields?.keyInfo ?? "";
 					const variantInfo = activeVariant?.customFields?.additionalInfo ?? "";
 					const disclaimer = product.customFields?.disclaimer ?? "";
 					if (!product.description && !nutritionInfo && !disclaimer) return null;
@@ -1298,7 +1298,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				)}
 			</div>
 			{/* ── Ratings & Reviews ── */}
-			<div className="container mx-auto px-4 mt-12">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} /> : <NoReviews productSlug={product.slug} />}</div>
+			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} /> : <NoReviews productSlug={product.slug} />}</div>
 
 			{similarProducts.length > 0 && (
 				<HomeTopSelling

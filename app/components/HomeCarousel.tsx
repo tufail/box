@@ -109,14 +109,14 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 							key={slide.id}
 							href={resolvedHref}
 							aria-label={getSlideAriaLabel(slide)}
-							className="absolute left-0 right-0 rounded-xl overflow-hidden block"
+							className={`absolute left-0 right-0 rounded-xl overflow-hidden block ${isFront || isPeekVisible ? "shadow-xl shadow-black/25" : ""}`}
 							style={{
 								top: style.inset,
 								bottom: style.inset,
 								transform: `translateX(${style.x}px)`,
 								opacity: style.opacity,
 								zIndex: style.z,
-								transition: `transform ${TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${TRANSITION_MS}ms ease`,
+								transition: `transform ${TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${TRANSITION_MS}ms ease, box-shadow ${TRANSITION_MS}ms ease`,
 								pointerEvents: isFront || isPeekVisible ? "auto" : "none",
 								cursor: isFront ? (slide.href ? "pointer" : "default") : "pointer",
 							}}
@@ -145,8 +145,10 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 									return (
 										<>
 											<div className={`absolute inset-0 pointer-events-none ${gradientDirection} from-black/60 via-black/15 via-40% to-transparent`} />
-											<div className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"}`}>
-												<h2 className="font-heading text-white font-black text-xl sm:text-3xl md:text-4xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
+											<div
+												className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"} ${total > 1 ? (isRightAlign ? "pe-10 sm:pe-10" : "ps-10 sm:ps-10") : ""}`}
+											>
+												<h2 className="font-heading text-white font-black text-lg sm:text-2xl md:text-3xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
 												{resolvedHref && <span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">{locale === "ar" ? "تسوق الآن" : "Shop Now"}</span>}
 											</div>
 										</>

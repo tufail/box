@@ -32,7 +32,18 @@ function block(agent: string): string[] {
 	return [`User-agent: ${agent}`, ...DISALLOWED_PATHS.map((p) => `Disallow: ${p}`), ""];
 }
 
-export async function loader() {
+export async function loader({ request }: { request: Request }) {
+	// Preview/staging deploys (*.workers.dev, before a real custom domain is wired
+	// up) — keep every crawler out entirely, rather than the normal selective rules.
+	if (new URL(request.url).hostname.endsWith(".workers.dev")) {
+		return new Response("User-agent: *\nDisallow: /\n", {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+				"Cache-Control": "public, max-age=3600",
+			},
+		});
+	}
+
 	const lines = [...block("*"), ...AI_CRAWLER_AGENTS.flatMap(block), `Sitemap: ${SITE_URL}/sitemap.xml`, ""];
 
 	return new Response(lines.join("\n"), {

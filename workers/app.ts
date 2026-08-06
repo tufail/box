@@ -40,8 +40,19 @@ export default {
       }
     }
 
-    return requestHandler(request, {
+    const response = await requestHandler(request, {
       cloudflare: { env, ctx },
     });
+
+    // Preview/staging deploys (*.workers.dev, before a real custom domain is wired
+    // up) should never be indexed or surfaced by search engines — this catches every
+    // route uniformly, on top of the belt-and-suspenders robots.txt Disallow below.
+    if (url.hostname.endsWith(".workers.dev")) {
+      const headers = new Headers(response.headers);
+      headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+
+    return response;
   },
 } satisfies ExportedHandler<Env>;

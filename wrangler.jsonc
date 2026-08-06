@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "nutribox-frontend",
+	"name": "box",
 	"compatibility_date": "2025-04-04",
 	"main": "./workers/app.ts",
 	// Dev / local defaults -- override VENDURE_SHOP_API for production via:

@@ -68,7 +68,12 @@ export default function ProductHighlights({ highlights, title }: { highlights: P
 
 	return (
 		<div className="flex flex-col gap-3">
-			{title && <h4 className="text-sm font-bold text-gray-900">{title}</h4>}
+			{title && (
+				<>
+					<hr className="border-gray-200" />
+					<h4 className="text-sm font-bold text-gray-900">{title}</h4>
+				</>
+			)}
 			{groups.map((group, i) => (
 				<div key={i} className="flex flex-col gap-1.5">
 					{group.label && groups.length > 1 && <p className="text-xs font-semibold text-gray-500">{group.label}</p>}

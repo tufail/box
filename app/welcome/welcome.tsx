@@ -21,7 +21,7 @@ const WELCOME_COPY = {
 		buildYourStack: "Build your own personalized stack now!",
 		fastDeliveryAlt: "Fast Delivery",
 		fastDeliveryFrom: "Fast Delivery from",
-		twoHoursToNextDay: "2 Hours to Next Day!!",
+		twoHoursToSameDay: "2 Hours to Same Day!!",
 		newArrivals: "New Arrivals",
 	},
 	ar: {
@@ -29,7 +29,7 @@ const WELCOME_COPY = {
 		buildYourStack: "أنشئ باقتك المخصصة الآن!",
 		fastDeliveryAlt: "توصيل سريع",
 		fastDeliveryFrom: "توصيل سريع خلال",
-		twoHoursToNextDay: "ساعتين إلى يوم واحد!!",
+		twoHoursToSameDay: "من ساعتين إلى نفس اليوم!!",
 		newArrivals: "وصل حديثًا",
 	},
 } as const;
@@ -37,7 +37,7 @@ const WELCOME_COPY = {
 function StackBanner({ locale }: { locale: Locale }) {
 	const t = WELCOME_COPY[locale];
 	return (
-		<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات والمجموعات" : "Explore products and collections"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+		<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات والمجموعات" : "Explore products and collections"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-xl shadow-black/10">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
 				<img src="/images/stack.png" alt={t.personalizedStackAlt} className="w-full h-full object-contain animate-float" />
 			</div>
@@ -89,7 +89,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					{/* Side banners — row below on tablet, column beside on desktop */}
 					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:ps-6 self-stretch">
 						{/* NutriQuick delivery banner */}
-						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group">
+						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-xl shadow-black/10">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
 								<img src="/images/clock-3d.png" alt={t.fastDeliveryAlt} className="w-full h-full object-contain animate-vibrate" />
 							</div>
@@ -98,7 +98,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 									<span className="font-heading text-cart font-black text-xl tracking-widest italic">NutriQuick</span>
 								</div>
 								<p className="text-gray-600 text-xs leading-tight italic">{t.fastDeliveryFrom}</p>
-								<p className="text-primary font-extrabold text-sm leading-tight italic">{t.twoHoursToNextDay}</p>
+								<p className="text-primary font-extrabold text-sm leading-tight italic">{t.twoHoursToSameDay}</p>
 							</div>
 							<div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-rose-500 shadow-md flex items-center justify-center group-hover:brightness-110 transition-all relative overflow-hidden">
 								<div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full" />

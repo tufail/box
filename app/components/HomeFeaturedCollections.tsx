@@ -53,7 +53,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 		<section className="py-8 md:py-10 container mx-auto px-4" aria-labelledby="featured-collections-title">
 			<div className="mb-6 md:mb-8 text-center">
 				<h2 id="featured-collections-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
-					{locale === "ar" ? "تسوّق حسب المجموعة" : "Shop by Collection"}
+					{locale === "ar" ? "تسوّق حسب الفئة" : "Shop by Category"}
 				</h2>
 				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "اكتشف مجموعات المنتجات التي تناسب اهتماماتك." : "Explore curated product collections that match your interests."}</p>
 			</div>
@@ -63,7 +63,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 				</button>
 
 				<div className="overflow-hidden" ref={emblaRef}>
-					<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "مجموعات المنتجات" : "Product collections"}>
+					<div className="flex -mx-2 justify-center" role="list" aria-label={locale === "ar" ? "مجموعات المنتجات" : "Product collections"}>
 						{collections.map((col) => (
 							<div key={col.id} className="flex-none w-[120px] md:w-[140px] px-2" role="listitem">
 								{/* 1px gradient "border" — solid for the top 70% of the card, fading to
