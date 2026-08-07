@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import type { MegaMenuData } from "~/graphql/megamenu";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import type { PageSection } from "~/graphql/pages";
+import type { BannerItem } from "~/graphql/banner";
 import MegaMenu from "../components/MegaMenu";
 import SearchBox from "../components/SearchBox";
 import CartSidePanel from "../components/CartSidePanel";
@@ -10,7 +11,7 @@ import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher, useLocation, useNavigate } from "react-router";
 import LocaleLink from "../components/LocaleLink";
-import { CircleUser, ChevronDown, Languages, Heart, Menu, ShoppingCart, X, Check, Search } from "lucide-react";
+import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check, Search } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import SearchOverlay from "../components/SearchOverlay";
 import { useWishlist } from "../context/WishlistContext";
@@ -440,6 +441,84 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	);
 }
 
+// ── Top bar news pills ──────────────────────────────────────────────────────
+// Fetched client-side (not in the root loader) so it doesn't add a blocking
+// GraphQL round-trip to every single page's SSR — mirrors HomeBanner.tsx's
+// fetch-from-/api/banner/:slug pattern. Shows a shimmer while loading (same
+// treatment as HomeBanner/HomeTrendingBanners) and renders nothing once
+// loaded if the "top-bar-items" banner group in the Admin banner plugin has
+// no items — no static text fallback.
+function TopBarNewsPills() {
+	const [items, setItems] = useState<BannerItem[] | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		fetch("/api/banner/top-bar-items")
+			.then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
+			.then((data) => {
+				if (!cancelled) setItems(data?.items ?? []);
+			})
+			.catch(() => {
+				if (!cancelled) setItems([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	if (items && items.length > 0) {
+		const renderPill = (item: BannerItem, key: string) => {
+			const href = item.url?.trim();
+			// Outlined on the bar's own background (not a solid white fill) — a
+			// thin border gives the pill its capsule shape without competing
+			// with the teal top bar behind it.
+			const pillClass = "inline-flex items-center gap-1.5 border border-white/40 text-white text-[11px] font-bold px-3 py-1 rounded-full whitespace-nowrap hover:bg-white/10 transition-colors flex-shrink-0";
+			const titleLower = item.title.toLowerCase();
+			const Icon = titleLower.includes("shipping") ? Truck : titleLower.includes("authentic") || titleLower.includes("safe") ? ShieldCheck : Tag;
+			const content = (
+				<>
+					<Icon size={12} strokeWidth={2} className="flex-shrink-0 text-lime-300" />
+					<span>{item.title}</span>
+					<ChevronRight size={12} strokeWidth={2} className="flex-shrink-0 rtl:rotate-180" />
+				</>
+			);
+			return href ? (
+				<a key={key} href={href} className={pillClass}>
+					{content}
+				</a>
+			) : (
+				<span key={key} className={pillClass}>
+					{content}
+				</span>
+			);
+		};
+
+		return (
+			<>
+				{/* Mobile — self-scrolling marquee (duplicated track for a seamless loop),
+				    not a native drag-to-scroll strip. */}
+				<div className="md:hidden overflow-hidden">
+					<div className="flex items-center gap-2 w-max animate-marquee">{[...items, ...items].map((item, i) => renderPill(item, `${item.id}-${i}`))}</div>
+				</div>
+				{/* Desktop — static row, fits without needing to scroll or animate. */}
+				<div className="hidden md:flex items-center gap-2 w-max">{items.map((item) => renderPill(item, item.id))}</div>
+			</>
+		);
+	}
+
+	if (items === null) {
+		return (
+			<div className="flex items-center gap-2 w-max" aria-hidden="true">
+				{[80, 96, 72].map((w, i) => (
+					<div key={i} className="h-[26px] rounded-full bg-white/15 animate-pulse flex-shrink-0" style={{ width: w }} />
+				))}
+			</div>
+		);
+	}
+
+	return null;
+}
+
 export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
 	const routerLocation = useLocation();
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
@@ -513,26 +592,24 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			>
 				{t.skipToContent}
 			</a>
-			<div className="bg-black py-2 relative">
-				<p className="flex items-center justify-center gap-2.5 text-[10px] font-semibold text-white text-center tracking-wide uppercase px-16">
-					<span>{t.freeDelivery}</span>
-					<span className="w-1 h-1 rounded-full bg-lime-300 flex-shrink-0" aria-hidden="true" />
-					<span>{t.authentic}</span>
-					<span className="w-1 h-1 rounded-full bg-lime-300 flex-shrink-0" aria-hidden="true" />
-					<span>{t.fastShipping}</span>
-				</p>
-				<button onClick={toggleLanguage} translate="no" className="border rounded-xl px-2 absolute end-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-white hover:text-black hover:bg-white cursor-pointer transition-colors text-sm">
-					<Languages size={16} strokeWidth={1.5} />
-					{currentLang === "en" ? (
-						<span lang="ar" className="font-arabic">
-							العربية
-						</span>
-					) : (
-						<span>English</span>
-					)}
-				</button>
+			<div className="py-2" style={{ backgroundColor: "#214d54" }}>
+				<div className="container mx-auto px-4 flex items-center gap-4">
+					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+						<TopBarNewsPills />
+					</div>
+					<button onClick={toggleLanguage} translate="no" className="border rounded-xl px-2 flex-shrink-0 flex items-center gap-1.5 text-white hover:text-black hover:bg-white cursor-pointer transition-colors text-sm">
+						<Languages size={16} strokeWidth={1.5} />
+						{currentLang === "en" ? (
+							<span lang="ar" className="font-arabic">
+								العربية
+							</span>
+						) : (
+							<span>English</span>
+						)}
+					</button>
+				</div>
 			</div>
-			<header className={`bg-white border-b border-stone-200 sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
+			<header className={`bg-white border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
 				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4 relative">
 					<div className="flex items-center gap-2 flex-shrink-0">
 						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu} aria-haspopup="true" aria-expanded={mobileMenuOpen}>

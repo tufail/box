@@ -9,6 +9,7 @@ export interface CarouselSlide {
 	image: string;
 	mobileImage?: string;
 	label: string;
+	description?: string | null;
 	href?: string;
 	hideTitle?: boolean;
 	titlePosition?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -109,7 +110,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 							key={slide.id}
 							href={resolvedHref}
 							aria-label={getSlideAriaLabel(slide)}
-							className={`absolute left-0 right-0 rounded-xl overflow-hidden block ${isFront || isPeekVisible ? "shadow-xl shadow-black/25" : ""}`}
+							className={`absolute left-0 right-0 rounded-xl overflow-hidden block ${isFront || isPeekVisible ? "shadow-md shadow-black/25" : ""}`}
 							style={{
 								top: style.inset,
 								bottom: style.inset,
@@ -129,7 +130,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 						>
 							<picture className="block w-full h-full">
 								{slide.mobileImage && <source media="(max-width: 767px)" srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { preset: "large", format: "webp" })} />}
-								<img src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })} alt={slide.label} className="w-full h-full object-cover block" draggable={false} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} />
+								<img src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })} alt={slide.description || slide.label} className="w-full h-full object-cover block" draggable={false} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} />
 							</picture>
 
 							{!isFront && <div className="absolute inset-0 bg-black/25" />}
@@ -148,7 +149,8 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 											<div
 												className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"} ${total > 1 ? (isRightAlign ? "pe-10 sm:pe-10" : "ps-10 sm:ps-10") : ""}`}
 											>
-												<h2 className="font-heading text-white font-black text-lg sm:text-2xl md:text-3xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
+												<h2 className="font-heading2 text-white font-black text-2xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
+												{slide.description && <p className="text-white/90 text-xs sm:text-sm leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.description}</p>}
 												{resolvedHref && <span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">{locale === "ar" ? "تسوق الآن" : "Shop Now"}</span>}
 											</div>
 										</>

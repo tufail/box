@@ -1003,7 +1003,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							<h1 className="font-heading text-xl md:text-3xl font-extrabold text-black leading-snug">{activeVariantName || product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
-									{t.by} <Link to={`/brands/${brandFacetValue!.code}`} className="text-primary font-medium hover:underline">{brand}</Link>
+									{t.by} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
 								</p>
 							)}
 							{ratingSummary && ratingSummary.totalReviews > 0 && (

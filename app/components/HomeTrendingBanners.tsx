@@ -43,7 +43,7 @@ export default function HomeTrendingBanners({ title, vendureBase = "" }: { title
 
 function Shimmer() {
 	return (
-		<section className="py-8 md:py-10 container mx-auto px-4">
+		<section className="py-2 md:py-4 container mx-auto px-4">
 			<div className="h-6 w-48 bg-gray-200 rounded mb-5 animate-pulse" />
 			<div className="flex gap-4">
 				{[...Array(4)].map((_, i) => (
@@ -88,12 +88,11 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
 	}, [emblaApi, onSelect]);
 
 	return (
-		<section className="py-8 md:py-10 container mx-auto px-4" aria-labelledby="home-trending-banners-title">
-			<div className="mb-8 md:mb-10 text-center">
-				<h2 id="home-trending-banners-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
+		<section className="py-2 md:py-4 container mx-auto px-4" aria-labelledby="home-trending-banners-title">
+			<div className="mb-4 md:mb-5">
+				<h2 id="home-trending-banners-title" className="font-heading2 text-2xl font-extrabold text-black">
 					{resolvedTitle}
 				</h2>
-				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "اكتشف العروض والمنتجات التي يطلبها العملاء غالبًا." : "Discover highlighted offers and products customers are gravitating toward."}</p>
 			</div>
 
 			<div className="relative">
@@ -111,7 +110,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
 									{resolvedHref ? (
 										<a href={resolvedHref} aria-label={locale === "ar" ? `فتح ${item.title}` : `Open ${item.title}`} className={cardClassName}>
 											<div className="aspect-square overflow-hidden bg-white">
-												<VendureImage src={item.assetPreview} vendureBase={vendureBase} alt={item.title} width={300} height={300} objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-300" />
+												<VendureImage src={item.assetPreview} vendureBase={vendureBase} alt={item.description || item.title} width={300} height={300} objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-300" />
 											</div>
 											<div className="px-3 pt-2 pb-4 text-center">
 												<span className="text-md font-bold text-gray-900 underline underline-offset-2 group-hover:text-primary transition-colors">{item.title}</span>
@@ -120,7 +119,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
 									) : (
 										<div className={cardClassName}>
 											<div className="aspect-square overflow-hidden bg-white">
-												<VendureImage src={item.assetPreview} vendureBase={vendureBase} alt={item.title} width={300} height={300} objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-300" />
+												<VendureImage src={item.assetPreview} vendureBase={vendureBase} alt={item.description || item.title} width={300} height={300} objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-300" />
 											</div>
 											<div className="px-3 pt-2 pb-4 text-center">
 												<span className="text-md font-bold text-gray-900 underline underline-offset-2 group-hover:text-primary transition-colors">{item.title}</span>

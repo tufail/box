@@ -51,7 +51,7 @@ export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@700;800;900&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Urbanist:wght@700;800;900&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap",
 	},
 	{ rel: "apple-touch-icon", sizes: "57x57", href: "/apple-icon-57x57.png" },
 	{ rel: "apple-touch-icon", sizes: "60x60", href: "/apple-icon-60x60.png" },

@@ -35,7 +35,7 @@ function SideBanner({ slug, rounded }: { slug: string; rounded: "top" | "bottom"
 	const img = (
 		<img
 			src={state.assetPreview}
-			alt={state.title}
+			alt={state.description || state.title}
 			className={`w-full h-full object-cover ${roundedClass}`}
 		/>
 	);

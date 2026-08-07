@@ -3,6 +3,7 @@ export type BannerTitlePosition = "top-left" | "top-right" | "bottom-left" | "bo
 export interface BannerItem {
   id: string;
   title: string;
+  description: string | null;
   url: string;
   mobileAssetPreview: string;
   assetPreview: string;
@@ -24,6 +25,7 @@ export const GET_BANNER_BY_SLUG = `
       items {
         id
         title
+        description
         url
         mobileAssetPreview
         assetPreview

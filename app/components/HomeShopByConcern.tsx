@@ -1,216 +1,160 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useFetcher, useLocation } from "react-router";
-import Link from "~/components/LocaleLink";
-import { Sparkles, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import type { HomeCollectionItem } from "~/graphql/collection";
-import type { SearchProductItem } from "~/graphql/product";
-import ProductCard from "./ProductCard";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { BannerItem } from "~/graphql/banner";
+import { vendureImageUrl } from "./VendureImage";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
-const PAGE_SIZE = 8;
+// Light, plain fill per card — cycled by position since the banner plugin
+// has no color field of its own. Deliberately flat pastels (not gradients),
+// paired with dark text/CTA for contrast.
+const CARD_BG = ["bg-rose-100", "bg-teal-100", "bg-amber-100", "bg-sky-100", "bg-indigo-100", "bg-fuchsia-100"];
 
-interface ConcernResponse {
-	items: SearchProductItem[];
-	totalItems: number;
+function normalizeDestination(href?: string) {
+	if (!href) return undefined;
+	const value = href.trim();
+	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
+		return undefined;
+	}
+	return value;
 }
 
-// Mirrors ProductCard's outer box (padding/border/radius/shadow) exactly so swapping
-// from skeleton to real card doesn't change row heights or cause a layout jump.
-function ProductCardSkeleton() {
+type State = "loading" | BannerItem[];
+
+export default function HomeShopByConcern({ vendureBase }: { vendureBase: string }) {
+	const [state, setState] = useState<State>("loading");
+
+	useEffect(() => {
+		let cancelled = false;
+		fetch("/api/banner/home-concern-section")
+			.then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
+			.then((data) => {
+				if (!cancelled) setState(data?.items ?? []);
+			})
+			.catch(() => {
+				if (!cancelled) setState([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	if (state === "loading") return <Shimmer />;
+	if (state.length === 0) return null;
+
+	return <ConcernScroll items={state} vendureBase={vendureBase} />;
+}
+
+function Shimmer() {
 	return (
-		<div className="bg-white rounded-2xl p-3 sm:p-4 flex flex-col h-full border border-gray-100 shadow-sm animate-pulse">
-			<div className="aspect-square rounded-xl bg-gray-100" />
-			<div className="flex flex-col items-center mt-2 gap-2 flex-1">
-				<div className="h-3.5 w-4/5 bg-gray-100 rounded-full" />
-				<div className="h-3.5 w-1/2 bg-gray-100 rounded-full" />
-				<div className="h-4 w-16 bg-gray-100 rounded-full mt-1" />
+		<section className="relative my-6 py-8 md:py-10 bg-white">
+			<div className="container mx-auto px-4">
+				<div className="h-7 w-48 bg-black/10 rounded mb-4 md:mb-5 animate-pulse" />
+				<div className="flex gap-4">
+					{[...Array(5)].map((_, i) => (
+						<div key={i} className="flex-none w-1/2 md:w-1/4 lg:w-1/5">
+							<div className="aspect-square w-full rounded-2xl bg-black/10 animate-pulse" />
+						</div>
+					))}
+				</div>
 			</div>
-			<div className="mt-3 h-9 w-full bg-gray-100 rounded-full" />
-		</div>
+		</section>
 	);
 }
 
-export default function HomeShopByConcern({ collections, vendureBase }: { collections: HomeCollectionItem[]; vendureBase: string }) {
-	const tabs = collections;
-	const [activeSlug, setActiveSlug] = useState(tabs[0]?.slug ?? "");
-	const [items, setItems] = useState<SearchProductItem[]>([]);
-	const [totalItems, setTotalItems] = useState(0);
-	const [pillRect, setPillRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
-	// Set from the very first render (seeded with the initial tab) and on every click,
-	// cleared once that slug's data arrives — makes the skeleton grid appear on the same
-	// render as the click/mount, with no empty frame in between (fetcher.state itself only
-	// flips to "loading" a render later).
-	const [loadingSlug, setLoadingSlug] = useState<string | null>(tabs[0]?.slug ?? null);
-	const [canScrollLeft, setCanScrollLeft] = useState(false);
-	const [canScrollRight, setCanScrollRight] = useState(false);
-	const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-	const scrollRef = useRef<HTMLDivElement>(null);
-	const fetcher = useFetcher<ConcernResponse>();
-	const loadMoreFetcher = useFetcher<ConcernResponse>();
+function ConcernScroll({ items, vendureBase }: { items: BannerItem[]; vendureBase: string }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
+	const [emblaRef, emblaApi] = useEmblaCarousel({
+		align: "start",
+		slidesToScroll: "auto",
+		containScroll: "trimSnaps",
+		direction: locale === "ar" ? "rtl" : "ltr",
+	});
 
-	const updateScrollState = useCallback(() => {
-		const el = scrollRef.current;
-		if (!el) return;
-		setCanScrollLeft(el.scrollLeft > 4);
-		setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-	}, []);
+	const [canPrev, setCanPrev] = useState(false);
+	const [canNext, setCanNext] = useState(true);
 
-	useEffect(() => {
-		updateScrollState();
-		window.addEventListener("resize", updateScrollState);
-		return () => window.removeEventListener("resize", updateScrollState);
-	}, [updateScrollState, tabs.length]);
-
-	function scrollTabs(direction: "left" | "right") {
-		scrollRef.current?.scrollBy({ left: direction === "left" ? -240 : 240, behavior: "smooth" });
-	}
-
-	// Measure the active tab's box so the sliding pill can animate to it exactly —
-	// tabs are variable-width and horizontally scrollable, so no fixed formula works.
-	// Also scroll the active tab into view if it's off-screen — done by hand against
-	// scrollRef (not el.scrollIntoView, which scrolls every scrollable ancestor,
-	// including the page itself — on mount that dragged the whole homepage down to
-	// this section since it sits below the fold).
-	useEffect(() => {
-		const el = tabRefs.current.get(activeSlug);
-		const container = scrollRef.current;
-		if (!el) return;
-		setPillRect({ left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight });
-		if (!container) return;
-		const elLeft = el.offsetLeft;
-		const elRight = elLeft + el.offsetWidth;
-		const viewLeft = container.scrollLeft;
-		const viewRight = viewLeft + container.clientWidth;
-		if (elLeft < viewLeft) {
-			container.scrollTo({ left: elLeft - 16, behavior: "smooth" });
-		} else if (elRight > viewRight) {
-			container.scrollTo({ left: elRight - container.clientWidth + 16, behavior: "smooth" });
-		}
-	}, [activeSlug, tabs.length]);
-
-	// Tab switch — client-fetch the first page for the newly selected concern
-	useEffect(() => {
-		if (!activeSlug) return;
-		fetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=0&take=${PAGE_SIZE}&lang=${locale}`);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSlug, locale]);
+	const onSelect = useCallback(() => {
+		if (!emblaApi) return;
+		setCanPrev(emblaApi.canScrollPrev());
+		setCanNext(emblaApi.canScrollNext());
+	}, [emblaApi]);
 
 	useEffect(() => {
-		if (!fetcher.data) return;
-		setItems(fetcher.data.items);
-		setTotalItems(fetcher.data.totalItems);
-		setLoadingSlug(null);
-	}, [fetcher.data]);
-
-	useEffect(() => {
-		if (!loadMoreFetcher.data) return;
-		setItems((prev) => [...prev, ...loadMoreFetcher.data!.items]);
-	}, [loadMoreFetcher.data]);
-
-	function handleLoadMore() {
-		loadMoreFetcher.load(`/api/concern-products?collectionSlug=${encodeURIComponent(activeSlug)}&skip=${items.length}&take=${PAGE_SIZE}&lang=${locale}`);
-	}
-
-	if (tabs.length === 0) return null;
-
-	const activeCollection = tabs.find((t) => t.slug === activeSlug);
-	const loading = loadingSlug !== null || fetcher.state !== "idle";
-	const loadingMore = loadMoreFetcher.state !== "idle";
-	const hasMore = items.length < totalItems;
+		if (!emblaApi) return;
+		onSelect();
+		emblaApi.on("select", onSelect);
+		emblaApi.on("reInit", onSelect);
+		return () => {
+			emblaApi.off("select", onSelect);
+			emblaApi.off("reInit", onSelect);
+		};
+	}, [emblaApi, onSelect]);
 
 	return (
-		<section className="pt-8 md:pt-10 pb-8 md:pb-10 container mx-auto px-4" aria-labelledby="shop-by-concern-title" aria-describedby="shop-by-concern-description">
-			<div className="mb-8 md:mb-10 text-center">
-				<h2 id="shop-by-concern-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
-					{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}
-				</h2>
-				<p id="shop-by-concern-description" className="text-gray-500 text-sm mt-2">
-					{locale === "ar" ? "اعثر على ما يناسب أهدافك" : "Find what fits your goals"}
-				</p>
-			</div>
+		<section className="relative my-6 py-8 md:py-10 bg-white" aria-labelledby="shop-by-concern-title">
+			{/* Full-bleed background — this section (unlike its siblings) isn't wrapped
+			    in its own container, so the image spans the full viewport width while
+			    the heading/carousel below stay constrained to the normal content width.
+			    Inline style (not a Tailwind bg-[url(...)] class) so it's never at the
+			    mercy of the arbitrary-value class scanner picking it up correctly. */}
 
-			{/* Tabs — sliding pill, measured against each tab's own box so it works with
-			    variable-width, horizontally-scrolling tabs */}
-			<div className="relative mb-6">
-				<div ref={scrollRef} onScroll={updateScrollState} className="relative flex gap-2 overflow-x-auto pb-2 scrollbar-hide" role="tablist" aria-label={locale === "ar" ? "اختيارات الاحتياج" : "Concern filters"}>
-					<div className="absolute rounded-full bg-black transition-all duration-300 ease-out" style={{ left: pillRect.left, top: pillRect.top, width: pillRect.width, height: pillRect.height }} />
-					{tabs.map((c) => (
-						<button
-							key={c.id}
-							role="tab"
-							aria-selected={activeSlug === c.slug}
-							ref={(el) => {
-								if (el) tabRefs.current.set(c.slug, el);
-							}}
-							onClick={() => {
-								if (c.slug === activeSlug) return;
-								setActiveSlug(c.slug);
-								setLoadingSlug(c.slug);
-							}}
-							className={`relative z-10 flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${activeSlug === c.slug ? "text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"}`}
-						>
-							{c.name}
-						</button>
-					))}
+			<div className="container mx-auto px-4">
+				<div className="mb-4 md:mb-5">
+					<h2 id="shop-by-concern-title" className="font-heading2 text-2xl font-extrabold text-black">
+						{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}
+					</h2>
 				</div>
 
-				{canScrollLeft && (
-					<>
-						<div className="absolute start-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-l" />
-						<button onClick={() => scrollTabs("left")} aria-label={locale === "ar" ? "تمرير علامات التبويب لليسار" : "Scroll tabs left"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-2 rtl:translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-							<ChevronLeft size={14} className="rtl:rotate-180" />
-						</button>
-					</>
-				)}
-				{canScrollRight && (
-					<>
-						<div className="absolute end-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-r" />
-						<button onClick={() => scrollTabs("right")} aria-label={locale === "ar" ? "تمرير علامات التبويب لليمين" : "Scroll tabs right"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-2 rtl:-translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-							<ChevronRight size={14} className="rtl:rotate-180" />
-						</button>
-					</>
-				)}
-			</div>
+				<div className="relative">
+					<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label={locale === "ar" ? "العناصر السابقة" : "Previous items"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+						<ChevronLeft size={14} className="rtl:rotate-180" />
+					</button>
 
-			<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
-				{/* Presentation panel — fills the 5th column left empty by the 4-col product grid */}
-				<div className="col-span-2 sm:col-span-4 lg:col-span-1 lg:row-span-2 lg:col-start-1 lg:row-start-1 relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#0f2a2f] p-6 flex flex-col justify-between min-h-[200px] lg:min-h-0">
-					<div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-lime-300/20 blur-2xl pointer-events-none" />
-					<div className="absolute -bottom-16 -left-10 w-48 h-48 rounded-full bg-lime-300/10 blur-3xl pointer-events-none" />
-					<Sparkles className="absolute bottom-4 right-4 text-white/10 pointer-events-none" size={96} strokeWidth={1} />
-
-					<div className="relative z-10">
-						<span className="inline-block bg-lime-300 text-black text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-4">{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}</span>
-						<h3 className="font-heading text-2xl font-extrabold text-white leading-tight">{activeCollection?.name ?? (locale === "ar" ? "أهدافك" : "Your Goals")}</h3>
-						<p className="text-white/70 text-sm mt-2">{locale === "ar" ? "اختيارات مدروسة يثق بها الآلاف، مدعومة بالعلم." : "Curated picks trusted by thousands, backed by science."}</p>
+					<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
+						<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "احتياجات التسوق" : "Shopping concerns"}>
+							{items.map((item, i) => {
+								const href = normalizeDestination(item.url);
+								const hasImage = !!item.assetPreview;
+								const bg = hasImage ? "bg-gray-100" : CARD_BG[i % CARD_BG.length];
+								// Photo tiles need a dark scrim + white text for contrast; plain
+								// color tiles are light, so dark text/CTA reads better on those.
+								const cardContent = (
+									<>
+										{hasImage && (
+											<>
+												<img src={vendureImageUrl(item.assetPreview, vendureBase, { preset: "large", format: "webp" })} alt={item.description || item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+												<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 via-50% to-transparent" />
+											</>
+										)}
+										<div className="absolute inset-0 p-3 flex flex-col justify-end items-start gap-1">
+											<h3 className={`font-heading2 font-extrabold text-sm sm:text-base leading-tight ${hasImage ? "text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" : "text-gray-900"}`}>{item.title}</h3>
+											{item.description && <p className={`text-xs leading-snug line-clamp-2 mb-1 ${hasImage ? "text-white/85 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" : "text-gray-700"}`}>{item.description}</p>}
+											<span className={`inline-flex items-center rounded-full font-extrabold text-xs px-3 py-1.5 shadow-sm transition-colors ${hasImage ? "bg-white text-primary group-hover:bg-gray-100" : "bg-black text-white group-hover:bg-gray-800"}`}>{locale === "ar" ? "تسوق الآن" : "Shop Now"}</span>
+										</div>
+									</>
+								);
+								return (
+									<div key={item.id} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2" role="listitem">
+										{href ? (
+											<a href={href} className={`group relative overflow-hidden rounded-2xl aspect-square block ${bg}`}>
+												{cardContent}
+											</a>
+										) : (
+											<div className={`group relative overflow-hidden rounded-2xl aspect-square block ${bg}`}>{cardContent}</div>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
 
-					<Link to={`/c/${activeSlug}`} className="relative z-10 mt-6 inline-flex items-center gap-1.5 text-white text-sm font-semibold hover:gap-2.5 transition-all w-fit">
-						{locale === "ar" ? "استكشف الكل" : "Explore all"} <ArrowRight size={15} className="rtl:rotate-180" />
-					</Link>
-				</div>
-
-				{/* Products */}
-				{!loading &&
-					items.map((item, i) => (
-						<div key={item.productVariantId}>
-							<ProductCard product={item} vendureBase={vendureBase} eager={i < 4} />
-						</div>
-					))}
-
-				{loading && Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductCardSkeleton key={i} />)}
-
-				{!loading && items.length === 0 && <p className="col-span-full lg:col-span-4 text-center text-gray-400 text-sm py-10">{locale === "ar" ? "لم يتم العثور على منتجات لهذا الاحتياج بعد." : "No products found for this concern yet."}</p>}
-			</div>
-
-			{hasMore && (
-				<div className="mt-8 flex justify-center">
-					<button onClick={handleLoadMore} disabled={loadingMore} className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors disabled:opacity-60">
-						{loadingMore ? (locale === "ar" ? "جارٍ التحميل…" : "Loading…") : locale === "ar" ? "تحميل المزيد" : "Load More"}
+					<button onClick={() => emblaApi?.scrollNext()} disabled={!canNext} aria-label={locale === "ar" ? "العناصر التالية" : "Next items"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+						<ChevronRight size={14} className="rtl:rotate-180" />
 					</button>
 				</div>
-			)}
+			</div>
 		</section>
 	);
 }

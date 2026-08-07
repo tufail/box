@@ -50,13 +50,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 	}, [emblaApi, onSelect]);
 
 	return (
-		<section className="py-8 md:py-10 container mx-auto px-4" aria-labelledby="featured-collections-title">
-			<div className="mb-6 md:mb-8 text-center">
-				<h2 id="featured-collections-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
-					{locale === "ar" ? "تسوّق حسب الفئة" : "Shop by Category"}
-				</h2>
-				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "اكتشف مجموعات المنتجات التي تناسب اهتماماتك." : "Explore curated product collections that match your interests."}</p>
-			</div>
+		<section className="py-2 md:py-4 container mx-auto px-4" aria-label={locale === "ar" ? "تسوّق حسب الفئة" : "Shop by Category"}>
 			<div className="relative">
 				<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label={locale === "ar" ? "المجموعات السابقة" : "Previous collections"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
 					<ChevronLeft size={14} className="rtl:rotate-180" />

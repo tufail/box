@@ -59,7 +59,7 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	const picture = (
 		<picture>
 			{state.mobileAssetPreview && <source media="(max-width: 767px)" srcSet={state.mobileAssetPreview} />}
-			<img src={state.assetPreview} alt={state.title} className="w-full h-auto block group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+			<img src={state.assetPreview} alt={state.description || state.title} className="w-full h-auto block group-hover:scale-105 transition-transform duration-300" loading="lazy" />
 		</picture>
 	);
 

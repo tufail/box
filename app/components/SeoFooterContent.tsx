@@ -113,7 +113,7 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 	return (
 		<div className="bg-white border-t border-stone-200">
 			<div className="container mx-auto px-4 py-10 max-w-5xl">
-				<h2 className="font-heading text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.about}</h2>
+				<h2 className="font-heading2 text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.about}</h2>
 
 				<div className="space-y-4 text-sm text-gray-500 leading-relaxed">
 					{locale === "ar" ? (

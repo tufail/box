@@ -37,7 +37,7 @@ const WELCOME_COPY = {
 function StackBanner({ locale }: { locale: Locale }) {
 	const t = WELCOME_COPY[locale];
 	return (
-		<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات والمجموعات" : "Explore products and collections"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-xl shadow-black/10">
+		<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات والمجموعات" : "Explore products and collections"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-md shadow-black/10">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
 				<img src="/images/stack.png" alt={t.personalizedStackAlt} className="w-full h-full object-contain animate-float" />
 			</div>
@@ -71,6 +71,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 		image: item.assetPreview,
 		mobileImage: item.mobileAssetPreview,
 		label: item.title,
+		description: item.description,
 		href: item.url || undefined,
 		hideTitle: item.hideTitle,
 		titlePosition: item.titlePosition,
@@ -89,7 +90,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					{/* Side banners — row below on tablet, column beside on desktop */}
 					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:ps-6 self-stretch">
 						{/* NutriQuick delivery banner */}
-						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-xl shadow-black/10">
+						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-violet-100 via-purple-100 to-amber-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-md shadow-black/10">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
 								<img src="/images/clock-3d.png" alt={t.fastDeliveryAlt} className="w-full h-full object-contain animate-vibrate" />
 							</div>
@@ -113,7 +114,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 			</div>
 			<HomeFeaturedCollections topLevelCollections={topLevelCollections} subCollections={subCollections} vendureBase={vendureBase} />
 			<HomeTopSelling products={products} vendureBase={vendureBase} viewAllHref="/collections" />
-			<HomeShopByConcern collections={topLevelCollections} vendureBase={vendureBase} />
+			<HomeShopByConcern vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
 			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" />

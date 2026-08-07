@@ -50,12 +50,16 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 	if (products.length === 0) return null;
 
 	return (
-		<section className="py-8 md:py-10 container mx-auto px-4" aria-labelledby="home-top-selling-title">
-			<div className="mb-8 md:mb-10 text-center">
-				<h2 id="home-top-selling-title" className="font-heading text-3xl md:text-4xl font-extrabold text-black">
+		<section className="py-2 md:py-4 container mx-auto px-4" aria-labelledby="home-top-selling-title">
+			<div className="mb-4 md:mb-5 flex items-center justify-between gap-4">
+				<h2 id="home-top-selling-title" className="font-heading2 text-2xl font-extrabold text-black">
 					{resolvedTitle}
 				</h2>
-				<p className="text-gray-500 text-sm mt-2">{locale === "ar" ? "أشهر المنتجات المفضلة لدى العملاء." : "Browse our most-loved products and best-value picks."}</p>
+				{viewAllHref && (
+					<Link to={viewAllHref} aria-label={locale === "ar" ? "عرض جميع المنتجات" : "View all products"} className="flex-shrink-0 inline-flex items-center rounded-full border border-black text-black font-bold text-xs px-4 py-1.5 hover:bg-black hover:text-white transition-colors">
+						{locale === "ar" ? "عرض الكل" : "View All"}
+					</Link>
+				)}
 			</div>
 
 			<div className="relative">
@@ -77,14 +81,6 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 					<ChevronRight size={14} className="rtl:rotate-180" />
 				</button>
 			</div>
-
-			{viewAllHref && (
-				<div className="mt-8 flex justify-center">
-					<Link to={viewAllHref} aria-label={locale === "ar" ? "عرض جميع المنتجات" : "View all products"} className="inline-flex items-center rounded-full bg-black text-white font-bold text-sm px-8 py-3 hover:bg-gray-800 transition-colors">
-						{locale === "ar" ? "عرض الكل" : "View All"}
-					</Link>
-				</div>
-			)}
 		</section>
 	);
 }
