@@ -17,6 +17,7 @@ const PAGE_SIZE = 24;
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "sales_desc", label: "Best Sellers" },
+  { value: "rating_desc", label: "Highest Rated" },
   { value: "name_asc", label: "Name A–Z" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
@@ -26,6 +27,7 @@ function sortToInput(sort: SortKey) {
   if (sort === "name_asc") return { name: "ASC" as const };
   if (sort === "price_asc") return { price: "ASC" as const };
   if (sort === "price_desc") return { price: "DESC" as const };
+  if (sort === "rating_desc") return { avgRating: "DESC" as const };
   return { salesCount: "DESC" as const };
 }
 
@@ -69,6 +71,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const sort = (url.searchParams.get("sort") ?? "sales_desc") as SortKey;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const fv = url.searchParams.get("fv")?.split(",").filter(Boolean) ?? [];
+  const onSale = url.searchParams.get("onSale") === "1";
+  const bundle = url.searchParams.get("bundle") === "1";
 
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
@@ -80,6 +84,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     skip: (page - 1) * PAGE_SIZE,
     sort: sortToInput(sort),
     ...(fv.length > 0 && { facetValueIds: fv, facetValueOperator: "AND" }),
+    ...(onSale && { isOnSale: true }),
+    ...(bundle && { isBundle: true }),
   };
 
   try {
@@ -89,9 +95,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       { input },
       { request }
     );
-    return { ...data.search, q, sort, page, fv, vendureBase };
+    return { ...data.search, q, sort, page, fv, onSale, bundle, vendureBase };
   } catch {
-    return { totalItems: 0, items: [], facetValues: [], collections: [], q, sort, page, fv, vendureBase };
+    return { totalItems: 0, items: [], facetValues: [], collections: [], q, sort, page, fv, onSale, bundle, vendureBase };
   }
 }
 
@@ -102,16 +108,39 @@ interface FilterSidebarProps {
   facetValues: SearchPageFacetValue[];
   activeFv: string[];
   onToggle: (id: string) => void;
+  onSale: boolean;
+  bundle: boolean;
+  onToggleOnSale: () => void;
+  onToggleBundle: () => void;
 }
 
-function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterSidebarProps) {
+function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle, onSale, bundle, onToggleOnSale, onToggleBundle }: FilterSidebarProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const hasActive = activeFv.length > 0 || onSale || bundle;
   return (
     <div>
-      {activeFv.length > 0 && (
+      {hasActive && (
         <div className="mb-5">
           <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Active</div>
           <div className="flex flex-wrap gap-1.5">
+            {onSale && (
+              <button
+                onClick={onToggleOnSale}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+              >
+                On Sale
+                <X size={10} />
+              </button>
+            )}
+            {bundle && (
+              <button
+                onClick={onToggleBundle}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+              >
+                Bundle Deals
+                <X size={10} />
+              </button>
+            )}
             {activeFv.map((id) => {
               const match = facetValues.find((f) => f.facetValue.id === id);
               return match ? (
@@ -128,6 +157,24 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
           </div>
         </div>
       )}
+
+      <div className="mb-5">
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2.5">Quick Filters</div>
+        <ul className="space-y-2">
+          <li>
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" checked={onSale} onChange={onToggleOnSale} className="accent-primary w-4 h-4 rounded flex-shrink-0" />
+              <span className="flex-1 text-sm text-gray-700 group-hover:text-primary transition-colors">On Sale</span>
+            </label>
+          </li>
+          <li>
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" checked={bundle} onChange={onToggleBundle} className="accent-primary w-4 h-4 rounded flex-shrink-0" />
+              <span className="flex-1 text-sm text-gray-700 group-hover:text-primary transition-colors">Bundle Deals</span>
+            </label>
+          </li>
+        </ul>
+      </div>
 
       {facetGroups.map((group) => {
         const isCollapsed = collapsed[group.facetId];
@@ -171,7 +218,7 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle }: FilterS
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, q, sort, page, fv, vendureBase } = loaderData;
+  const { totalItems, items, facetValues, q, sort, page, fv, onSale, bundle, vendureBase } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -190,6 +237,14 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
       ? (fv as string[]).filter((x) => x !== id)
       : [...(fv as string[]), id];
     updateParam("fv", next.join(",") || null);
+  }
+
+  function toggleOnSale() {
+    updateParam("onSale", onSale ? null : "1");
+  }
+
+  function toggleBundle() {
+    updateParam("bundle", bundle ? null : "1");
   }
 
   return (
@@ -224,9 +279,9 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
           >
             <SlidersHorizontal size={14} />
             Filters
-            {(fv as string[]).length > 0 && (
+            {(fv as string[]).length + (onSale ? 1 : 0) + (bundle ? 1 : 0) > 0 && (
               <span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
-                {(fv as string[]).length}
+                {(fv as string[]).length + (onSale ? 1 : 0) + (bundle ? 1 : 0)}
               </span>
             )}
           </button>
@@ -253,6 +308,10 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
             facetValues={facetValues}
             activeFv={fv as string[]}
             onToggle={toggleFacet}
+            onSale={onSale as boolean}
+            bundle={bundle as boolean}
+            onToggleOnSale={toggleOnSale}
+            onToggleBundle={toggleBundle}
           />
         </aside>
 
@@ -320,6 +379,16 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                 activeFv={fv as string[]}
                 onToggle={(id) => {
                   toggleFacet(id);
+                  setMobileFiltersOpen(false);
+                }}
+                onSale={onSale as boolean}
+                bundle={bundle as boolean}
+                onToggleOnSale={() => {
+                  toggleOnSale();
+                  setMobileFiltersOpen(false);
+                }}
+                onToggleBundle={() => {
+                  toggleBundle();
                   setMobileFiltersOpen(false);
                 }}
               />

@@ -321,9 +321,11 @@ export interface SearchPageVariables {
     groupByProduct?: boolean;
     take?: number;
     skip?: number;
-    sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC" };
+    sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC"; avgRating?: "ASC" | "DESC" };
     facetValueIds?: string[];
     facetValueOperator?: "AND" | "OR";
+    isOnSale?: boolean;
+    isBundle?: boolean;
   };
 }
 
