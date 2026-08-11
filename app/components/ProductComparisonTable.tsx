@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, X, Search, Plus, ChevronDown } from "lucide-react";
 import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
@@ -9,21 +9,23 @@ import type { ComparisonProductEntry, ComparisonHighlightType, ComparisonRow } f
 const COPY = {
 	en: {
 		title: "Compare Similar Products",
-		addProduct: "+ Add product",
+		addProduct: "Add product",
 		searchPlaceholder: "Search products to add…",
 		noMatches: "No matching products",
 		maxReached: (n: number) => `You can compare up to ${n} products at a time`,
 		loadMore: (n: number) => `Show ${n} more details`,
 		showLess: "Show less",
+		remove: "Remove from comparison",
 	},
 	ar: {
 		title: "قارن منتجات مشابهة",
-		addProduct: "+ إضافة منتج",
+		addProduct: "إضافة منتج",
 		searchPlaceholder: "ابحث عن منتجات لإضافتها…",
 		noMatches: "لا توجد منتجات مطابقة",
 		maxReached: (n: number) => `يمكنك مقارنة حتى ${n} منتجات في المرة الواحدة`,
 		loadMore: (n: number) => `عرض ${n} تفاصيل إضافية`,
 		showLess: "عرض أقل",
+		remove: "إزالة من المقارنة",
 	},
 } as const;
 
@@ -43,15 +45,60 @@ function formatCell(type: ComparisonHighlightType, value: { booleanValue: boolea
 	return <span>{type.unit ? `${value.textValue}${type.unit}` : value.textValue}</span>;
 }
 
-interface Props {
-	highlightTypes: ComparisonHighlightType[];
+interface FetchedTable {
 	products: ComparisonProductEntry[];
+	highlightTypes: ComparisonHighlightType[];
 	rows: ComparisonRow[];
+}
+
+interface Props {
+	comparisonGroupId: string;
+	flavorOption: string | null;
 	vendureBase: string;
 	currentProductId: string;
 }
 
-export default function ProductComparisonTable({ highlightTypes, products, rows, vendureBase, currentProductId }: Props) {
+export default function ProductComparisonTable({ comparisonGroupId, flavorOption, vendureBase, currentProductId }: Props) {
+	// Fetched client-side, not part of the PDP's own SSR loader — this is a
+	// supplementary section, not something every visitor needs immediately, so
+	// it shouldn't hold up the page's initial render.
+	const [table, setTable] = useState<FetchedTable | "loading">("loading");
+
+	useEffect(() => {
+		let cancelled = false;
+		setTable("loading");
+		const params = new URLSearchParams({ groupId: comparisonGroupId });
+		if (flavorOption) params.set("flavorOption", flavorOption);
+		fetch(`/api/product-comparison?${params}`)
+			.then((r): Promise<FetchedTable | null> => (r.ok ? r.json() : Promise.resolve(null)))
+			.then((data) => {
+				if (!cancelled) setTable(data ?? { products: [], highlightTypes: [], rows: [] });
+			})
+			.catch(() => {
+				if (!cancelled) setTable({ products: [], highlightTypes: [], rows: [] });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [comparisonGroupId, flavorOption]);
+
+	if (table === "loading") return <ComparisonSkeleton />;
+	if (table.highlightTypes.length === 0 || table.products.length < 2) return null;
+
+	return <ComparisonBody highlightTypes={table.highlightTypes} products={table.products} rows={table.rows} vendureBase={vendureBase} currentProductId={currentProductId} />;
+}
+
+function ComparisonSkeleton() {
+	return (
+		<div className="flex flex-col gap-3">
+			<hr className="border-gray-200" />
+			<div className="h-5 w-48 bg-gray-100 rounded animate-pulse" />
+			<div className="h-40 w-full bg-gray-50 border border-gray-100 rounded-xl animate-pulse" />
+		</div>
+	);
+}
+
+function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentProductId }: { highlightTypes: ComparisonHighlightType[]; products: ComparisonProductEntry[]; rows: ComparisonRow[]; vendureBase: string; currentProductId: string }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 
@@ -64,8 +111,6 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 	const [searchTerm, setSearchTerm] = useState("");
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [rowsExpanded, setRowsExpanded] = useState(false);
-
-	if (highlightTypes.length === 0 || products.length < 2) return null;
 
 	const visibleProducts = visibleIds.map((id) => products.find((p) => p.id === id)).filter((p): p is ComparisonProductEntry => !!p);
 	const addableProducts = products.filter((p) => !visibleIds.includes(p.id) && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -171,20 +216,30 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 							<th className={`sticky start-0 z-10 ${LABEL_COL} bg-white p-3 text-start text-xs font-semibold uppercase tracking-wide text-gray-500`} />
 							{visibleProducts.map((p) => {
 								const isCurrent = p.id === currentProductId;
+								// Prefer the compared variant's own asset over the generic
+								// product-level one — each column represents a specific
+								// variant (e.g. one flavor), so it should show that variant's
+								// actual photo, not whichever image the product defaults to.
+								const asset = p.variantFeaturedAsset ?? p.featuredAsset;
 								return (
 									<th
 										key={p.id}
 										className={`relative p-3 text-center bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : "min-w-[140px]"}`}
 									>
 										{!isCurrent && (
-											<button type="button" onClick={() => removeProduct(p.id)} className="absolute top-1.5 end-1.5 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Remove">
-												<X size={14} />
+											<button
+												type="button"
+												onClick={() => removeProduct(p.id)}
+												aria-label={t.remove}
+												className="absolute top-1.5 end-1.5 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-white hover:bg-red-500 hover:border-red-500 transition-colors z-10"
+											>
+												<X size={13} strokeWidth={2.5} />
 											</button>
 										)}
 										<Link to={`/products/${p.variantSlug ?? p.slug}`} className="flex flex-col items-center gap-1.5 group">
-											{p.featuredAsset?.preview ? (
+											{asset?.preview ? (
 												<div className="w-14 h-14">
-													<VendureImage src={p.featuredAsset.preview} vendureBase={vendureBase} alt={p.name} width={56} height={56} objectFit="contain" />
+													<VendureImage src={asset.preview} vendureBase={vendureBase} alt={p.name} width={56} height={56} objectFit="contain" />
 												</div>
 											) : (
 												<div className="w-14 h-14 flex items-center justify-center text-gray-300 text-xl font-bold bg-gray-50 rounded-lg">{p.name[0]}</div>

@@ -682,6 +682,7 @@ export const VARIANT_RANKINGS_QUERY = `
 export interface ComparisonGroupVariant {
   id: string;
   name: string;
+  featuredAsset: { preview: string } | null;
   options: { name: string; group: { name: string } }[];
   customFields: { slug: string | null } | null;
 }
@@ -705,7 +706,7 @@ export const PRODUCTS_BY_COMPARISON_GROUP_QUERY = `
       name
       slug
       featuredAsset { preview }
-      variants { id name options { name group { name } } customFields { slug } }
+      variants { id name featuredAsset { preview } options { name group { name } } customFields { slug } }
     }
   }
 `;
@@ -732,6 +733,11 @@ export interface ComparisonProductEntry {
   featuredAsset: { preview: string } | null;
   variantId: string;
   variantName: string;
+  // The compared variant's own asset — preferred over the product-level
+  // featuredAsset above wherever a specific variant is what's shown (e.g. a
+  // "Chocolate" comparison entry should show the chocolate tub, not whatever
+  // the product's default/first-variant image happens to be).
+  variantFeaturedAsset: { preview: string } | null;
   // The variant's own clean URL slug (e.g. "whey-protein-chocolate-2kg") — falls
   // back to the bare product slug when unset, same convention as elsewhere.
   variantSlug: string | null;
