@@ -161,6 +161,61 @@ export const VALIDATE_ORDER_BUNDLES_MUTATION = `
   }
 `;
 
+// ─── Active bundle offers (standalone /bundles page) ─────────────────────────
+
+export interface BundleOfferProduct {
+  id: string;
+  name: string;
+  slug: string;
+  featuredAsset: { preview: string } | null;
+}
+
+export interface ActiveBundleOffer extends BundleOffer {
+  triggerProduct: BundleOfferProduct | null;
+}
+
+export interface ActiveBundleOfferListData {
+  activeBundleOffers: {
+    items: ActiveBundleOffer[];
+    totalItems: number;
+  };
+}
+
+export interface ActiveBundleOfferListVariables {
+  options?: { take?: number; skip?: number; excludeDiscountTypes?: string[] };
+}
+
+export const ACTIVE_BUNDLE_OFFERS_QUERY = `
+  query ActiveBundleOffers($options: ActiveBundleOfferListOptions) {
+    activeBundleOffers(options: $options) {
+      totalItems
+      items {
+        id
+        name
+        description
+        imageUrl
+        bundleType
+        discountType
+        discountValue
+        items {
+          productVariantId
+          variantName
+          priceWithTax
+          currencyCode
+          stockLevel
+          featuredAsset { preview }
+          productName
+          productSlug
+          requiredQuantity
+          required
+          sortOrder
+        }
+        triggerProduct { id name slug featuredAsset { preview } }
+      }
+    }
+  }
+`;
+
 // ─── Discount display helper ──────────────────────────────────────────────────
 
 export function formatBundleDiscount(discountType: BundleDiscountType, discountValue: number, locale: "en" | "ar" = "en"): string {

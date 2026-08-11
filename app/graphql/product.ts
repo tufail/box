@@ -72,6 +72,7 @@ export interface ProductDetailItem {
     additionalInfo: string | null;
     disclaimer: string | null;
     salesCount: number | null;
+    comparisonGroupId: string | null;
   } | null;
   variants: ProductDetailVariant[];
   facetValues: { name: string; code: string; facet: { name: string; code: string } }[];
@@ -102,6 +103,7 @@ const PRODUCT_DETAIL_FIELDS = `
     additionalInfo
     disclaimer
     salesCount
+    comparisonGroupId
   }
   variants {
     id
@@ -669,6 +671,87 @@ export const VARIANT_RANKINGS_QUERY = `
       rank
       collectionName
       collectionSlug
+    }
+  }
+`;
+
+// ─── Comparison table ─────────────────────────────────────────────────────────
+
+export interface ComparisonGroupVariant {
+  id: string;
+  name: string;
+}
+
+export interface ComparisonGroupProduct {
+  id: string;
+  name: string;
+  slug: string;
+  featuredAsset: { preview: string } | null;
+  variants: ComparisonGroupVariant[];
+}
+
+export interface ProductsByComparisonGroupData {
+  productsByComparisonGroup: ComparisonGroupProduct[];
+}
+
+export const PRODUCTS_BY_COMPARISON_GROUP_QUERY = `
+  query ProductsByComparisonGroup($groupId: String!, $take: Int) {
+    productsByComparisonGroup(groupId: $groupId, take: $take) {
+      id
+      name
+      slug
+      featuredAsset { preview }
+      variants { id name }
+    }
+  }
+`;
+
+export interface ComparisonHighlightType {
+  id: string;
+  label: string;
+  valueType: HighlightValueType;
+  unit: string | null;
+  sortOrder: number;
+  group: { id: string; label: string; sortOrder: number } | null;
+}
+
+// No highlightType here — rows[].highlights is index-aligned with the table-level
+// highlightTypes array (the backend builds it via orderedTypes.map(...)), so a
+// separate lookup per cell would be redundant payload.
+export interface ComparisonHighlightValue {
+  booleanValue: boolean | null;
+  textValue: string | null;
+}
+
+export interface ComparisonRow {
+  variantId: string;
+  productId: string;
+  highlights: ComparisonHighlightValue[];
+}
+
+export interface ComparisonTableData {
+  compareVariantHighlights: {
+    highlightTypes: ComparisonHighlightType[];
+    rows: ComparisonRow[];
+  };
+}
+
+export const COMPARE_VARIANT_HIGHLIGHTS_QUERY = `
+  query CompareVariantHighlights($variants: [ShopVariantComparisonInput!]!) {
+    compareVariantHighlights(variants: $variants) {
+      highlightTypes {
+        id
+        label
+        valueType
+        unit
+        sortOrder
+        group { id label sortOrder }
+      }
+      rows {
+        variantId
+        productId
+        highlights { booleanValue textValue }
+      }
     }
   }
 `;
