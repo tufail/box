@@ -78,6 +78,7 @@ export interface SubscriptionVariantInfo {
 	name: string;
 	sku: string;
 	featuredAsset: { preview: string } | null;
+	customFields: { slug: string | null } | null;
 	product: { name: string; slug: string; featuredAsset: { preview: string } | null };
 }
 
@@ -147,6 +148,7 @@ export const SUBSCRIPTION_VARIANT_QUERY = `
 			name
 			sku
 			featuredAsset { preview }
+			customFields { slug }
 			product { name slug featuredAsset { preview } }
 		}
 	}

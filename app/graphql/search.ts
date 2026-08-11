@@ -8,6 +8,7 @@ export const SEARCH_SUGGESTIONS_QUERY = `
         price { ... on PriceRange { min max } ... on SinglePrice { value } }
         facetValueIds
         collectionIds
+        customProductVariantMappings { slug }
       }
       collections {
         count
@@ -28,6 +29,7 @@ export interface SearchSuggestionItem {
   price: { min: number; max: number } | { value: number };
   facetValueIds: string[];
   collectionIds: string[];
+  customProductVariantMappings: { slug: string | null } | null;
 }
 
 export interface SearchSuggestionCollection {

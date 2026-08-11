@@ -459,6 +459,7 @@ export interface TopSellerResult {
   productName: string;
   productVariantName: string | null;
   slug: string;
+  variantSlug: string | null;
   productAsset: { id: string; preview: string } | null;
   priceWithTax: { min: number; max: number };
   currencyCode: string;
@@ -482,6 +483,7 @@ export const TOP_SELLERS_QUERY = `
       productName
       productVariantName
       slug
+      variantSlug
       productAsset { id preview }
       priceWithTax { min max }
       currencyCode
@@ -505,7 +507,7 @@ export function mapTopSellerToSearchItem(t: TopSellerResult): SearchProductItem 
     productAsset: t.productAsset,
     productVariantAsset: null,
     price: { __typename: "PriceRange", min: t.priceWithTax.min, max: t.priceWithTax.max },
-    customProductVariantMappings: null,
+    customProductVariantMappings: { isOnSale: false, stockQty: 0, discount: 0, rrp: null, slug: t.variantSlug },
     customProductMappings: {
       variantCount: 0,
       salesCount: t.salesCount,

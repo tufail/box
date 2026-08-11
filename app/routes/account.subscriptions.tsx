@@ -190,7 +190,7 @@ function SubscriptionCard({ subscription, variant, vendureBase, locale, t }: { s
 	}
 
 	const image = variant?.featuredAsset?.preview ?? variant?.product.featuredAsset?.preview ?? null;
-	const productHref = variant ? `/products/${variant.product.slug}` : "#";
+	const productHref = variant ? `/products/${variant.customFields?.slug ?? variant.product.slug}` : "#";
 	const canPauseOrCancel = state === "ACTIVE" || state === "TRIAL" || state === "PAST_DUE";
 	const canResume = state === "PAUSED";
 	const cyclesCompleted = Math.max(0, subscription.currentCycleNumber - 1);

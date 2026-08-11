@@ -34,6 +34,7 @@ export interface CustomerOrderLine {
     id: string;
     name: string;
     sku: string;
+    customFields: { slug: string | null } | null;
     product: {
       name: string;
       slug: string;
@@ -219,6 +220,7 @@ export const GET_ORDER_DETAIL_QUERY = `
           id
           name
           sku
+          customFields { slug }
           product { name slug featuredAsset { preview } }
         }
       }

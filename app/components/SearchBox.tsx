@@ -196,7 +196,7 @@ export default function SearchBox() {
 						<>
 							<SectionLabel label={t.products} />
 							{results.items.map((item) => (
-								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.slug)} locale={locale} />
+								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)} locale={locale} />
 							))}
 						</>
 					)}

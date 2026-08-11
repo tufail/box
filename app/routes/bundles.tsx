@@ -84,7 +84,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 function BundleOfferCard({ bundle, vendureBase, locale }: { bundle: ActiveBundleOffer; vendureBase: string; locale: "en" | "ar" }) {
 	const t = COPY[locale];
 	const image = bundle.imageUrl || bundle.triggerProduct?.featuredAsset?.preview || "";
-	const href = bundle.triggerProduct ? `/products/${bundle.triggerProduct.slug}` : "/bundles";
+	const href = bundle.triggerProduct ? `/products/${bundle.triggerProduct.variantSlug ?? bundle.triggerProduct.slug}` : "/bundles";
 	const discountLabel = formatBundleDiscount(bundle.discountType, bundle.discountValue, locale);
 
 	return (

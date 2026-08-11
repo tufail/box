@@ -150,7 +150,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 								{results!.items.map((item) => (
 									<button
 										key={item.slug}
-										onMouseDown={() => selectProduct(item.slug)}
+										onMouseDown={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)}
 										className="w-full text-start px-5 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
 									>
 										{item.productAsset?.preview ? (

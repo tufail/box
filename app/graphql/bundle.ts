@@ -10,10 +10,18 @@ export interface BundleOfferItem {
   stockLevel: string;
   productName: string;
   productSlug: string;
+  variantSlug: string | null;
   featuredAsset: { preview: string } | null;
   requiredQuantity: number;
   required: boolean;
   sortOrder: number;
+}
+
+// Every product link built from a BundleOfferItem/BundleOfferProduct should
+// prefer the variant's own slug over the bare product slug, same convention
+// as ProductCard.tsx elsewhere.
+export function bundleItemHref(item: Pick<BundleOfferItem, "variantSlug" | "productSlug">): string {
+  return `/products/${item.variantSlug ?? item.productSlug}`;
 }
 
 export type BundleDiscountType = "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_PRODUCT" | "CHEAPEST_FREE";
@@ -52,6 +60,7 @@ export const PRODUCT_BUNDLE_OFFERS_QUERY = `
         featuredAsset { preview }
         productName
         productSlug
+        variantSlug
         stockLevel
         requiredQuantity
         required
@@ -167,6 +176,7 @@ export interface BundleOfferProduct {
   id: string;
   name: string;
   slug: string;
+  variantSlug: string | null;
   featuredAsset: { preview: string } | null;
 }
 
@@ -206,11 +216,12 @@ export const ACTIVE_BUNDLE_OFFERS_QUERY = `
           featuredAsset { preview }
           productName
           productSlug
+          variantSlug
           requiredQuantity
           required
           sortOrder
         }
-        triggerProduct { id name slug featuredAsset { preview } }
+        triggerProduct { id name slug variantSlug featuredAsset { preview } }
       }
     }
   }

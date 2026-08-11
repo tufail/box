@@ -274,7 +274,7 @@ function OrderItems({
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/products/${line.productVariant.product.slug}`}
+                  to={`/products/${line.productVariant.customFields?.slug ?? line.productVariant.product.slug}`}
                   className="font-medium text-gray-900 hover:text-emerald-700 transition-colors line-clamp-1"
                 >
                   {line.productVariant.product.name}

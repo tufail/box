@@ -383,7 +383,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const title = `${baseTitle} — NutriBox Qatar`;
 	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
-	const image = product.featuredAsset?.preview ? resolveImage(product.featuredAsset.preview, vendureBase) : "";
+	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
+	// fall back to the product's generic image when the variant has none of its own.
+	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
+	const imagePreview = activeVariant?.featuredAsset?.preview ?? product.featuredAsset?.preview;
+	const image = imagePreview ? resolveImage(imagePreview, vendureBase) : "";
 	const brand = product.facetValues.find((f) => f.facet.code === "brands")?.name ?? null;
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 

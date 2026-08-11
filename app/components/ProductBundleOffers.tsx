@@ -5,7 +5,7 @@ import { ShoppingCart, Zap } from "lucide-react";
 import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import type { BundleOffer, BundleOfferItem } from "~/graphql/bundle";
-import { formatBundleDiscount } from "~/graphql/bundle";
+import { formatBundleDiscount, bundleItemHref } from "~/graphql/bundle";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
@@ -139,7 +139,7 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
       ${selected ? "border-primary shadow-sm" : "border-gray-200"}`}
 		>
 			{/* Product image */}
-			<Link to={`/products/${item.productSlug}`} className={`block ${imgSize} bg-gray-50 overflow-hidden`}>
+			<Link to={bundleItemHref(item)} className={`block ${imgSize} bg-gray-50 overflow-hidden`}>
 				{item.featuredAsset ? (
 					<img src={resolveBundleImage(item.featuredAsset.preview, vendureBase ?? "")} alt={item.productName} className="w-full h-full object-contain mix-blend-multiply hover:scale-105 transition-transform duration-200" />
 				) : (
@@ -154,7 +154,7 @@ function BundleItemCard({ item, selected, onToggle, compact = false, vendureBase
 
 			{/* Info */}
 			<div className="p-2">
-				<Link to={`/products/${item.productSlug}`} className="text-[11px] font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 leading-snug block mb-1">
+				<Link to={bundleItemHref(item)} className="text-[11px] font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 leading-snug block mb-1">
 					{item.variantName}
 				</Link>
 
@@ -244,7 +244,7 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 						<div className="w-4 flex-shrink-0 flex items-center justify-center text-gray-400">+</div>
 						{sortedItems.map((item, i) => (
 							<Fragment key={item.productVariantId}>
-								<Link to={`/products/${item.productSlug}`} className="block aspect-square w-[120px] flex-shrink-0 bg-gray-50 overflow-hidden">
+								<Link to={bundleItemHref(item)} className="block aspect-square w-[120px] flex-shrink-0 bg-gray-50 overflow-hidden">
 									{item.featuredAsset ? (
 										<img src={resolveBundleImage(item.featuredAsset.preview, vendureBase ?? "")} alt={item.productName} className="w-full h-full object-contain mix-blend-multiply hover:scale-105 transition-transform duration-200" />
 									) : (
@@ -262,7 +262,7 @@ function BundleCard({ bundle, triggerVariantId, triggerVariantPrice, compact = f
 					</div>
 					<div>
 						<div className="text-sm mt-2 font-semibold text-black">{t.comboWith}</div>
-						<Link to={`/products/${bundle.items[0].productSlug}`} className="text-sm text-blue-700 hover:underline transition-colors line-clamp-2 leading-snug block">
+						<Link to={bundleItemHref(bundle.items[0])} className="text-sm text-blue-700 hover:underline transition-colors line-clamp-2 leading-snug block">
 							{bundle.items[0].productName}
 						</Link>
 						<div className="text-xs text-black mt-0.5 bg-stone-100 mt-1 mb-2 p-2 rounded">
