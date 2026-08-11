@@ -165,7 +165,7 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 
 			{/* Row-heading + current-product columns stay pinned while the rest scroll horizontally */}
 			<div className="overflow-x-auto rounded-xl border border-gray-100">
-				<table className="w-full text-sm border-collapse">
+				<table className="w-full text-sm border-separate border-spacing-0">
 					<thead>
 						<tr className="bg-white">
 							<th className={`sticky start-0 z-10 ${LABEL_COL} bg-white p-3 text-start text-xs font-semibold uppercase tracking-wide text-gray-500`} />
@@ -212,13 +212,13 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 								{group.types.map((type) => {
 									const typeIndex = highlightTypes.indexOf(type);
 									return (
-										<tr key={type.id} className="border-t border-gray-100">
-											<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white p-3 text-xs font-medium text-gray-600`}>{type.label}</td>
+										<tr key={type.id}>
+											<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white border-t border-gray-100 p-3 text-xs font-medium text-gray-600`}>{type.label}</td>
 											{visibleProducts.map((p) => {
 												const isCurrent = p.id === currentProductId;
 												const value = highlightsByProductId.get(p.id)?.[typeIndex];
 												return (
-													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
+													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white border-t border-gray-100 ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
 														{formatCell(type, value)}
 													</td>
 												);
