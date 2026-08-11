@@ -174,7 +174,7 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 								return (
 									<th
 										key={p.id}
-										className={`relative p-3 text-center bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} border-2 border-gray-900 shadow-md` : "min-w-[140px]"}`}
+										className={`relative p-3 text-center bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : "min-w-[140px]"}`}
 									>
 										{!isCurrent && (
 											<button type="button" onClick={() => removeProduct(p.id)} className="absolute top-1.5 end-1.5 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Remove">
@@ -217,7 +217,7 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 												const isCurrent = p.id === currentProductId;
 												const value = highlightsByProductId.get(p.id)?.[typeIndex];
 												return (
-													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} border-s-2 border-e-2 border-gray-900 shadow-md` : ""}`}>
+													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
 														{formatCell(type, value)}
 													</td>
 												);
