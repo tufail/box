@@ -14,7 +14,7 @@ import SortDropdown from "~/components/SortDropdown";
 import ProductHighlights from "~/components/ProductHighlights";
 import ProductComparisonTable from "~/components/ProductComparisonTable";
 import ProductQA from "~/components/ProductQA";
-import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, PRODUCTS_BY_COMPARISON_GROUP_QUERY, COMPARE_VARIANT_HIGHLIGHTS_QUERY, relatedProductToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking, type ProductsByComparisonGroupData, type ComparisonTableData, type ComparisonGroupProduct, type ComparisonHighlightType, type ComparisonRow } from "~/graphql/product";
+import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, PRODUCTS_BY_COMPARISON_GROUP_QUERY, COMPARE_VARIANT_HIGHLIGHTS_QUERY, relatedProductToSearchItem, pickMatchingVariant, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking, type ProductsByComparisonGroupData, type ComparisonTableData, type ComparisonProductEntry, type ComparisonHighlightType, type ComparisonRow } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -472,22 +472,36 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const activeVariantName = variantDisplayTitle(activeVariant);
 
 		// Comparison table — only for products an admin has explicitly assigned to a
-		// comparisonGroupId, so this is skipped entirely on most product pages. Two
-		// sequential calls (need the group's products before their variant IDs are
+		// comparisonGroupId, so this is skipped entirely on most product pages. Fetches
+		// highlight data for the WHOLE group up front (it's a small curated set, e.g. a
+		// handful of competing whey proteins) so the "add product to compare" search in
+		// the component is pure client-side state — no extra round-trip when adding.
+		// Two sequential calls (need the group's products before their variant IDs are
 		// known), wrapped defensively so a failure here can't take down the PDP.
-		let comparisonTable: { products: ComparisonGroupProduct[]; highlightTypes: ComparisonHighlightType[]; rows: ComparisonRow[] } | null = null;
+		let comparisonTable: { products: ComparisonProductEntry[]; highlightTypes: ComparisonHighlightType[]; rows: ComparisonRow[] } | null = null;
 		const comparisonGroupId = product.customFields?.comparisonGroupId;
 		if (comparisonGroupId) {
 			try {
-				const { data: groupData } = await graphqlRequest<ProductsByComparisonGroupData>(env, PRODUCTS_BY_COMPARISON_GROUP_QUERY, { groupId: comparisonGroupId, take: 6 }, { request });
+				const { data: groupData } = await graphqlRequest<ProductsByComparisonGroupData>(env, PRODUCTS_BY_COMPARISON_GROUP_QUERY, { groupId: comparisonGroupId, take: 20 }, { request });
 				const groupProducts = groupData.productsByComparisonGroup;
 				if (groupProducts.length > 1) {
-					const variantInputs = groupProducts
-						.map((p) => (p.variants[0] ? { variantId: p.variants[0].id, productId: p.id } : null))
-						.filter((v): v is { variantId: string; productId: string } => v !== null);
-					const { data: tableData } = await graphqlRequest<ComparisonTableData>(env, COMPARE_VARIANT_HIGHLIGHTS_QUERY, { variants: variantInputs }, { request });
-					if (tableData.compareVariantHighlights.highlightTypes.length > 0) {
-						comparisonTable = { products: groupProducts, highlightTypes: tableData.compareVariantHighlights.highlightTypes, rows: tableData.compareVariantHighlights.rows };
+					// Match every product's variant to the current one's flavor (if it has
+					// one), so a cross-brand comparison is Chocolate-vs-Chocolate, not
+					// whichever variant happened to be listed first.
+					const flavorOption = activeVariant?.options.find((o) => /flavor/i.test(o.group.code) || /flavor/i.test(o.group.name)) ?? null;
+					const entries: ComparisonProductEntry[] = [];
+					const variantInputs: { variantId: string; productId: string }[] = [];
+					for (const p of groupProducts) {
+						const variant = pickMatchingVariant(p, flavorOption?.name ?? null);
+						if (!variant) continue;
+						entries.push({ id: p.id, name: p.name, slug: p.slug, featuredAsset: p.featuredAsset, variantId: variant.id, variantName: variant.name });
+						variantInputs.push({ variantId: variant.id, productId: p.id });
+					}
+					if (entries.length > 1) {
+						const { data: tableData } = await graphqlRequest<ComparisonTableData>(env, COMPARE_VARIANT_HIGHLIGHTS_QUERY, { variants: variantInputs }, { request });
+						if (tableData.compareVariantHighlights.highlightTypes.length > 0) {
+							comparisonTable = { products: entries, highlightTypes: tableData.compareVariantHighlights.highlightTypes, rows: tableData.compareVariantHighlights.rows };
+						}
 					}
 				}
 			} catch {

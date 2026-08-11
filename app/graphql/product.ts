@@ -680,6 +680,7 @@ export const VARIANT_RANKINGS_QUERY = `
 export interface ComparisonGroupVariant {
   id: string;
   name: string;
+  options: { name: string; group: { name: string } }[];
 }
 
 export interface ComparisonGroupProduct {
@@ -701,10 +702,34 @@ export const PRODUCTS_BY_COMPARISON_GROUP_QUERY = `
       name
       slug
       featuredAsset { preview }
-      variants { id name }
+      variants { id name options { name group { name } } }
     }
   }
 `;
+
+// Picks the variant on `product` whose option (in any group, e.g. "Flavor")
+// matches `optionName` (case-insensitive) — so a cross-product comparison
+// compares like-for-like (Chocolate vs Chocolate), not an arbitrary variant.
+// Falls back to the first variant when there's no match or nothing to match.
+export function pickMatchingVariant(product: ComparisonGroupProduct, optionName: string | null): ComparisonGroupVariant | null {
+  if (optionName) {
+    const match = product.variants.find((v) => v.options.some((o) => o.name.toLowerCase() === optionName.toLowerCase()));
+    if (match) return match;
+  }
+  return product.variants[0] ?? null;
+}
+
+// One entry per comparable product, already resolved down to the one variant
+// being compared (via pickMatchingVariant) — this is what the table component
+// and its "add product to compare" search work with.
+export interface ComparisonProductEntry {
+  id: string;
+  name: string;
+  slug: string;
+  featuredAsset: { preview: string } | null;
+  variantId: string;
+  variantName: string;
+}
 
 export interface ComparisonHighlightType {
   id: string;
