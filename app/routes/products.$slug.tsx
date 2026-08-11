@@ -584,7 +584,11 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
 			<div className="relative">
 				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white">
-					<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={900} height={900} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
+					{resolved[currentIdx] ? (
+						<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={900} height={900} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
+					) : (
+						<div className="w-full h-full flex items-center justify-center text-gray-300 text-6xl font-bold bg-gray-50">{name[0]}</div>
+					)}
 
 					{/* Carousel prev/next */}
 					{resolved.length > 1 && (
@@ -601,9 +605,11 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 
 				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
 				<div className="absolute top-3 end-3 flex flex-col gap-2 z-10">
-					<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label={t.viewFullScreen}>
-						<Maximize2 size={15} />
-					</button>
+					{resolved.length > 0 && (
+						<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label={t.viewFullScreen}>
+							<Maximize2 size={15} />
+						</button>
+					)}
 					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? t.removeFromWishlist : t.addToWishlist}>
 						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
 					</button>
