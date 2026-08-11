@@ -39,6 +39,16 @@ function ladderFor(objectFit: "cover" | "contain"): Rung[] {
   return objectFit === "contain" ? RESIZE_LADDER : CROP_LADDER;
 }
 
+// Some asset preview paths come back without a leading slash (and occasionally
+// with backslashes — a Windows path.join artifact from the backend), which
+// silently produces a malformed URL like "https://host.qapreview/1/x.jpg"
+// (browsers parse everything before the next "/" as part of the hostname) —
+// the request then fails with ERR_NAME_NOT_RESOLVED instead of 404ing cleanly.
+function normalizeAssetPath(src: string): string {
+  const forwardSlashes = src.replace(/\\/g, "/");
+  return forwardSlashes.startsWith("/") ? forwardSlashes : `/${forwardSlashes}`;
+}
+
 // Picks the smallest preset on the relevant ladder whose ceiling covers the
 // requested pixel size, capping at that ladder's largest preset.
 export function presetForSize(px: number, objectFit: "cover" | "contain" = "cover"): ImagePreset {
@@ -58,7 +68,7 @@ export function vendureImageUrl(
   opts: { preset: AnyPreset; format?: "webp" | "jpg" | "png" }
 ): string {
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
-  const resolved = src.startsWith("http") ? src : `${base}${src}`;
+  const resolved = src.startsWith("http") ? src : `${base}${normalizeAssetPath(src)}`;
   if (!base || !resolved.startsWith(base)) return resolved;
   try {
     const u = new URL(resolved);
@@ -108,7 +118,7 @@ export default function VendureImage({
   }, [src, eager]);
 
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
-  const resolved = src.startsWith("http") ? src : `${base}${src}`;
+  const resolved = src.startsWith("http") ? src : `${base}${normalizeAssetPath(src)}`;
   const isVendure = base.length > 0 && resolved.startsWith(base);
   const fit = objectFit === "cover" ? "object-cover" : "object-contain";
 

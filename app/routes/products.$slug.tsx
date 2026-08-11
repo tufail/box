@@ -673,6 +673,8 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 									else thumbRefs.current.delete(i);
 								}}
 								onClick={() => setActive(i)}
+								aria-label={t.goToImage(i + 1)}
+								aria-current={active === i}
 								className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-black" : "border-stone-200 hover:border-gray-400"}`}
 							>
 								<img src={vendureImageUrl(src, vendureBase, { preset: "small", format: "webp" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
