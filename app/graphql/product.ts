@@ -681,6 +681,7 @@ export interface ComparisonGroupVariant {
   id: string;
   name: string;
   options: { name: string; group: { name: string } }[];
+  customFields: { slug: string | null } | null;
 }
 
 export interface ComparisonGroupProduct {
@@ -702,7 +703,7 @@ export const PRODUCTS_BY_COMPARISON_GROUP_QUERY = `
       name
       slug
       featuredAsset { preview }
-      variants { id name options { name group { name } } }
+      variants { id name options { name group { name } } customFields { slug } }
     }
   }
 `;
@@ -729,6 +730,9 @@ export interface ComparisonProductEntry {
   featuredAsset: { preview: string } | null;
   variantId: string;
   variantName: string;
+  // The variant's own clean URL slug (e.g. "whey-protein-chocolate-2kg") — falls
+  // back to the bare product slug when unset, same convention as elsewhere.
+  variantSlug: string | null;
 }
 
 export interface ComparisonHighlightType {

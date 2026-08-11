@@ -181,7 +181,7 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 												<X size={14} />
 											</button>
 										)}
-										<Link to={`/products/${p.slug}`} className="flex flex-col items-center gap-1.5 group">
+										<Link to={`/products/${p.variantSlug ?? p.slug}`} className="flex flex-col items-center gap-1.5 group">
 											{p.featuredAsset?.preview ? (
 												<div className="w-14 h-14">
 													<VendureImage src={p.featuredAsset.preview} vendureBase={vendureBase} alt={p.name} width={56} height={56} objectFit="contain" />
@@ -189,8 +189,9 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 											) : (
 												<div className="w-14 h-14 flex items-center justify-center text-gray-300 text-xl font-bold bg-gray-50 rounded-lg">{p.name[0]}</div>
 											)}
-											<span className="text-xs font-semibold text-gray-800 group-hover:text-primary transition-colors line-clamp-2">{p.name}</span>
-											<span className="text-[10px] text-gray-400">{p.variantName}</span>
+											{/* variantName already includes the product name (Vendure convention:
+											"Product - Option") - showing p.name too would just repeat it. */}
+											<span className="text-xs font-semibold text-gray-800 group-hover:text-primary transition-colors line-clamp-3">{p.variantName}</span>
 										</Link>
 									</th>
 								);

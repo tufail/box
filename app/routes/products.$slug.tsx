@@ -494,7 +494,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 					for (const p of groupProducts) {
 						const variant = pickMatchingVariant(p, flavorOption?.name ?? null);
 						if (!variant) continue;
-						entries.push({ id: p.id, name: p.name, slug: p.slug, featuredAsset: p.featuredAsset, variantId: variant.id, variantName: variant.name });
+						entries.push({ id: p.id, name: p.name, slug: p.slug, featuredAsset: p.featuredAsset, variantId: variant.id, variantName: variant.name, variantSlug: variant.customFields?.slug ?? null });
 						variantInputs.push({ variantId: variant.id, productId: p.id });
 					}
 					if (entries.length > 1) {
