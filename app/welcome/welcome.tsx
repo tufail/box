@@ -59,11 +59,10 @@ interface WelcomeProps {
 	newProducts: SearchProductItem[];
 	vendureBase: string;
 	carouselItems: BannerItem[];
-	topLevelCollections: HomeCollectionItem[];
-	subCollections: HomeCollectionItem[];
+	collections: HomeCollectionItem[];
 }
 
-export function Welcome({ products, newProducts, vendureBase, carouselItems, topLevelCollections, subCollections }: WelcomeProps) {
+export function Welcome({ products, newProducts, vendureBase, carouselItems, collections }: WelcomeProps) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = WELCOME_COPY[locale];
 	const slides = carouselItems.map((item) => ({
@@ -112,7 +111,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, top
 					</div>
 				</div>
 			</div>
-			<HomeFeaturedCollections topLevelCollections={topLevelCollections} subCollections={subCollections} vendureBase={vendureBase} />
+			<HomeFeaturedCollections collections={collections} vendureBase={vendureBase} />
 			<HomeTopSelling products={products} vendureBase={vendureBase} viewAllHref="/collections" />
 			<HomeShopByConcern vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />

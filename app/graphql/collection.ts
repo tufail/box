@@ -92,6 +92,7 @@ export interface CollectionPageVariables {
   slug: string;
   input: {
     collectionSlug: string;
+    groupByProduct: boolean;
     take: number;
     skip: number;
     sort?: { salesCount?: "ASC" | "DESC"; name?: "ASC" | "DESC"; price?: "ASC" | "DESC"; avgRating?: "ASC" | "DESC" };
@@ -104,7 +105,6 @@ export interface HomeCollectionItem {
   id: string;
   name: string;
   slug: string;
-  parentId: string | null;
   featuredAsset: { id: string; preview: string } | null;
 }
 
@@ -123,7 +123,6 @@ export const HOME_COLLECTIONS_QUERY = `
         id
         name
         slug
-        parentId
         featuredAsset {
           id
           preview

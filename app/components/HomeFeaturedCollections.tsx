@@ -8,16 +8,63 @@ import VendureImage from "./VendureImage";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 interface Props {
-	topLevelCollections: HomeCollectionItem[];
-	subCollections: HomeCollectionItem[];
+	collections: HomeCollectionItem[];
 	vendureBase: string;
 }
 
-export default function HomeFeaturedCollections({ topLevelCollections, subCollections, vendureBase }: Props) {
-	const allCollections = [...topLevelCollections, ...subCollections];
-	if (allCollections.length === 0) return null;
+// Matches a collection's name to an icon in public/icons/ (e.g. "Supplements"
+// -> "supplements.svg"), same convention as ProductHighlights' HighlightIcon.
+// No reliable way to know ahead of time whether that file exists, so this
+// just tries to load it and falls back to the original big-letter tile via
+// the <img>'s onError if it 404s.
+function slugify(label: string) {
+	return label
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
 
-	return <CollectionScroll collections={allCollections} vendureBase={vendureBase} />;
+function CategoryFallback({ name }: { name: string }) {
+	const [iconFailed, setIconFailed] = useState(false);
+	const iconSrc = `/icons/${slugify(name)}.svg`;
+
+	if (iconFailed) {
+		return (
+			<div className="w-full h-full flex items-center justify-center">
+				<span className="text-4xl font-bold text-amber-200">{name[0]}</span>
+			</div>
+		);
+	}
+
+	return (
+		<div className="w-full h-full flex items-center justify-center">
+			{/* Hidden — only here to detect via onError whether the icon file exists.
+			    The visible icon below is rendered as a CSS mask (not <img src>) since
+			    an <img>-loaded SVG's currentColor doesn't inherit the page's CSS —
+			    masking is what actually lets bg-primary tint it. */}
+			<img src={iconSrc} alt="" className="hidden" onError={() => setIconFailed(true)} />
+			<div
+				className="w-10 h-10 bg-primary"
+				style={{
+					WebkitMaskImage: `url(${iconSrc})`,
+					maskImage: `url(${iconSrc})`,
+					WebkitMaskRepeat: "no-repeat",
+					maskRepeat: "no-repeat",
+					WebkitMaskSize: "contain",
+					maskSize: "contain",
+					WebkitMaskPosition: "center",
+					maskPosition: "center",
+				}}
+			/>
+		</div>
+	);
+}
+
+export default function HomeFeaturedCollections({ collections, vendureBase }: Props) {
+	if (collections.length === 0) return null;
+
+	return <CollectionScroll collections={collections} vendureBase={vendureBase} />;
 }
 
 function CollectionScroll({ collections, vendureBase }: { collections: HomeCollectionItem[]; vendureBase: string }) {
@@ -69,9 +116,7 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 												{col.featuredAsset ? (
 													<VendureImage src={col.featuredAsset.preview} vendureBase={vendureBase} alt={col.name} width={400} height={400} objectFit="contain" imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
 												) : (
-													<div className="w-full h-full flex items-center justify-center">
-														<span className="text-4xl font-bold text-amber-200">{col.name[0]}</span>
-													</div>
+													<CategoryFallback name={col.name} />
 												)}
 											</div>
 											<div className="pt-3 pb-1 text-center px-1 bg-stone-100 -mt-5 relative z-10">

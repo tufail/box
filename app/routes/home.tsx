@@ -2,10 +2,13 @@ import type { Route } from "./+types/home";
 import { Welcome } from "../welcome/welcome";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
-  SEARCH_TOP_SELLING,
   SEARCH_NEW_ARRIVALS,
+  TOP_SELLERS_QUERY,
+  mapTopSellerToSearchItem,
   type SearchProductsData,
   type SearchTopSellingVariables,
+  type TopSellersData,
+  type TopSellersVariables,
 } from "~/graphql/product";
 import {
   GET_BANNER_BY_SLUG,
@@ -60,10 +63,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const cacheOpts = { request, cf: { cacheTtl: 300, cacheEverything: true } } as const;
 
   const [topSellingResult, newArrivalsResult, bannerResult, collectionsResult] = await Promise.allSettled([
-    graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
+    graphqlRequest<TopSellersData, TopSellersVariables>(
       env,
-      SEARCH_TOP_SELLING,
-      { input: { take: 12, groupByProduct: false, sort: { salesCount: "DESC" } } },
+      TOP_SELLERS_QUERY,
+      { limit: 12 },
       cacheOpts
     ),
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
@@ -81,7 +84,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     graphqlRequest<HomeCollectionsResult>(
       env,
       HOME_COLLECTIONS_QUERY,
-      { options: { take: 50 } },
+      {
+        options: {
+          take: 50,
+          filter: { showOnHomepage: { eq: true } },
+          sort: { homepageOrder: "ASC" },
+        },
+      },
       cacheOpts
     ),
   ]);
@@ -91,22 +100,17 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       ? (bannerResult.value.data.getBannerBySlug?.items ?? [])
       : [];
 
-  const rawCollections =
+  const homeCollections =
     collectionsResult.status === "fulfilled"
       ? collectionsResult.value.data.collections.items
       : [];
 
-  const collectionIds = new Set(rawCollections.map((c) => c.id));
-  const topLevel = rawCollections.filter((c) => !collectionIds.has(c.parentId ?? ""));
-  const subLevel = rawCollections.filter((c) => collectionIds.has(c.parentId ?? ""));
-
   return {
-    products: topSellingResult.status === "fulfilled" ? topSellingResult.value.data.search.items : [],
+    products: topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers.map(mapTopSellerToSearchItem) : [],
     newProducts: newArrivalsResult.status === "fulfilled" ? newArrivalsResult.value.data.search.items : [],
     vendureBase,
     carouselItems: bannerItems,
-    topLevelCollections: topLevel,
-    subCollections: subLevel,
+    homeCollections,
   };
 }
 
@@ -131,8 +135,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         newProducts={loaderData.newProducts}
         vendureBase={loaderData.vendureBase}
         carouselItems={loaderData.carouselItems}
-        topLevelCollections={loaderData.topLevelCollections}
-        subCollections={loaderData.subCollections}
+        collections={loaderData.homeCollections}
       />
     </>
   );

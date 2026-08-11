@@ -1,7 +1,7 @@
 import type { Route } from "./+types/collections";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
-import { SlidersHorizontal, X, Check } from "lucide-react";
+import { SlidersHorizontal, X, Check, ChevronDown } from "lucide-react";
 import Breadcrumb from "~/components/Breadcrumb";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
@@ -140,6 +140,7 @@ interface FilterSidebarProps {
 
 function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle, locale }: FilterSidebarProps) {
   const t = SHOP_COPY[locale];
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   return (
     <div>
       {activeFv.length > 0 && (
@@ -163,37 +164,47 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle, locale }:
         </div>
       )}
 
-      {facetGroups.map((group) => (
-        <div key={group.facetId} className="mb-5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2.5">
-            {group.facetName}
+      {facetGroups.map((group) => {
+        const isCollapsed = collapsed[group.facetId];
+        return (
+          <div key={group.facetId} className="mb-5">
+            <button
+              type="button"
+              onClick={() => setCollapsed((prev) => ({ ...prev, [group.facetId]: !prev[group.facetId] }))}
+              className="w-full flex items-center justify-between mb-2.5 group/header"
+              aria-expanded={!isCollapsed}
+            >
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 group-hover/header:text-gray-700">{group.facetName}</span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${!isCollapsed ? "rotate-180" : ""}`} />
+            </button>
+            {!isCollapsed && (
+              <ul className="space-y-2 max-h-52 overflow-y-auto pe-1 scrollbar-thin">
+                {group.values.map((v) => {
+                  const isActive = activeFv.includes(v.id);
+                  return (
+                    <li key={v.id}>
+                      <label className="flex items-center gap-2.5 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={isActive}
+                          onChange={() => onToggle(v.id)}
+                          className="sr-only"
+                        />
+                        <span className={`flex items-center justify-center w-5 h-5 rounded-md border flex-shrink-0 transition-colors ${isActive ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300 group-hover:border-gray-400"}`}>
+                          {isActive && <Check size={13} strokeWidth={3} className="text-black" />}
+                        </span>
+                        <span className={`flex-1 text-sm transition-colors ${isActive ? "text-gray-900 font-semibold" : "text-gray-700 group-hover:text-gray-900"}`}>
+                          {v.name} <span className="text-gray-400">({v.count})</span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-          <ul className="space-y-2">
-            {group.values.map((v) => {
-              const isActive = activeFv.includes(v.id);
-              return (
-                <li key={v.id}>
-                  <label className="flex items-center gap-2.5 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={() => onToggle(v.id)}
-                      className="sr-only"
-                    />
-                    <span className={`flex items-center justify-center w-5 h-5 rounded-md border flex-shrink-0 transition-colors ${isActive ? "bg-lime-300 border-lime-300" : "bg-white border-gray-300 group-hover:border-gray-400"}`}>
-                      {isActive && <Check size={13} strokeWidth={3} className="text-black" />}
-                    </span>
-                    <span className={`flex-1 text-sm transition-colors ${isActive ? "text-gray-900 font-semibold" : "text-gray-700 group-hover:text-gray-900"}`}>
-                      {v.name}
-                    </span>
-                    <span className="text-xs text-gray-400">{v.count}</span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

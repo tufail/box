@@ -13,7 +13,7 @@ import ProductBundleOffers from "~/components/ProductBundleOffers";
 import SortDropdown from "~/components/SortDropdown";
 import ProductHighlights from "~/components/ProductHighlights";
 import ProductQA from "~/components/ProductQA";
-import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
+import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, relatedProductToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -33,6 +33,8 @@ const PDP_COPY = {
 	en: {
 		previousImage: "Previous image",
 		nextImage: "Next image",
+		scrollThumbnailsPrev: "Scroll thumbnails left",
+		scrollThumbnailsNext: "Scroll thumbnails right",
 		goToImage: (n: number) => `Go to image ${n}`,
 		viewFullScreen: "View full screen",
 		removeFromWishlist: "Remove from wishlist",
@@ -108,6 +110,8 @@ const PDP_COPY = {
 	ar: {
 		previousImage: "الصورة السابقة",
 		nextImage: "الصورة التالية",
+		scrollThumbnailsPrev: "تمرير الصور المصغرة لليسار",
+		scrollThumbnailsNext: "تمرير الصور المصغرة لليمين",
 		goToImage: (n: number) => `الانتقال إلى الصورة ${n}`,
 		viewFullScreen: "عرض بملء الشاشة",
 		removeFromWishlist: "إزالة من المفضلة",
@@ -438,20 +442,21 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// product URL if this variant's slug hasn't been backfilled/indexed yet.
 		const canonicalUrl = activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
 
-		const collectionSlug = product.collections[0]?.slug;
-		const [simResult, summaryResult, currentProductResult] = await Promise.allSettled([
-			collectionSlug ? graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { collectionSlug, groupByProduct: false, take: 9, sort: { salesCount: "DESC" } } }, { request }) : Promise.resolve(null),
+		const [summaryResult, currentProductResult] = await Promise.allSettled([
 			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 			// Dedicated search for current product to get sold count + best seller data
 			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, { request }),
 		]);
 
-		const allSearchItems = simResult.status === "fulfilled" && simResult.value ? simResult.value.data.search.items : [];
-		const similarProducts: SearchProductItem[] = allSearchItems.filter((p) => p.slug !== product.slug).slice(0, 8);
+		// Real co-purchase recommendations ("customers who bought this also bought"),
+		// not the same-collection-sorted-by-sales approximation used previously.
+		const similarProducts: SearchProductItem[] = product.relatedProducts
+			.map(relatedProductToSearchItem)
+			.filter((p): p is SearchProductItem => p !== null);
 
 		// Find current product in the dedicated search result (term: product.name)
 		const currentProductItems = currentProductResult.status === "fulfilled" ? currentProductResult.value.data.search.items : [];
-		const currentInSearch = currentProductItems.find((p) => p.slug === product.slug) ?? allSearchItems.find((p) => p.slug === product.slug); // fallback to similar results
+		const currentInSearch = currentProductItems.find((p) => p.slug === product.slug);
 
 		const soldCount30d: number = currentInSearch?.customProductMappings?.soldCount30d ?? 0;
 		const bestSellerRank: number | null = currentInSearch?.customProductMappings?.bestSellerRank ?? null;
@@ -477,6 +482,10 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 	const [copied, setCopied] = useState(false);
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const shareRef = useRef<HTMLDivElement>(null);
+	const thumbStripRef = useRef<HTMLDivElement>(null);
+	const thumbRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+	const [canScrollThumbsPrev, setCanScrollThumbsPrev] = useState(false);
+	const [canScrollThumbsNext, setCanScrollThumbsNext] = useState(false);
 	const { toggle, isWishlisted } = useWishlist();
 	const wishlisted = isWishlisted(wishlistItem.variantId);
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
@@ -503,6 +512,30 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 	}, [variantImages]);
 
 	const currentIdx = Math.min(active, resolved.length - 1);
+
+	const updateThumbScrollState = useCallback(() => {
+		const el = thumbStripRef.current;
+		if (!el) return;
+		setCanScrollThumbsPrev(el.scrollLeft > 4);
+		setCanScrollThumbsNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+	}, []);
+
+	useEffect(() => {
+		updateThumbScrollState();
+		window.addEventListener("resize", updateThumbScrollState);
+		return () => window.removeEventListener("resize", updateThumbScrollState);
+	}, [updateThumbScrollState, resolved.length]);
+
+	function scrollThumbs(direction: "prev" | "next") {
+		thumbStripRef.current?.scrollBy({ left: direction === "prev" ? -160 : 160, behavior: "smooth" });
+	}
+
+	// Keep the active thumbnail visible when it's changed from outside the strip
+	// itself — e.g. the main image's prev/next controls or a variant swap —
+	// not just when a thumbnail is clicked directly.
+	useEffect(() => {
+		thumbRefs.current.get(currentIdx)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+	}, [currentIdx]);
 
 	const handleCopy = () => {
 		if (typeof navigator !== "undefined") {
@@ -600,12 +633,34 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 
 			{/* Thumbnail strip */}
 			{resolved.length > 1 && (
-				<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-					{resolved.map((src, i) => (
-						<button key={i} onClick={() => setActive(i)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-black" : "border-stone-200 hover:border-gray-400"}`}>
-							<img src={vendureImageUrl(src, vendureBase, { preset: "small", format: "webp" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
+				<div className="relative">
+					{canScrollThumbsPrev && (
+						<button onClick={() => scrollThumbs("prev")} aria-label={t.scrollThumbnailsPrev} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-2 rtl:translate-x-2 z-10 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-gray-700 hover:bg-gray-100 transition-colors">
+							<ChevronLeft size={14} className="rtl:rotate-180" />
 						</button>
-					))}
+					)}
+
+					<div ref={thumbStripRef} onScroll={updateThumbScrollState} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+						{resolved.map((src, i) => (
+							<button
+								key={i}
+								ref={(el) => {
+									if (el) thumbRefs.current.set(i, el);
+									else thumbRefs.current.delete(i);
+								}}
+								onClick={() => setActive(i)}
+								className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors bg-stone-100 ${active === i ? "border-black" : "border-stone-200 hover:border-gray-400"}`}
+							>
+								<img src={vendureImageUrl(src, vendureBase, { preset: "small", format: "webp" })} alt="" className="w-full h-full object-contain p-1 mix-blend-multiply" loading="lazy" decoding="async" />
+							</button>
+						))}
+					</div>
+
+					{canScrollThumbsNext && (
+						<button onClick={() => scrollThumbs("next")} aria-label={t.scrollThumbnailsNext} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-2 rtl:-translate-x-2 z-10 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-gray-700 hover:bg-gray-100 transition-colors">
+							<ChevronRight size={14} className="rtl:rotate-180" />
+						</button>
+					)}
 				</div>
 			)}
 
@@ -976,7 +1031,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── Outer 2-col: image=1/3  detail=2/3 ── */}
 				<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-8 items-start">
 					{/* Image column — 1/3 */}
-					<div className="lg:sticky lg:top-[116px] self-start">
+					<div className="lg:sticky lg:top-[116px] self-start min-w-0">
 						<Gallery
 							images={allImages}
 							variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}

@@ -37,6 +37,24 @@ export interface ProductDetailVariant {
   highlights: ProductHighlightValue[];
 }
 
+export interface RelatedProductVariant {
+  id: string;
+  name: string;
+  priceWithTax: number;
+  currencyCode: string;
+  stockLevel: string;
+  featuredAsset: { id: string; preview: string } | null;
+  customFields: { rrp: number | null; slug: string | null } | null;
+}
+
+export interface RelatedProduct {
+  id: string;
+  name: string;
+  slug: string;
+  featuredAsset: { id: string; preview: string } | null;
+  variants: RelatedProductVariant[];
+}
+
 export interface ProductDetailItem {
   id: string;
   name: string;
@@ -58,6 +76,7 @@ export interface ProductDetailItem {
   variants: ProductDetailVariant[];
   facetValues: { name: string; code: string; facet: { name: string; code: string } }[];
   collections: { id: string; name: string; slug: string }[];
+  relatedProducts: RelatedProduct[];
 }
 
 export interface ProductDetailData {
@@ -104,6 +123,21 @@ const PRODUCT_DETAIL_FIELDS = `
   }
   facetValues { name code facet { name code } }
   collections { id name slug }
+  relatedProducts(limit: 8) {
+    id
+    name
+    slug
+    featuredAsset { id preview }
+    variants {
+      id
+      name
+      priceWithTax
+      currencyCode
+      stockLevel
+      featuredAsset { id preview }
+      customFields { rrp slug }
+    }
+  }
 `;
 
 export const PRODUCT_DETAIL_QUERY = `
@@ -197,6 +231,47 @@ export interface SearchProductsData {
   search: {
     totalItems: number;
     items: SearchProductItem[];
+  };
+}
+
+// Adapts a `relatedProducts` result (core Product/variant fields) into the
+// search-index item shape ProductCard/HomeTopSelling render. Badge data that
+// only exists in the ES index (avgRating, soldCount30d, bestSellerRank) isn't
+// available here — ProductCard already hides those badges when absent.
+export function relatedProductToSearchItem(p: RelatedProduct): SearchProductItem | null {
+  const variant = p.variants[0];
+  if (!variant) return null;
+  const rrp = variant.customFields?.rrp ?? null;
+  const discount = rrp && rrp > variant.priceWithTax ? rrp - variant.priceWithTax : 0;
+  return {
+    productId: p.id,
+    productVariantId: variant.id,
+    productName: p.name,
+    productVariantName: variant.name,
+    slug: p.slug,
+    description: "",
+    inStock: variant.stockLevel !== "OUT_OF_STOCK",
+    productAsset: p.featuredAsset,
+    productVariantAsset: variant.featuredAsset,
+    price: { __typename: "SinglePrice", value: variant.priceWithTax },
+    customProductVariantMappings: {
+      isOnSale: discount > 0,
+      stockQty: 0,
+      discount,
+      rrp,
+      slug: variant.customFields?.slug ?? null,
+    },
+    customProductMappings: {
+      variantCount: p.variants.length,
+      salesCount: 0,
+      avgRating: null,
+      reviewCount: null,
+      isBundle: null,
+      soldCount30d: null,
+      bestSellerRank: null,
+      bestSellerCollection: null,
+      bestSellerCollectionSlug: null,
+    },
   };
 }
 
@@ -371,6 +446,75 @@ export const SEARCH_TOP_SELLING = `
     }
   }
 `;
+
+// ─── Top sellers (dedicated endpoint — no ad-hoc ES query) ───────────────────
+
+export interface TopSellerResult {
+  productId: string;
+  productVariantId: string;
+  productName: string;
+  productVariantName: string | null;
+  slug: string;
+  productAsset: { id: string; preview: string } | null;
+  priceWithTax: { min: number; max: number };
+  currencyCode: string;
+  salesCount: number;
+  inStock: boolean;
+}
+
+export interface TopSellersData {
+  topSellers: TopSellerResult[];
+}
+
+export interface TopSellersVariables {
+  limit: number;
+}
+
+export const TOP_SELLERS_QUERY = `
+  query TopSellers($limit: Int!) {
+    topSellers(limit: $limit) {
+      productId
+      productVariantId
+      productName
+      productVariantName
+      slug
+      productAsset { id preview }
+      priceWithTax { min max }
+      currencyCode
+      salesCount
+      inStock
+    }
+  }
+`;
+
+// Adapts the dedicated topSellers endpoint into the search-index item shape
+// ProductCard/HomeTopSelling render, same rationale as relatedProductToSearchItem.
+export function mapTopSellerToSearchItem(t: TopSellerResult): SearchProductItem {
+  return {
+    productId: t.productId,
+    productVariantId: t.productVariantId,
+    productName: t.productName,
+    productVariantName: t.productVariantName ?? undefined,
+    slug: t.slug,
+    description: "",
+    inStock: t.inStock,
+    productAsset: t.productAsset,
+    productVariantAsset: null,
+    price: { __typename: "PriceRange", min: t.priceWithTax.min, max: t.priceWithTax.max },
+    customProductVariantMappings: null,
+    customProductMappings: {
+      variantCount: 0,
+      salesCount: t.salesCount,
+      avgRating: null,
+      reviewCount: null,
+      isBundle: null,
+      soldCount30d: null,
+      bestSellerRank: null,
+      bestSellerCollection: null,
+      bestSellerCollectionSlug: null,
+    },
+  };
+}
 
 // ─── Reviews & Ratings ────────────────────────────────────────────────────────
 

@@ -81,6 +81,34 @@ html[dir="rtl"] .font-heading2 {
 	}
 }
 
+/* A slim, rounded thumb with no track buttons. Deliberately WebKit-only —
+   no scrollbar-width/scrollbar-color — because recent Chromium versions
+   prioritize those standard properties over ::-webkit-scrollbar-* once
+   both are set, which silently drops our button-hiding rule and falls
+   back to the OS's own "thin" scrollbar (arrows included). Firefox just
+   gets an unstyled scrollbar here since it has no way to hide the arrow
+   buttons via CSS at all either way. */
+@utility scrollbar-thin {
+	&::-webkit-scrollbar {
+		width: 6px;
+	}
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	&::-webkit-scrollbar-thumb {
+		background-color: #9ca3af;
+		border-radius: 9999px;
+	}
+	&::-webkit-scrollbar-button {
+		display: none !important;
+		width: 0 !important;
+		height: 0 !important;
+	}
+	&::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+}
+
 @keyframes slideInUp {
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
