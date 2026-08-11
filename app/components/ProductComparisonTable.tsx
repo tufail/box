@@ -167,14 +167,14 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 			<div className="overflow-x-auto rounded-xl border border-gray-100">
 				<table className="w-full text-sm border-collapse">
 					<thead>
-						<tr className="bg-gray-50">
-							<th className={`sticky start-0 z-10 ${LABEL_COL} bg-gray-50 p-3 text-start text-xs font-semibold uppercase tracking-wide text-gray-500`} />
+						<tr className="bg-white">
+							<th className={`sticky start-0 z-10 ${LABEL_COL} bg-white p-3 text-start text-xs font-semibold uppercase tracking-wide text-gray-500`} />
 							{visibleProducts.map((p) => {
 								const isCurrent = p.id === currentProductId;
 								return (
 									<th
 										key={p.id}
-										className={`relative p-3 text-center ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} bg-lime-50` : "min-w-[140px] bg-gray-50"}`}
+										className={`relative p-3 text-center bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} border-2 border-gray-900 shadow-md` : "min-w-[140px]"}`}
 									>
 										{!isCurrent && (
 											<button type="button" onClick={() => removeProduct(p.id)} className="absolute top-1.5 end-1.5 text-gray-300 hover:text-gray-600 transition-colors" aria-label="Remove">
@@ -217,7 +217,7 @@ export default function ProductComparisonTable({ highlightTypes, products, rows,
 												const isCurrent = p.id === currentProductId;
 												const value = highlightsByProductId.get(p.id)?.[typeIndex];
 												return (
-													<td key={p.id} className={`p-3 text-center text-gray-700 ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} bg-lime-50` : ""}`}>
+													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} border-s-2 border-e-2 border-gray-900 shadow-md` : ""}`}>
 														{formatCell(type, value)}
 													</td>
 												);
