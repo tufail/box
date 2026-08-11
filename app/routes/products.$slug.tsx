@@ -442,17 +442,20 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// product URL if this variant's slug hasn't been backfilled/indexed yet.
 		const canonicalUrl = activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
 
+		// Real co-purchase recommendations ("customers who bought this also bought").
+		// Empty until orders with 2+ products have been paid (cold start for a young
+		// store) — the component fetches a same-collection fallback client-side in
+		// that case instead of blocking SSR with an extra query on every request.
+		const similarProducts: SearchProductItem[] = product.relatedProducts
+			.map(relatedProductToSearchItem)
+			.filter((p): p is SearchProductItem => p !== null);
+		const collectionSlug = product.collections[0]?.slug ?? null;
+
 		const [summaryResult, currentProductResult] = await Promise.allSettled([
 			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 			// Dedicated search for current product to get sold count + best seller data
 			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, { request }),
 		]);
-
-		// Real co-purchase recommendations ("customers who bought this also bought"),
-		// not the same-collection-sorted-by-sales approximation used previously.
-		const similarProducts: SearchProductItem[] = product.relatedProducts
-			.map(relatedProductToSearchItem)
-			.filter((p): p is SearchProductItem => p !== null);
 
 		// Find current product in the dedicated search result (term: product.name)
 		const currentProductItems = currentProductResult.status === "fulfilled" ? currentProductResult.value.data.search.items : [];
@@ -467,7 +470,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 		const activeVariantName = variantDisplayTitle(activeVariant);
 
-		return { product, vendureBase, similarProducts, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, locale };
+		return { product, vendureBase, similarProducts, similarCollectionSlug: collectionSlug, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -820,7 +823,7 @@ function ProductInfoTabs({ description, warnings, productId, productSlug }: { de
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, locale } = loaderData;
+	const { product, vendureBase, similarProducts: initialSimilarProducts, similarCollectionSlug, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, locale } = loaderData;
 	const t = PDP_COPY[locale];
 
 	const optionGroups = getOptionGroups(product.variants);
@@ -856,6 +859,27 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			.then((d) => setVariantRankings(d.rankings ?? []))
 			.catch(() => setVariantRankings([]));
 	}, [activeVariant?.id, locale]);
+
+	// Cold-start fallback for "similar products": SSR only sends real co-purchase
+	// data (product.relatedProducts). When that's empty — no paid multi-item
+	// orders yet for this store — fetch a same-collection fallback client-side
+	// instead of paying for that extra search query on every SSR request.
+	const [similarProducts, setSimilarProducts] = useState<SearchProductItem[]>(initialSimilarProducts);
+	useEffect(() => {
+		setSimilarProducts(initialSimilarProducts);
+		if (initialSimilarProducts.length > 0 || !similarCollectionSlug) return;
+		let cancelled = false;
+		fetch(`/api/concern-products?collectionSlug=${encodeURIComponent(similarCollectionSlug)}&take=9&lang=${locale}`)
+			.then((r) => r.json() as Promise<{ items: SearchProductItem[] }>)
+			.then((d) => {
+				if (cancelled) return;
+				setSimilarProducts((d.items ?? []).filter((p) => p.slug !== product.slug).slice(0, 8));
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [initialSimilarProducts, similarCollectionSlug, product.slug, locale]);
 
 	// Subscribe & Save — which plans (if any) this variant is eligible for.
 	// Empty array = variant isn't enrolled in any subscription plan on the backend.
