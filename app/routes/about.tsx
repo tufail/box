@@ -46,7 +46,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const locale = getLocaleFromPathname(new URL(request.url).pathname);
   try {
-    const { data } = await graphqlRequest<CmsPageData>(env, GET_CMS_PAGE_BY_SLUG, { slug: "about" }, { request });
+    const { data } = await graphqlRequest<CmsPageData>(env, GET_CMS_PAGE_BY_SLUG, { slug: "about", languageCode: locale }, { request });
     if (data.getCmsPageBySlug) {
       throw redirect(localizePath("/pages/about", locale), 301);
     }

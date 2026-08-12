@@ -12,11 +12,14 @@ import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from
 export async function loader({ params, context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const slug = params.slug as string;
+	const locale = getLocaleFromPathname(new URL(request.url).pathname);
 
 	const result = await graphqlRequest<CmsPageData>(
 		env,
 		GET_CMS_PAGE_BY_SLUG,
-		{ slug },
+		{ slug, languageCode: locale },
+		// Locale is baked into the cache key via the request URL (/ar/pages/x vs /pages/x),
+		// so caching per-locale response bodies here is still safe.
 		{ request, cf: { cacheTtl: 300, cacheEverything: true } },
 	);
 
@@ -26,7 +29,7 @@ export async function loader({ params, context, request }: Route.LoaderArgs) {
 		throw data(null, { status: 404 });
 	}
 
-	const translation = page.translations[0] ?? { title: slug, description: null, metaDescription: null };
+	const translation = { title: page.title, description: page.description, metaDescription: page.metaDescription };
 
 	return { page, translation, slug };
 }

@@ -71,11 +71,14 @@ export const links: Route.LinksFunction = () => [
 
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
+	const locale = getLocaleFromPathname(new URL(request.url).pathname);
 	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult] = await Promise.allSettled([
 		graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
 		graphqlRequest<{ activeOrder: { totalQuantity: number } | null }>(env, CART_COUNT_QUERY, undefined, { request }),
 		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
-		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, undefined, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
+		// Locale is baked into the cache key via the request URL (/ar/* vs /*), so caching
+		// per-locale response bodies here is still safe.
+		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, { languageCode: locale }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
 
 	const rawSections = pageSectionsResult.status === "fulfilled"
