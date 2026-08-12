@@ -96,7 +96,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 
 	return (
 		<div className="relative group">
-			<div className={`relative h-[220px] sm:h-[240px] ${total > 1 ? "pr-3" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+			<div className={`relative h-[220px] sm:h-[240px] lg:h-auto lg:aspect-[1440/420] ${total > 1 ? "pr-3" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 				{items.map((slide, index) => {
 					const depth = depthOf(index, selectedIndex, total);
 					const style = DEPTH_STYLES[depth];
