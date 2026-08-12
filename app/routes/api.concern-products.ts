@@ -21,7 +21,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		const { data } = await graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
 			env,
 			SEARCH_TOP_SELLING,
-			{ input: { collectionSlug, skip, take, groupByProduct: false } },
+			{ input: { collectionSlug, skip, take, groupByProduct: false, inStock: true } },
 			{ request, locale }
 		);
 		return Response.json({ items: data.search.items, totalItems: data.search.totalItems });

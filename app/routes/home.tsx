@@ -62,17 +62,21 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   const cacheOpts = { request, cf: { cacheTtl: 300, cacheEverything: true } } as const;
 
+  // topSellers is a dedicated resolver with no inStock filter argument, so it's
+  // over-fetched (24 for a target of 12) and filtered to inStock below instead.
+  // The search index's SearchInput does support inStock directly (used below),
+  // so new arrivals doesn't need the same over-fetch treatment.
   const [topSellingResult, newArrivalsResult, bannerResult, collectionsResult] = await Promise.allSettled([
     graphqlRequest<TopSellersData, TopSellersVariables>(
       env,
       TOP_SELLERS_QUERY,
-      { limit: 12 },
+      { limit: 24 },
       cacheOpts
     ),
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
       env,
       SEARCH_NEW_ARRIVALS,
-      { input: { take: 12, groupByProduct: false } },
+      { input: { take: 12, groupByProduct: false, inStock: true } },
       cacheOpts
     ),
     graphqlRequest<BannerData, BannerVariables>(
@@ -106,7 +110,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       : [];
 
   return {
-    products: topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers.map(mapTopSellerToSearchItem) : [],
+    products: topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers.map(mapTopSellerToSearchItem).filter((p) => p.inStock).slice(0, 12) : [],
     newProducts: newArrivalsResult.status === "fulfilled" ? newArrivalsResult.value.data.search.items : [],
     vendureBase,
     carouselItems: bannerItems,

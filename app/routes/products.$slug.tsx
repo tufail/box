@@ -453,7 +453,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// that case instead of blocking SSR with an extra query on every request.
 		const similarProducts: SearchProductItem[] = product.relatedProducts
 			.map(relatedProductToSearchItem)
-			.filter((p): p is SearchProductItem => p !== null);
+			.filter((p): p is SearchProductItem => p !== null && p.inStock)
+			.slice(0, 8);
 		const collectionSlug = product.collections[0]?.slug ?? null;
 
 		const [summaryResult, currentProductResult] = await Promise.allSettled([

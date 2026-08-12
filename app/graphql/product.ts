@@ -125,7 +125,7 @@ const PRODUCT_DETAIL_FIELDS = `
   }
   facetValues { name code facet { name code } }
   collections { id name slug }
-  relatedProducts(limit: 8) {
+  relatedProducts(limit: 16) {
     id
     name
     slug
@@ -285,6 +285,7 @@ export interface SearchTopSellingVariables {
     collectionSlug?: string;
     collectionId?: string;
     groupByProduct?: boolean;
+    inStock?: boolean;
     sort?: {
       salesCount?: "ASC" | "DESC";
       name?: "ASC" | "DESC";
