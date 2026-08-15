@@ -5,7 +5,7 @@ import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -27,6 +27,9 @@ import { formatPrice as formatCurrency } from "~/lib/currency";
 import type { BannerItem } from "~/graphql/banner";
 
 const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
+
+// Fixed order matching PDP_COPY's trustBadges() output: delivery, payment, returns.
+const TRUST_BADGE_ICONS = [Truck, CreditCard, RotateCcw];
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
@@ -72,6 +75,7 @@ const PDP_COPY = {
 		addedToCart: "Added to Cart ✓",
 		failedTryAgain: "Failed — try again",
 		addToCart: "Add to Cart",
+		quickDelivery: "Quick Delivery",
 		percentOff: (n: number) => `${n}% Off`,
 		by: "by",
 		whatsappEnquiry: "WhatsApp Enquiry",
@@ -150,6 +154,7 @@ const PDP_COPY = {
 		addedToCart: "تمت الإضافة إلى السلة ✓",
 		failedTryAgain: "فشلت العملية — حاول مرة أخرى",
 		addToCart: "أضف إلى السلة",
+		quickDelivery: "توصيل سريع",
 		percentOff: (n: number) => `خصم ${n}%`,
 		by: "بواسطة",
 		whatsappEnquiry: "استفسار عبر واتساب",
@@ -1250,7 +1255,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
-								<div className="bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
+								<div className="relative bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
 									{/* Price — hidden when Subscribe & Save is available, since that box
 									    already shows its own (crossed-out / discounted) price breakdown */}
 									{subscriptionPlans.length === 0 && (
@@ -1355,6 +1360,15 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										>
 											{!inStock ? t.outOfStockBtn : cartFetcher.state !== "idle" ? t.adding : cartFeedback === "success" ? t.addedToCart : cartFeedback === "error" ? t.failedTryAgain : t.addToCart}
 										</button>
+
+										{isExpressDelivery && (
+											<span
+												className="absolute top-0 start-4 -translate-y-1/2 z-10 bg-yellow-400 text-black text-[9px] font-extrabold italic lowercase tracking-wide ps-2.5 pe-4 py-0.5 rounded-s-sm"
+												style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 0 100%)" }}
+											>
+												{t.quickDelivery}
+											</span>
+										)}
 									</div>
 								</div>
 								{/* Bundle offers */}
@@ -1378,12 +1392,15 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 								{/* Trust badges */}
 								<ul className="space-y-1.5 mt-3">
-									{t.trustBadges(isExpressDelivery).map((item) => (
-										<li key={item} className="flex items-start gap-2 text-xs text-gray-500">
-											<span className="text-primary mt-0.5">•</span>
-											{item}
-										</li>
-									))}
+									{t.trustBadges(isExpressDelivery).map((item, i) => {
+										const Icon = TRUST_BADGE_ICONS[i];
+										return (
+											<li key={item} className="flex items-center gap-2 text-xs text-gray-500">
+												<Icon size={14} className="text-primary flex-shrink-0" />
+												{item}
+											</li>
+										);
+									})}
 								</ul>
 							</div>
 						</div>

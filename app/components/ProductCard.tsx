@@ -6,7 +6,7 @@ import type { SearchProductItem } from "~/graphql/product";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
 import VendureImage from "./VendureImage";
-import { TrendingUp, Star, Zap } from "lucide-react";
+import { TrendingUp, Star } from "lucide-react";
 import { getLocaleFromPathname } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 import { useCart } from "~/context/CartContext";
@@ -182,8 +182,10 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 					)}
 
 					{hasQuickDelivery && (
-						<span className="absolute bottom-0 start-0 z-10 flex items-center gap-1 bg-emerald-500 text-white text-[11px] font-bold px-3 py-1 rounded-full">
-							<Zap size={11} fill="currentColor" />
+						<span
+							className="absolute bottom-2 start-0 z-10 bg-yellow-400 text-black text-[9px] font-extrabold italic lowercase tracking-wide ps-2.5 pe-4 py-0.5 rounded-s-sm"
+							style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 0 100%)" }}
+						>
 							{t.quickDelivery}
 						</span>
 					)}
