@@ -104,15 +104,15 @@ function CollectionScroll({ collections, vendureBase }: { collections: HomeColle
 				</button>
 
 				<div className="overflow-hidden" ref={emblaRef}>
-					<div className="flex -mx-2 justify-center" role="list" aria-label={locale === "ar" ? "مجموعات المنتجات" : "Product collections"}>
+					<div className="flex -mx-3" role="list" aria-label={locale === "ar" ? "مجموعات المنتجات" : "Product collections"}>
 						{collections.map((col) => (
-							<div key={col.id} className="flex-none w-[120px] md:w-[140px] px-2" role="listitem">
+							<div key={col.id} className="flex-none w-[120px] md:w-[140px] px-3" role="listitem">
 								{/* 1px gradient "border" — solid for the top 70% of the card, fading to
 								    transparent over the bottom 30% so it merges into the page background. */}
 								<div className="rounded-xl p-px" style={{ background: "linear-gradient(to bottom, rgba(209,213,219,0.3) 0%, rgba(209,213,219,0.3) 70%, transparent 100%)" }}>
 									<Link to={`/c/${col.slug}`} className="group block rounded-xl">
 										<div className="overflow-hidden rounded-xl bg-stone-100">
-											<div className="aspect-square overflow-hidden bg-gradient-to-b from-white via-white via-40% to-stone-100 to-70%">
+											<div className="aspect-square overflow-hidden bg-gradient-to-b from-white via-white via-40% to-stone-100 to-70% py-2 px-5">
 												{col.featuredAsset ? (
 													<VendureImage src={col.featuredAsset.preview} vendureBase={vendureBase} alt={col.name} width={400} height={400} objectFit="contain" imgClassName="mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
 												) : (
