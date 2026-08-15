@@ -20,7 +20,6 @@ export const GET_MEGA_MENU = `
             links {
               label
               url
-              collectionSlug
             }
           }
         }
@@ -32,7 +31,6 @@ export const GET_MEGA_MENU = `
 export interface MegaMenuLink {
   label: string;
   url: string | null;
-  collectionSlug: string | null;
 }
 
 export interface MegaMenuSection {

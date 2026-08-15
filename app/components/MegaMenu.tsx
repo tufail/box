@@ -11,8 +11,7 @@ function itemHref(item: Pick<MegaMenuItem, "url">): string {
 	return item.url ?? "#";
 }
 
-function linkHref(link: Pick<MegaMenuLink, "url" | "collectionSlug">): string {
-	if (link.collectionSlug) return `/c/${link.collectionSlug}`;
+function linkHref(link: Pick<MegaMenuLink, "url">): string {
 	return link.url ?? "#";
 }
 

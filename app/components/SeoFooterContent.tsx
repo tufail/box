@@ -64,17 +64,16 @@ function normalize(s: string): string {
 	return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-// Pulls every {label, collectionSlug} pair out of the mega menu — the only place
-// we already have real collection slugs sitewide without an extra query. Items only
-// carry a plain `url` (no collectionSlug), so this only ever surfaces link-level entries.
-function flattenMegaMenu(menu: MegaMenuData["getMegaMenu"]): { label: string; slug: string }[] {
+// Pulls every {label, url} pair out of the mega menu — the only place we already
+// have real collection URLs sitewide without an extra query.
+function flattenMegaMenu(menu: MegaMenuData["getMegaMenu"]): { label: string; url: string }[] {
 	if (!menu) return [];
-	const entries: { label: string; slug: string }[] = [];
+	const entries: { label: string; url: string }[] = [];
 	for (const item of menu.items) {
 		for (const col of item.columns) {
 			for (const section of col.sections) {
 				for (const link of section.links) {
-					if (link.collectionSlug) entries.push({ label: link.label, slug: link.collectionSlug });
+					if (link.url) entries.push({ label: link.label, url: link.url });
 				}
 			}
 		}
@@ -85,10 +84,10 @@ function flattenMegaMenu(menu: MegaMenuData["getMegaMenu"]): { label: string; sl
 // Best-effort match of a search term (e.g. "Whey Protein Qatar") against a mega-menu
 // label (e.g. "Whey Protein") via substring containment either direction, preferring
 // the longest/most specific label match.
-function findCollectionSlug(term: string, entries: { label: string; slug: string }[]): string | null {
+function findCollectionUrl(term: string, entries: { label: string; url: string }[]): string | null {
 	const normTerm = normalize(term);
 	const exact = entries.find((e) => normalize(e.label) === normTerm);
-	if (exact) return exact.slug;
+	if (exact) return exact.url;
 
 	const candidates = entries
 		.filter((e) => {
@@ -97,7 +96,7 @@ function findCollectionSlug(term: string, entries: { label: string; slug: string
 		})
 		.sort((a, b) => normalize(b.label).length - normalize(a.label).length);
 
-	return candidates[0]?.slug ?? null;
+	return candidates[0]?.url ?? null;
 }
 
 interface SeoFooterContentProps {
@@ -145,8 +144,8 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 					<h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">{t.popularSearches}</h3>
 					<p className="text-sm leading-relaxed">
 						{categories.map((cat, i) => {
-							const slug = findCollectionSlug(TOP_CATEGORIES_MATCH_TERMS[i], collectionEntries);
-							const href = slug ? `/c/${slug}` : localizePath(`/search?q=${encodeURIComponent(cat)}`, locale);
+							const collectionUrl = findCollectionUrl(TOP_CATEGORIES_MATCH_TERMS[i], collectionEntries);
+							const href = collectionUrl ?? localizePath(`/search?q=${encodeURIComponent(cat)}`, locale);
 							return (
 								<span key={cat}>
 									<Link to={href} className="text-primary hover:underline">
