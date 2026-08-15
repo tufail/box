@@ -30,6 +30,12 @@ export interface ProductDetailVariant {
   priceWithTax: number;
   currencyCode: string;
   stockLevel: string;
+  // Raw sellable quantity (stockOnHand - stockAllocated), ignoring trackInventory —
+  // unlike stockLevel, this doesn't report untracked variants as always IN_STOCK.
+  // Used for the Quick/Standard delivery estimate, not for cart purchasability
+  // (isInStock() below still uses stockLevel, since untracked variants should
+  // stay purchasable).
+  stockQty: number;
   featuredAsset: { preview: string } | null;
   assets: { preview: string }[];
   customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null; gtin12: string | null; sizeSpecifications: string | null } | null;
@@ -43,6 +49,7 @@ export interface RelatedProductVariant {
   priceWithTax: number;
   currencyCode: string;
   stockLevel: string;
+  stockQty: number;
   featuredAsset: { id: string; preview: string } | null;
   customFields: { rrp: number | null; slug: string | null } | null;
 }
@@ -113,6 +120,7 @@ const PRODUCT_DETAIL_FIELDS = `
     priceWithTax
     currencyCode
     stockLevel
+    stockQty
     featuredAsset { preview }
     assets { preview }
     customFields { rrp keyInfo additionalInfo slug gtin12 sizeSpecifications }
@@ -136,6 +144,7 @@ const PRODUCT_DETAIL_FIELDS = `
       priceWithTax
       currencyCode
       stockLevel
+      stockQty
       featuredAsset { id preview }
       customFields { rrp slug }
     }
@@ -258,7 +267,7 @@ export function relatedProductToSearchItem(p: RelatedProduct): SearchProductItem
     price: { __typename: "SinglePrice", value: variant.priceWithTax },
     customProductVariantMappings: {
       isOnSale: discount > 0,
-      stockQty: 0,
+      stockQty: variant.stockQty,
       discount,
       rrp,
       slug: variant.customFields?.slug ?? null,
@@ -466,6 +475,7 @@ export interface TopSellerResult {
   currencyCode: string;
   salesCount: number;
   inStock: boolean;
+  stockQty: number;
 }
 
 export interface TopSellersData {
@@ -490,6 +500,7 @@ export const TOP_SELLERS_QUERY = `
       currencyCode
       salesCount
       inStock
+      stockQty
     }
   }
 `;
@@ -508,7 +519,7 @@ export function mapTopSellerToSearchItem(t: TopSellerResult): SearchProductItem 
     productAsset: t.productAsset,
     productVariantAsset: null,
     price: { __typename: "PriceRange", min: t.priceWithTax.min, max: t.priceWithTax.max },
-    customProductVariantMappings: { isOnSale: false, stockQty: 0, discount: 0, rrp: null, slug: t.variantSlug },
+    customProductVariantMappings: { isOnSale: false, stockQty: t.stockQty, discount: 0, rrp: null, slug: t.variantSlug },
     customProductMappings: {
       variantCount: 0,
       salesCount: t.salesCount,

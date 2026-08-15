@@ -24,6 +24,7 @@ import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
+import type { BannerItem } from "~/graphql/banner";
 
 const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
 
@@ -62,7 +63,8 @@ const PDP_COPY = {
 		rankIn: (rank: number) => `#${rank} in`,
 		shippingInfo: "Shipping Info",
 		shippingInfoPrefix: "Free shipping on orders over",
-		shippingInfoSuffix: ". Standard delivery within Qatar in 2–4 business days.",
+		shippingInfoSuffixExpress: ". Express delivery within 2 hours.",
+		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2–6 business days.",
 		decrease: "Decrease",
 		increase: "Increase",
 		outOfStockBtn: "Out of Stock",
@@ -73,7 +75,7 @@ const PDP_COPY = {
 		percentOff: (n: number) => `${n}% Off`,
 		by: "by",
 		whatsappEnquiry: "WhatsApp Enquiry",
-		trustBadges: ["Express delivery within 2 hours", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
+		trustBadges: (express: boolean) => [express ? "Express delivery within 2 hours" : "Standard delivery within Qatar in 2–6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
 		productVideo: "Product Video",
 		youMay: "You May",
 		alsoLike: "also like",
@@ -139,7 +141,8 @@ const PDP_COPY = {
 		rankIn: (rank: number) => `#${rank} في`,
 		shippingInfo: "معلومات الشحن",
 		shippingInfoPrefix: "شحن مجاني للطلبات فوق",
-		shippingInfoSuffix: ". التوصيل القياسي داخل قطر خلال 2-4 أيام عمل.",
+		shippingInfoSuffixExpress: ". توصيل سريع خلال ساعتين.",
+		shippingInfoSuffixStandard: ". التوصيل القياسي داخل قطر خلال 2-6 أيام عمل.",
 		decrease: "إنقاص",
 		increase: "زيادة",
 		outOfStockBtn: "غير متوفر",
@@ -150,7 +153,7 @@ const PDP_COPY = {
 		percentOff: (n: number) => `خصم ${n}%`,
 		by: "بواسطة",
 		whatsappEnquiry: "استفسار عبر واتساب",
-		trustBadges: ["توصيل سريع خلال ساعتين", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
+		trustBadges: (express: boolean) => [express ? "توصيل سريع خلال ساعتين" : "التوصيل القياسي داخل قطر خلال 2-6 أيام عمل", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
 		productVideo: "فيديو المنتج",
 		youMay: "قد",
 		alsoLike: "يعجبك أيضًا",
@@ -863,6 +866,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const { notify } = useNotification();
 
 	const activeVariant = optionGroups.length > 0 ? findVariant(product.variants, selected) : (product.variants[0] ?? null);
+	// Driven by the raw sellable quantity, not stockLevel — stockLevel reports
+	// untracked-inventory variants as always IN_STOCK regardless of real stock,
+	// which would wrongly promise Express delivery on those.
+	const isExpressDelivery = (activeVariant?.stockQty ?? 0) > 0;
 
 	// Rankings come from the dedicated variantRankings query (client-side, updates on variant switch)
 	const [variantRankings, setVariantRankings] = useState<VariantRanking[]>([]);
@@ -898,6 +905,26 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			cancelled = true;
 		};
 	}, [initialSimilarProducts, similarCollectionSlug, product.slug, locale]);
+
+	// Free-shipping threshold shown in the Add to Cart tooltip — fetched from the
+	// same "top-bar-items" banner group as the header's top bar, so the two never
+	// drift apart (previously this was a hardcoded placeholder amount here).
+	const [freeShippingThreshold, setFreeShippingThreshold] = useState<string | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		fetch("/api/banner/top-bar-items")
+			.then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
+			.then((data) => {
+				if (cancelled) return;
+				const item = data?.items.find((i) => /\d/.test(i.title));
+				const amount = item?.title.match(/[\d,.]+/)?.[0];
+				if (amount) setFreeShippingThreshold(amount);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	// Subscribe & Save — which plans (if any) this variant is eligible for.
 	// Empty array = variant isn't enrolled in any subscription plan on the backend.
@@ -1302,7 +1329,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												</button>
 											</div>
 
-											{/* TODO: placeholder copy — replace with real shipping/free-shipping-threshold config once available from the backend */}
 											<div className="relative group">
 												<button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors cursor-default">
 													<Truck size={15} />
@@ -1310,8 +1336,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													<Info size={13} className="text-gray-400" />
 												</button>
 												<div className="absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-20">
-													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR 150</span>
-													{t.shippingInfoSuffix}
+													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR {freeShippingThreshold ?? "150"}</span>
+													{isExpressDelivery ? t.shippingInfoSuffixExpress : t.shippingInfoSuffixStandard}
 												</div>
 											</div>
 										</div>
@@ -1352,7 +1378,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 								{/* Trust badges */}
 								<ul className="space-y-1.5 mt-3">
-									{t.trustBadges.map((item) => (
+									{t.trustBadges(isExpressDelivery).map((item) => (
 										<li key={item} className="flex items-start gap-2 text-xs text-gray-500">
 											<span className="text-primary mt-0.5">•</span>
 											{item}

@@ -6,7 +6,7 @@ import type { SearchProductItem } from "~/graphql/product";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
 import VendureImage from "./VendureImage";
-import { TrendingUp, Star } from "lucide-react";
+import { TrendingUp, Star, Zap } from "lucide-react";
 import { getLocaleFromPathname } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 import { useCart } from "~/context/CartContext";
@@ -23,12 +23,14 @@ const CARD_COPY = {
 		off: (percent: number) => `${percent}% OFF`,
 		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} in ${collection}`,
+		quickDelivery: "Quick Delivery",
 	},
 	ar: {
 		soldOut: "نفدت الكمية",
 		off: (percent: number) => `خصم ${percent}%`,
 		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} في ${collection}`,
+		quickDelivery: "توصيل سريع",
 	},
 } as const;
 
@@ -91,6 +93,7 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 	const discount = product.customProductVariantMappings?.discount ?? 0;
 	const originalQAR = discount > 0 ? priceQAR + discount / 100 : null;
 	const discountPercent = discount > 0 ? Math.round((discount / 100 / (priceQAR + discount / 100)) * 100) : 0;
+	const hasQuickDelivery = (product.customProductVariantMappings?.stockQty ?? 0) > 0;
 	const sold30Days = product.customProductMappings?.soldCount30d ?? 0;
 	const bestSellerRank = product.customProductMappings?.bestSellerRank ?? null;
 	const bestSellerCollection = product.customProductMappings?.bestSellerCollection ?? null;
@@ -176,6 +179,13 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 							<Star size={10} className="text-lime-300" fill="currentColor" stroke="black" strokeWidth={1} />
 							<span className="text-[11px] font-semibold text-gray-800">{product.customProductMappings!.avgRating!.toFixed(1)}</span>
 						</div>
+					)}
+
+					{hasQuickDelivery && (
+						<span className="absolute bottom-0 start-0 z-10 flex items-center gap-1 bg-emerald-500 text-white text-[11px] font-bold px-3 py-1 rounded-full">
+							<Zap size={11} fill="currentColor" />
+							{t.quickDelivery}
+						</span>
 					)}
 
 					{imageSrc ? (
