@@ -866,6 +866,18 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const { openCart, setCartCount } = useCart();
 	const { notify } = useNotification();
 
+	// React Router keeps this component mounted across client-side navigations
+	// between two /products/:slug URLs (same route), so useState(initialSelected)
+	// only applies on first mount — without this, clicking a "You may also like"
+	// card left the PREVIOUS product's flavor selected, which then couldn't match
+	// any option on the new product and broke activeVariant (price/stock/etc.)
+	// entirely.
+	useEffect(() => {
+		setSelected(initialSelected);
+		setQty(1);
+		setCartFeedback("idle");
+	}, [product.id, selectedVariantId]);
+
 	const activeVariant = optionGroups.length > 0 ? findVariant(product.variants, selected) : (product.variants[0] ?? null);
 	// Driven by the raw sellable quantity, not stockLevel — stockLevel reports
 	// untracked-inventory variants as always IN_STOCK regardless of real stock,
