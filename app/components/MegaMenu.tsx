@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "../graphql/megamenu";
 import type { BrandValue } from "../graphql/brand";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 
 function itemHref(item: Pick<MegaMenuItem, "url">): string {
@@ -387,19 +387,23 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 																			headerHref ? (
 																				<Link
 																					to={headerHref}
-																					className="block text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black transition-colors mb-2"
+																					className="block text-sm font-bold text-primary hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors mb-2"
 																					onClick={() => setDesktopOpen(null)}
 																				>
 																					{section.title}
+																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
 																				</Link>
 																			) : (
-																				<p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{section.title}</p>
+																				<p className="text-sm font-bold text-primary mb-2">
+																					{section.title}
+																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
+																				</p>
 																			)
 																		)}
 																		<ul className="space-y-1">
 																			{section.links.map((link, li) => (
 																				<li key={li}>
-																					<Link to={linkHref(link)} className="text-sm text-gray-700 hover:text-black transition-colors block py-0.5" onClick={() => setDesktopOpen(null)}>
+																					<Link to={linkHref(link)} className="text-sm text-gray-700 hover:text-black hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors block py-0.5" onClick={() => setDesktopOpen(null)}>
 																						{link.label}
 																					</Link>
 																				</li>
