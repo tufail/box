@@ -5,7 +5,7 @@ import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ShieldCheck, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -59,8 +59,6 @@ const PDP_COPY = {
 		sku: "SKU",
 		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
 		soldOutBadge: "Sold Out",
-		qualityPromise: "Quality Promise",
-		qualityPromiseBody: "This product is guaranteed authentic and backed by our easy returns & refunds policy.",
 		productHighlights: "Product Highlights",
 		productRankings: "Product rankings:",
 		rankIn: (rank: number) => `#${rank} in`,
@@ -138,8 +136,6 @@ const PDP_COPY = {
 		sku: "رمز المنتج",
 		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
 		soldOutBadge: "نفدت الكمية",
-		qualityPromise: "ضمان الجودة",
-		qualityPromiseBody: "هذا المنتج مضمون الأصالة ومدعوم بسياسة الإرجاع والاسترداد السهلة لدينا.",
 		productHighlights: "أبرز مميزات المنتج",
 		productRankings: "تصنيفات المنتج:",
 		rankIn: (rank: number) => `#${rank} في`,
@@ -1381,14 +1377,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									</svg>
 									{t.whatsappEnquiry}
 								</a> */}
-								{/* Quality Promise — sits in the cart column, right above the trust badges */}
-								<div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3 mt-5">
-									<ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-									<div>
-										<p className="text-sm font-semibold text-green-700">{t.qualityPromise}</p>
-										<p className="text-xs text-green-600 mt-0.5">{t.qualityPromiseBody}</p>
-									</div>
-								</div>
 
 								{/* Trust badges */}
 								<ul className="space-y-1.5 mt-3">
