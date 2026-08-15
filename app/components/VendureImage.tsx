@@ -44,9 +44,17 @@ function ladderFor(objectFit: "cover" | "contain"): Rung[] {
 // silently produces a malformed URL like "https://host.qapreview/1/x.jpg"
 // (browsers parse everything before the next "/" as part of the hostname) —
 // the request then fails with ERR_NAME_NOT_RESOLVED instead of 404ing cleanly.
+//
+// The topSellers resolver specifically also drops the "/assets" segment that
+// every other resolver includes (e.g. "preview/e9/x.jpg" instead of
+// "assets/preview/e9/x.jpg"), which 404s and gets ORB-blocked by the browser
+// instead of failing loudly — restore it since every real asset path lives
+// under /assets/.
 function normalizeAssetPath(src: string): string {
-  const forwardSlashes = src.replace(/\\/g, "/");
-  return forwardSlashes.startsWith("/") ? forwardSlashes : `/${forwardSlashes}`;
+  let path = src.replace(/\\/g, "/");
+  if (!path.startsWith("/")) path = `/${path}`;
+  if (!path.startsWith("/assets/")) path = `/assets${path}`;
+  return path;
 }
 
 // Picks the smallest preset on the relevant ladder whose ceiling covers the

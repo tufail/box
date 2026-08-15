@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { CheckCircle, XCircle, X, Search, Plus, ChevronDown } from "lucide-react";
 import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
@@ -255,7 +255,7 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 					</thead>
 					<tbody>
 						{groups.map((group, gi) => (
-							<>
+							<Fragment key={group.label ?? gi}>
 								{group.label && groups.length > 1 && (
 									<tr key={`group-${gi}`}>
 										<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white`} />
@@ -281,7 +281,7 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 										</tr>
 									);
 								})}
-							</>
+							</Fragment>
 						))}
 					</tbody>
 				</table>
