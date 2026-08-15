@@ -15,7 +15,7 @@ import {
 } from "~/graphql/product";
 import { SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
-import { SHOP_COPY, productCountLabel } from "~/lib/shopCopy";
+import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
 const PAGE_SIZE = 24;
 
@@ -73,7 +73,7 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
     if (!map.has(facetId)) map.set(facetId, { facetId, facetName, values: [] });
     map.get(facetId)!.values.push({ id: facetValue.id, name: facetValue.name, count });
   }
-  return [...map.values()];
+  return sortFacetGroups([...map.values()]);
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {

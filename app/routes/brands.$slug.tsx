@@ -18,7 +18,7 @@ import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/co
 import type { SortKey } from "~/graphql/product";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
-import { SHOP_COPY, productCountLabel } from "~/lib/shopCopy";
+import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
 const PAGE_SIZE = 24;
 
@@ -67,13 +67,7 @@ function groupFacets(facetValues: BrandPageFacetValue[]): FacetGroup[] {
 		if (!map.has(facetId)) map.set(facetId, { facetId, facetName, values: [] });
 		map.get(facetId)!.values.push({ id: facetValue.id, name: facetValue.name, count });
 	}
-	return [...map.values()].sort((a, b) => {
-		const aIsCat = a.facetName.toLowerCase() === "category";
-		const bIsCat = b.facetName.toLowerCase() === "category";
-		if (aIsCat && !bIsCat) return -1;
-		if (!aIsCat && bIsCat) return 1;
-		return 0;
-	});
+	return sortFacetGroups([...map.values()]);
 }
 
 // ── Meta ───────────────────────────────────────────────────────────────────

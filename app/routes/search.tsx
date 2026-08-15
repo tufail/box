@@ -12,6 +12,7 @@ import {
   type SearchPageVariables,
   type SortKey,
 } from "~/graphql/product";
+import { sortFacetGroups } from "~/lib/shopCopy";
 
 const PAGE_SIZE = 24;
 
@@ -46,7 +47,7 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
     if (!map.has(facetId)) map.set(facetId, { facetId, facetName, values: [] });
     map.get(facetId)!.values.push({ id: facetValue.id, name: facetValue.name, count });
   }
-  return [...map.values()];
+  return sortFacetGroups([...map.values()]);
 }
 
 // ── Meta ───────────────────────────────────────────────────────────────────
