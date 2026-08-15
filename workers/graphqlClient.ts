@@ -78,7 +78,15 @@ export async function graphqlRequest<
   };
 
   if (options?.cf) {
-    fetchOptions.cf = options.cf;
+    // Cloudflare's edge cache keys fetch() subrequests by URL alone, ignoring the
+    // POST body — but every GraphQL query on a given locale hits this same `api`
+    // URL. Without a distinct cacheKey per operation+variables, unrelated queries
+    // (e.g. the mega menu and page-sections calls in root.tsx, both cacheEverything
+    // on every page load) collide in the shared cache: whichever response lands
+    // first gets served back for the other until the TTL expires.
+    const operationName = bodyQuery.match(/(?:query|mutation)\s+(\w+)/)?.[1] ?? "anonymous";
+    const cacheKey = `${api}${api.includes("?") ? "&" : "?"}__op=${operationName}&__vars=${encodeURIComponent(JSON.stringify(variables ?? {}))}`;
+    fetchOptions.cf = { cacheKey, ...options.cf };
   }
 
   const res = await fetch(api, fetchOptions);
