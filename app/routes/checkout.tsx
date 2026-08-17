@@ -16,6 +16,13 @@ import type { SkipCashCheckoutResult } from "~/graphql/checkout";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
+// Must match the `code` the SkipCash PaymentMethod is created with in the
+// Vendure admin (see SKIPCASH_METHOD_CODE in api.checkout.ts).
+const SKIPCASH_METHOD_CODE = "skipcash-payment";
+
+// Same accepted-payment-method logos shown in the footer (public/images/payments/).
+const PAYMENT_ICON_IDS = [1, 2, 3, 4, 5];
+
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
@@ -69,6 +76,7 @@ const CHECKOUT_COPY = {
 		paymentFailed: "Payment failed. Please try again.",
 		processingPayment: "Processing Payment…",
 		redirectingToSkipCash: "Redirecting to SkipCash secure payment…",
+		acceptedPaymentMethods: "Accepted payment methods",
 		placeOrder: (price: string) => `Place Order · ${price}`,
 		securePaymentNote: "Your payment information is secure and encrypted",
 		couponLockedNote: "Coupon codes cannot be changed while payment is in progress.",
@@ -136,6 +144,7 @@ const CHECKOUT_COPY = {
 		paymentFailed: "فشلت عملية الدفع. يرجى المحاولة مرة أخرى.",
 		processingPayment: "جارٍ معالجة الدفع…",
 		redirectingToSkipCash: "جارٍ التحويل إلى الدفع الآمن عبر SkipCash…",
+		acceptedPaymentMethods: "طرق الدفع المقبولة",
 		placeOrder: (price: string) => `إتمام الطلب · ${price}`,
 		securePaymentNote: "معلومات الدفع الخاصة بك آمنة ومشفّرة",
 		couponLockedNote: "لا يمكن تغيير رموز الخصم أثناء معالجة الدفع.",
@@ -916,7 +925,16 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} onChange={() => setSelected(m.code)} className="accent-lime-400 flex-shrink-0" />
 							{paymentIcons[m.code] ?? paymentIcons.default}
 							<div className="flex-1">
-								<p className="font-medium text-gray-900">{m.name}</p>
+								<div className="flex items-center gap-2 flex-wrap">
+									<p className="font-medium text-gray-900">{m.name}</p>
+									{m.code === SKIPCASH_METHOD_CODE && (
+										<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
+											{PAYMENT_ICON_IDS.map((id) => (
+												<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="h-4 rounded" width={28} height={16} />
+											))}
+										</div>
+									)}
+								</div>
 								{m.eligibilityMessage && <p className="text-sm text-yellow-600 mt-0.5">{m.eligibilityMessage}</p>}
 							</div>
 						</label>
