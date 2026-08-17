@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.checkout";
 import { graphqlRequest } from "workers/graphqlClient";
+import type { Locale } from "~/lib/i18n";
 import {
   LOGIN_MUTATION,
   REGISTER_MUTATION,
@@ -57,6 +58,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
+  // This route's own URL is never /ar/* (it's a fixed resource endpoint) —
+  // the calling page passes its locale through explicitly instead, same as
+  // /api/concern-products and /api/variant-rankings.
+  const locale: Locale = url.searchParams.get("lang") === "ar" ? "ar" : "en";
 
   try {
     if (intent === "shippingMethods") {
@@ -64,7 +69,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         env,
         ELIGIBLE_SHIPPING_METHODS_QUERY,
         undefined,
-        { request }
+        { request, locale }
       );
       return Response.json({ shippingMethods: data.eligibleShippingMethods ?? [] });
     }
@@ -74,7 +79,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         env,
         ELIGIBLE_PAYMENT_METHODS_QUERY,
         undefined,
-        { request }
+        { request, locale }
       );
       return Response.json({ paymentMethods: data.eligiblePaymentMethods ?? [] });
     }

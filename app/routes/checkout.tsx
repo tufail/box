@@ -674,7 +674,7 @@ function ShippingStep({
 			const r = d.setOrderShippingAddress;
 			if (r.__typename === "Order") {
 				setAddressSaved(true);
-				methodsFetcher.load("/api/checkout?intent=shippingMethods");
+				methodsFetcher.load(`/api/checkout?intent=shippingMethods&lang=${locale}`);
 			} else {
 				setError((r.message as string) || t.couldNotSaveAddress);
 			}
@@ -838,9 +838,9 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 
 	useEffect(() => {
 		if (isActive && methods.length === 0 && loadFetcher.state === "idle") {
-			loadFetcher.load("/api/checkout?intent=paymentMethods");
+			loadFetcher.load(`/api/checkout?intent=paymentMethods&lang=${locale}`);
 		}
-	}, [isActive]);
+	}, [isActive, locale]);
 
 	useEffect(() => {
 		if (!loadFetcher.data) return;
