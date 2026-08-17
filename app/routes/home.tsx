@@ -5,10 +5,13 @@ import {
   SEARCH_NEW_ARRIVALS,
   TOP_SELLERS_QUERY,
   mapTopSellerToSearchItem,
+  GET_PRODUCT_VARIANT_ASSETS,
   type SearchProductsData,
   type SearchTopSellingVariables,
   type TopSellersData,
   type TopSellersVariables,
+  type ProductVariantAssetsData,
+  type ProductVariantAssetsVariables,
 } from "~/graphql/product";
 import {
   GET_BANNER_BY_SLUG,
@@ -109,8 +112,33 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       ? collectionsResult.value.data.collections.items
       : [];
 
+  const topSellers = topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers : [];
+
+  // topSellers only returns the product-level image — batch-fetch each
+  // variant's own photo in one follow-up request (by product id, not one
+  // request per card) so "Best-Sellers Edition" shows the actual flavor/size
+  // being listed instead of always the product's default image.
+  const variantAssetPreviewById = new Map<string, string>();
+  if (topSellers.length > 0) {
+    const productIds = [...new Set(topSellers.map((t) => t.productId))];
+    const variantAssetsResult = await graphqlRequest<ProductVariantAssetsData, ProductVariantAssetsVariables>(
+      env,
+      GET_PRODUCT_VARIANT_ASSETS,
+      { ids: productIds },
+      cacheOpts
+    ).catch(() => null);
+    for (const product of variantAssetsResult?.data.products.items ?? []) {
+      for (const variant of product.variants) {
+        if (variant.featuredAsset?.preview) variantAssetPreviewById.set(variant.id, variant.featuredAsset.preview);
+      }
+    }
+  }
+
   return {
-    products: topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers.map(mapTopSellerToSearchItem).filter((p) => p.inStock).slice(0, 12) : [],
+    products: topSellers
+      .map((t) => mapTopSellerToSearchItem(t, variantAssetPreviewById.get(t.productVariantId) ?? null))
+      .filter((p) => p.inStock)
+      .slice(0, 12),
     newProducts: newArrivalsResult.status === "fulfilled" ? newArrivalsResult.value.data.search.items : [],
     vendureBase,
     carouselItems: bannerItems,

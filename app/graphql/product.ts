@@ -505,9 +505,42 @@ export const TOP_SELLERS_QUERY = `
   }
 `;
 
+// The topSellers resolver only returns the product-level image (no
+// productVariantAsset field exists on TopSellerResult), so a flavor/size
+// variant's own photo can't come from that query — GET_PRODUCT_VARIANT_ASSETS
+// backfills it in one batched follow-up request (by product id, not per item)
+// that mapTopSellerToSearchItem below then merges in.
+export interface ProductVariantAssetsData {
+  products: {
+    items: {
+      id: string;
+      variants: { id: string; featuredAsset: { preview: string } | null }[];
+    }[];
+  };
+}
+
+export interface ProductVariantAssetsVariables {
+  ids: string[];
+}
+
+export const GET_PRODUCT_VARIANT_ASSETS = `
+  query GetProductVariantAssets($ids: [String!]) {
+    products(options: { filter: { id: { in: $ids } } }) {
+      items {
+        id
+        variants {
+          id
+          featuredAsset { preview }
+        }
+      }
+    }
+  }
+`;
+
 // Adapts the dedicated topSellers endpoint into the search-index item shape
 // ProductCard/HomeTopSelling render, same rationale as relatedProductToSearchItem.
-export function mapTopSellerToSearchItem(t: TopSellerResult): SearchProductItem {
+// variantAssetPreview comes from the GET_PRODUCT_VARIANT_ASSETS backfill above.
+export function mapTopSellerToSearchItem(t: TopSellerResult, variantAssetPreview: string | null = null): SearchProductItem {
   return {
     productId: t.productId,
     productVariantId: t.productVariantId,
@@ -517,7 +550,7 @@ export function mapTopSellerToSearchItem(t: TopSellerResult): SearchProductItem 
     description: "",
     inStock: t.inStock,
     productAsset: t.productAsset,
-    productVariantAsset: null,
+    productVariantAsset: variantAssetPreview ? { id: t.productVariantId, preview: variantAssetPreview } : null,
     price: { __typename: "PriceRange", min: t.priceWithTax.min, max: t.priceWithTax.max },
     customProductVariantMappings: { isOnSale: false, stockQty: t.stockQty, discount: 0, rrp: null, slug: t.variantSlug },
     customProductMappings: {
