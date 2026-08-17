@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useLoaderData, useNavigate } from "react-router";
+import { useLocation, useLoaderData, useNavigate, useRevalidator } from "react-router";
 import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
@@ -72,6 +72,15 @@ const COPY = {
 // redirect a failed/cancelled payment to /checkout/failed, so a declined SkipCash
 // payment lands on this same page and would otherwise spin indefinitely.
 const POLL_TIMEOUT_MS = 90_000;
+
+// How often to re-check payment status while processing. This used to be a
+// <meta http-equiv="refresh"> doing a real browser-level page reload every 3s —
+// that timer isn't tied to the React component's lifecycle, so it could still
+// fire (and yank the customer back to this page) right as they clicked "Continue
+// Shopping" or another link, racing the client-side navigation away. A
+// revalidator-driven interval (see the effect below) is cleaned up on unmount,
+// so it can never fire after the user has navigated elsewhere.
+const POLL_INTERVAL_MS = 6_000;
 
 interface OrderLine {
   id: string;
@@ -173,10 +182,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export default function CheckoutSuccessPage() {
   const { order, paymentState, paymentFailed, vendureBase } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
   const locale = getLocaleFromPathname(useLocation().pathname);
   const t = COPY[locale];
   const isSettled = paymentState === "Settled";
   const [timedOut, setTimedOut] = useState(false);
+
+  // Re-checks payment status on an interval while still processing. Cleaned up
+  // on unmount (order resolves, or the customer navigates away), unlike the old
+  // meta-refresh approach — see POLL_INTERVAL_MS's comment.
+  useEffect(() => {
+    if (!order || isSettled || paymentFailed || timedOut) return;
+    const interval = setInterval(() => {
+      if (revalidator.state === "idle") revalidator.revalidate();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [order, isSettled, paymentFailed, timedOut, revalidator]);
 
   useEffect(() => {
     if (!order || isSettled || paymentFailed) return;
@@ -345,8 +366,6 @@ export default function CheckoutSuccessPage() {
                 </>
               )}
             </p>
-            {/* Auto-refresh to re-check payment state */}
-            <meta httpEquiv="refresh" content="3" />
           </>
         )}
 
