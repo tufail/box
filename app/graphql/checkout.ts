@@ -192,7 +192,22 @@ export const GET_ORDER_BY_CODE_QUERY = `
       code
       state
       totalWithTax
+      subTotalWithTax
+      shippingWithTax
       currencyCode
+      lines {
+        id
+        quantity
+        unitPriceWithTax
+        linePriceWithTax
+        featuredAsset { preview }
+        productVariant {
+          id
+          name
+          customFields { slug }
+          product { name slug featuredAsset { preview } }
+        }
+      }
       payments {
         id
         state
@@ -269,6 +284,25 @@ export const INITIATE_SKIPCASH_PAYMENT_MUTATION = `
     initiateSkipCashPayment {
       payUrl
       skipcashPaymentId
+    }
+  }
+`;
+
+// Backup for a delayed/lost SkipCash webhook — actively asks the backend to check
+// SkipCash directly and settle immediately if it's actually Paid, rather than only
+// passively waiting on the webhook. Safe to call on every poll tick: it's a cheap
+// no-op once already settled, and can never double-settle even racing a webhook
+// (see checkSkipCashPaymentStatus in src/plugins/skipcash-payment on the backend).
+// Also a safe no-op for non-SkipCash orders (e.g. Sadad) — there's simply nothing
+// for it to find.
+export interface SkipCashPaymentStatusResult {
+  settled: boolean;
+}
+
+export const CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION = `
+  mutation CheckSkipCashPaymentStatus($orderCode: String!) {
+    checkSkipCashPaymentStatus(orderCode: $orderCode) {
+      settled
     }
   }
 `;

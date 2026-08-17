@@ -4,8 +4,9 @@ import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
 import { graphqlRequest } from "workers/graphqlClient";
-import { GET_ORDER_BY_CODE_QUERY } from "~/graphql/checkout";
+import { CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION, GET_ORDER_BY_CODE_QUERY, type SkipCashPaymentStatusResult } from "~/graphql/checkout";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
+import VendureImage from "~/components/VendureImage";
 import type { VendurePayment } from "~/types/sadad";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
@@ -26,6 +27,11 @@ const COPY = {
     thankYou: "Thank you for your purchase. We've received your order and will begin processing it shortly.",
     orderDetails: "Order Details",
     orderNumber: "Order Number",
+    orderItems: (n: number) => (n === 1 ? "1 item" : `${n} items`),
+    qty: "Qty",
+    subtotal: "Subtotal",
+    shipping: "Shipping",
+    free: "Free",
     totalPaid: "Total Paid",
     paymentProcessing: "Payment Processing…",
     beingConfirmed: "is being confirmed. This usually takes a few seconds.",
@@ -40,6 +46,11 @@ const COPY = {
     thankYou: "شكرًا لشرائك. لقد استلمنا طلبك وسنبدأ بمعالجته قريبًا.",
     orderDetails: "تفاصيل الطلب",
     orderNumber: "رقم الطلب",
+    orderItems: (n: number) => (n === 1 ? "قطعة واحدة" : `${n} قطع`),
+    qty: "الكمية",
+    subtotal: "المجموع الفرعي",
+    shipping: "الشحن",
+    free: "مجاني",
     totalPaid: "المبلغ المدفوع",
     paymentProcessing: "جارٍ معالجة الدفع…",
     beingConfirmed: "قيد التأكيد. عادةً ما يستغرق ذلك بضع ثوانٍ.",
@@ -58,13 +69,30 @@ const COPY = {
 // payment lands on this same page and would otherwise spin indefinitely.
 const POLL_TIMEOUT_MS = 90_000;
 
+interface OrderLine {
+  id: string;
+  quantity: number;
+  unitPriceWithTax: number;
+  linePriceWithTax: number;
+  featuredAsset: { preview: string } | null;
+  productVariant: {
+    id: string;
+    name: string;
+    customFields: { slug: string | null } | null;
+    product: { name: string; slug: string; featuredAsset: { preview: string } | null };
+  };
+}
+
 interface OrderByCodeData {
   orderByCode: {
     id: string;
     code: string;
     state: string;
     totalWithTax: number;
+    subTotalWithTax: number;
+    shippingWithTax: number;
     currencyCode: string;
+    lines: OrderLine[];
     payments: VendurePayment[];
   } | null;
 }
@@ -72,17 +100,34 @@ interface OrderByCodeData {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const orderCode = url.searchParams.get("orderCode") ?? "";
+  const env = context.cloudflare.env;
+  const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
   if (!orderCode) {
     // SkipCash's Return URL is a fixed setting in its merchant portal — it can't
     // carry a dynamic order code the way our own checkout.callback.tsx (Sadad) can.
     // The page component falls back to a sessionStorage breadcrumb set right before
     // the customer was redirected to SkipCash, then re-navigates here with ?orderCode=.
-    return { order: null, paymentState: null };
+    return { order: null, paymentState: null, vendureBase };
   }
 
-  const env = context.cloudflare.env;
   try {
+    // Backup for a delayed/lost SkipCash webhook — actively ask the backend to check
+    // SkipCash directly and settle now if it's actually Paid, instead of only ever
+    // passively re-reading Vendure's own state and hoping the webhook already ran.
+    // Best-effort: this must never break the page — orderByCode below still reflects
+    // whatever the webhook (or an earlier poll tick) already settled either way.
+    try {
+      await graphqlRequest<{ checkSkipCashPaymentStatus: SkipCashPaymentStatusResult }>(
+        env,
+        CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION,
+        { orderCode },
+        { request }
+      );
+    } catch (err) {
+      console.error("[checkout.success] checkSkipCashPaymentStatus failed:", err);
+    }
+
     const { data } = await graphqlRequest<OrderByCodeData>(
       env,
       GET_ORDER_BY_CODE_QUERY,
@@ -98,7 +143,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // Gateway-agnostic: any Settled payment means the order is paid, regardless of
     // which method (Sadad, SkipCash, ...) processed it.
     const settledPayment = order.payments?.find((p) => p.state === "Settled");
-    return { order, paymentState: settledPayment?.state ?? "Unknown" };
+    return { order, paymentState: settledPayment?.state ?? "Unknown", vendureBase };
   } catch (err) {
     if (err instanceof Response) throw err;
     // orderByCode can come back FORBIDDEN — a customer's browser returning
@@ -109,14 +154,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // with a raw 500 right after the customer paid.
     console.error("[checkout.success] orderByCode failed:", err);
     return {
-      order: { id: "", code: orderCode, state: "", totalWithTax: 0, currencyCode: "QAR", payments: [] },
+      order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", lines: [], payments: [] },
       paymentState: null,
+      vendureBase,
     };
   }
 }
 
 export default function CheckoutSuccessPage() {
-  const { order, paymentState } = useLoaderData<typeof loader>();
+  const { order, paymentState, vendureBase } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const locale = getLocaleFromPathname(useLocation().pathname);
   const t = COPY[locale];
@@ -164,32 +210,77 @@ export default function CheckoutSuccessPage() {
 
   return (
     <CheckoutLayout>
-      <div className="max-w-lg mx-auto text-center py-12 px-4">
+      <div className="max-w-xl mx-auto text-center py-12 px-4">
         {isSettled ? (
           <>
-            <div className="w-20 h-20 bg-green-100 rounded flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Check size={40} className="text-green-500" strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.orderConfirmed}</h1>
-            <p className="text-gray-500 leading-relaxed mb-6">
+            <p className="text-gray-500 leading-relaxed mb-8">
               {t.thankYou}
             </p>
-            <div className="bg-gray-50 rounded border border-gray-200 p-6 mb-8 text-start">
-              <div className="flex items-center gap-3 mb-4">
-                <Package size={20} className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                  {t.orderDetails}
-                </span>
+
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm text-start overflow-hidden mb-8">
+              <div className="flex items-center justify-between gap-3 px-5 py-4 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Package size={18} className="text-gray-500 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-700">
+                    {t.orderNumber} <span className="font-mono">{order.code}</span>
+                  </span>
+                </div>
+                <span className="text-xs font-medium text-gray-500">{t.orderItems(order.lines.length)}</span>
               </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">{t.orderNumber}</span>
-                <span className="font-bold text-gray-900 font-mono text-lg">{order.code}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">{t.totalPaid}</span>
-                <span className="font-semibold text-gray-900">
-                  {formatPrice(order.totalWithTax, order.currencyCode, locale)}
-                </span>
+
+              {order.lines.length > 0 && (
+                <div className="divide-y divide-gray-100 px-5">
+                  {order.lines.map((line) => {
+                    const preview = line.featuredAsset?.preview ?? line.productVariant.product.featuredAsset?.preview;
+                    const productHref = `/products/${line.productVariant.customFields?.slug ?? line.productVariant.product.slug}`;
+                    return (
+                      <div key={line.id} className="flex items-center gap-4 py-4">
+                        <div className="w-16 h-16 rounded-xl bg-stone-50 border border-gray-100 overflow-hidden shrink-0">
+                          {preview ? (
+                            <VendureImage src={preview} vendureBase={vendureBase} alt={line.productVariant.name} width={64} height={64} objectFit="contain" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package size={20} className="text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link to={productHref} className="font-medium text-gray-900 hover:text-primary transition-colors line-clamp-1 text-sm">
+                            {line.productVariant.product.name}
+                          </Link>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{line.productVariant.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{t.qty}: {line.quantity}</p>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900 shrink-0">
+                          {formatPrice(line.linePriceWithTax, order.currencyCode, locale)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 space-y-1.5">
+                {order.subTotalWithTax > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>{t.subtotal}</span>
+                    <span>{formatPrice(order.subTotalWithTax, order.currencyCode, locale)}</span>
+                  </div>
+                )}
+                {order.subTotalWithTax > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>{t.shipping}</span>
+                    <span>{order.shippingWithTax > 0 ? formatPrice(order.shippingWithTax, order.currencyCode, locale) : t.free}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold text-gray-900 pt-1.5 mt-1.5 border-t border-gray-200">
+                  <span>{t.totalPaid}</span>
+                  <span>{formatPrice(order.totalWithTax, order.currencyCode, locale)}</span>
+                </div>
               </div>
             </div>
           </>
