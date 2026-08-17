@@ -930,7 +930,7 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 									{m.code === SKIPCASH_METHOD_CODE && (
 										<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
 											{PAYMENT_ICON_IDS.map((id) => (
-												<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="h-4 rounded" width={28} height={16} />
+												<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain" style={{ height: "24px", width: "40px" }} width={40} height={24} />
 											))}
 										</div>
 									)}
