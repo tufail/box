@@ -40,6 +40,8 @@ const COPY = {
     takingLongerBody: "This is taking longer than expected. If you completed payment, it will be confirmed shortly — otherwise, you can try again.",
     checkAgain: "Check Again",
     tryAgain: "Try Payment Again",
+    paymentFailed: "Payment Failed",
+    paymentFailedBody: "Your payment wasn't successful — your card may have been declined. No charge was made. Please try again with the same or a different payment method.",
   },
   ar: {
     orderConfirmed: "تم تأكيد الطلب!",
@@ -59,6 +61,8 @@ const COPY = {
     takingLongerBody: "يستغرق هذا وقتًا أطول من المعتاد. إذا أتممت الدفع، فسيتم تأكيده قريبًا — وإلا يمكنك المحاولة مرة أخرى.",
     checkAgain: "تحقق مرة أخرى",
     tryAgain: "إعادة محاولة الدفع",
+    paymentFailed: "فشلت عملية الدفع",
+    paymentFailedBody: "لم تنجح عملية الدفع — قد يكون قد تم رفض بطاقتك. لم يتم خصم أي مبلغ. يرجى المحاولة مرة أخرى بنفس طريقة الدفع أو بطريقة أخرى.",
   },
 } as const;
 
@@ -108,26 +112,30 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // carry a dynamic order code the way our own checkout.callback.tsx (Sadad) can.
     // The page component falls back to a sessionStorage breadcrumb set right before
     // the customer was redirected to SkipCash, then re-navigates here with ?orderCode=.
-    return { order: null, paymentState: null, vendureBase };
+    return { order: null, paymentState: null, paymentFailed: false, vendureBase };
+  }
+
+  // Backup for a delayed/lost SkipCash webhook — actively ask the backend to check
+  // SkipCash directly and settle now if it's actually Paid, instead of only ever
+  // passively re-reading Vendure's own state and hoping the webhook already ran.
+  // Also surfaces a definite decline (failed: true) so the page doesn't have to
+  // wait out its own timeout to tell the customer their card was declined.
+  // Best-effort: this must never break the page — orderByCode below still reflects
+  // whatever the webhook (or an earlier poll tick) already settled either way.
+  let paymentFailed = false;
+  try {
+    const { data: statusData } = await graphqlRequest<{ checkSkipCashPaymentStatus: SkipCashPaymentStatusResult }>(
+      env,
+      CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION,
+      { orderCode },
+      { request }
+    );
+    paymentFailed = statusData.checkSkipCashPaymentStatus.failed;
+  } catch (err) {
+    console.error("[checkout.success] checkSkipCashPaymentStatus failed:", err);
   }
 
   try {
-    // Backup for a delayed/lost SkipCash webhook — actively ask the backend to check
-    // SkipCash directly and settle now if it's actually Paid, instead of only ever
-    // passively re-reading Vendure's own state and hoping the webhook already ran.
-    // Best-effort: this must never break the page — orderByCode below still reflects
-    // whatever the webhook (or an earlier poll tick) already settled either way.
-    try {
-      await graphqlRequest<{ checkSkipCashPaymentStatus: SkipCashPaymentStatusResult }>(
-        env,
-        CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION,
-        { orderCode },
-        { request }
-      );
-    } catch (err) {
-      console.error("[checkout.success] checkSkipCashPaymentStatus failed:", err);
-    }
-
     const { data } = await graphqlRequest<OrderByCodeData>(
       env,
       GET_ORDER_BY_CODE_QUERY,
@@ -143,7 +151,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // Gateway-agnostic: any Settled payment means the order is paid, regardless of
     // which method (Sadad, SkipCash, ...) processed it.
     const settledPayment = order.payments?.find((p) => p.state === "Settled");
-    return { order, paymentState: settledPayment?.state ?? "Unknown", vendureBase };
+    return { order, paymentState: settledPayment?.state ?? "Unknown", paymentFailed, vendureBase };
   } catch (err) {
     if (err instanceof Response) throw err;
     // orderByCode can come back FORBIDDEN — a customer's browser returning
@@ -156,13 +164,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return {
       order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", lines: [], payments: [] },
       paymentState: null,
+      paymentFailed,
       vendureBase,
     };
   }
 }
 
 export default function CheckoutSuccessPage() {
-  const { order, paymentState, vendureBase } = useLoaderData<typeof loader>();
+  const { order, paymentState, paymentFailed, vendureBase } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const locale = getLocaleFromPathname(useLocation().pathname);
   const t = COPY[locale];
@@ -170,7 +179,7 @@ export default function CheckoutSuccessPage() {
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!order || isSettled) return;
+    if (!order || isSettled || paymentFailed) return;
     const pollKey = `successPollStart:${order.code}`;
     const startedAt = sessionStorage.getItem(pollKey);
     const start = startedAt ? Number(startedAt) : Date.now();
@@ -178,11 +187,11 @@ export default function CheckoutSuccessPage() {
     if (Date.now() - start > POLL_TIMEOUT_MS) {
       setTimedOut(true);
     }
-  }, [order, isSettled]);
+  }, [order, isSettled, paymentFailed]);
 
   useEffect(() => {
-    if (isSettled && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
-  }, [isSettled, order]);
+    if ((isSettled || paymentFailed) && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
+  }, [isSettled, paymentFailed, order]);
 
   useEffect(() => {
     if (order) return;
@@ -282,6 +291,22 @@ export default function CheckoutSuccessPage() {
                   <span>{formatPrice(order.totalWithTax, order.currencyCode, locale)}</span>
                 </div>
               </div>
+            </div>
+          </>
+        ) : paymentFailed ? (
+          <>
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">✕</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.paymentFailed}</h1>
+            <p className="text-gray-500 leading-relaxed mb-6">{t.paymentFailedBody}</p>
+            <div className="flex flex-col gap-3 max-w-xs mx-auto mb-8">
+              <Link
+                to="/checkout"
+                className="inline-flex items-center justify-center bg-primary text-white font-semibold py-3 px-6 rounded hover:bg-primary/90 transition-colors"
+              >
+                {t.tryAgain}
+              </Link>
             </div>
           </>
         ) : timedOut ? (

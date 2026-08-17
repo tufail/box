@@ -297,12 +297,17 @@ export const INITIATE_SKIPCASH_PAYMENT_MUTATION = `
 // for it to find.
 export interface SkipCashPaymentStatusResult {
   settled: boolean;
+  // true once a webhook has reported this attempt as Failed/Rejected/Canceled —
+  // lets the page show a decline message right away instead of waiting out its
+  // own polling timeout. Never true at the same time as settled.
+  failed: boolean;
 }
 
 export const CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION = `
   mutation CheckSkipCashPaymentStatus($orderCode: String!) {
     checkSkipCashPaymentStatus(orderCode: $orderCode) {
       settled
+      failed
     }
   }
 `;
