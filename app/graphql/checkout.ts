@@ -304,8 +304,8 @@ export interface SkipCashPaymentStatusResult {
 }
 
 export const CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION = `
-  mutation CheckSkipCashPaymentStatus($orderCode: String!) {
-    checkSkipCashPaymentStatus(orderCode: $orderCode) {
+  mutation CheckSkipCashPaymentStatus($orderCode: String!, $skipcashPaymentId: String) {
+    checkSkipCashPaymentStatus(orderCode: $orderCode, skipcashPaymentId: $skipcashPaymentId) {
       settled
       failed
     }

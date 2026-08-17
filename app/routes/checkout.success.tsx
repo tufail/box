@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useLoaderData, useNavigate, useRevalidator } from "react-router";
+import { redirect, useLocation, useLoaderData, useNavigate, useRevalidator } from "react-router";
 import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
@@ -40,8 +40,6 @@ const COPY = {
     takingLongerBody: "This is taking longer than expected. If you completed payment, it will be confirmed shortly — otherwise, you can try again.",
     checkAgain: "Check Again",
     tryAgain: "Try Payment Again",
-    paymentFailed: "Payment Failed",
-    paymentFailedBody: "Your payment wasn't successful — your card may have been declined. No charge was made. Please try again with the same or a different payment method.",
   },
   ar: {
     orderConfirmed: "تم تأكيد الطلب!",
@@ -61,8 +59,6 @@ const COPY = {
     takingLongerBody: "يستغرق هذا وقتًا أطول من المعتاد. إذا أتممت الدفع، فسيتم تأكيده قريبًا — وإلا يمكنك المحاولة مرة أخرى.",
     checkAgain: "تحقق مرة أخرى",
     tryAgain: "إعادة محاولة الدفع",
-    paymentFailed: "فشلت عملية الدفع",
-    paymentFailedBody: "لم تنجح عملية الدفع — قد يكون قد تم رفض بطاقتك. لم يتم خصم أي مبلغ. يرجى المحاولة مرة أخرى بنفس طريقة الدفع أو بطريقة أخرى.",
   },
 } as const;
 
@@ -112,34 +108,44 @@ interface OrderByCodeData {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const orderCode = url.searchParams.get("orderCode") ?? "";
+  // SkipCash's Return URL is a fixed setting in its merchant portal, but confirmed
+  // empirically that SkipCash appends its own query params on the actual redirect:
+  // ?id=<realSkipcashPaymentId>&statusId=<n>&status=<text>&transId=<ourOrderCode>.
+  // transId is a more reliable source for the order code than the sessionStorage
+  // breadcrumb (see the component's fallback effect below) since it comes straight
+  // from SkipCash rather than depending on browser storage surviving the round trip.
+  const orderCode = url.searchParams.get("orderCode") ?? url.searchParams.get("transId") ?? "";
+  const skipcashPaymentId = url.searchParams.get("id") ?? undefined;
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
   if (!orderCode) {
-    // SkipCash's Return URL is a fixed setting in its merchant portal — it can't
-    // carry a dynamic order code the way our own checkout.callback.tsx (Sadad) can.
-    // The page component falls back to a sessionStorage breadcrumb set right before
-    // the customer was redirected to SkipCash, then re-navigates here with ?orderCode=.
-    return { order: null, paymentState: null, paymentFailed: false, vendureBase };
+    // No usable order code anywhere on the URL — the page component falls back to
+    // the sessionStorage breadcrumb set right before the customer was redirected to
+    // SkipCash, then re-navigates here with ?orderCode=.
+    return { order: null, paymentState: null, vendureBase };
   }
 
-  // Backup for a delayed/lost SkipCash webhook — actively ask the backend to check
-  // SkipCash directly and settle now if it's actually Paid, instead of only ever
-  // passively re-reading Vendure's own state and hoping the webhook already ran.
-  // Also surfaces a definite decline (failed: true) so the page doesn't have to
-  // wait out its own timeout to tell the customer their card was declined.
-  // Best-effort: this must never break the page — orderByCode below still reflects
-  // whatever the webhook (or an earlier poll tick) already settled either way.
-  let paymentFailed = false;
+  // Backup for a delayed/lost SkipCash webhook (or a sandbox where webhooks require
+  // manual triggering) — actively ask the backend to check SkipCash directly and
+  // settle now if it's actually Paid, instead of only ever passively re-reading
+  // Vendure's own state and hoping the webhook already ran. skipcashPaymentId (the
+  // real id from SkipCash's own redirect, when present) lets the backend check the
+  // actual attempt directly rather than guessing which of our own tracked ids is
+  // the real one. A confirmed decline redirects straight to the dedicated failed
+  // page instead of rendering inline here. Best-effort: this must never break the
+  // page — orderByCode below still reflects whatever the webhook (or an earlier
+  // poll tick) already settled either way.
   try {
     const { data: statusData } = await graphqlRequest<{ checkSkipCashPaymentStatus: SkipCashPaymentStatusResult }>(
       env,
       CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION,
-      { orderCode },
+      { orderCode, skipcashPaymentId },
       { request }
     );
-    paymentFailed = statusData.checkSkipCashPaymentStatus.failed;
+    if (statusData.checkSkipCashPaymentStatus.failed) {
+      return redirect(`/checkout/failed?orderCode=${encodeURIComponent(orderCode)}&error=payment_declined`);
+    }
   } catch (err) {
     console.error("[checkout.success] checkSkipCashPaymentStatus failed:", err);
   }
@@ -160,7 +166,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // Gateway-agnostic: any Settled payment means the order is paid, regardless of
     // which method (Sadad, SkipCash, ...) processed it.
     const settledPayment = order.payments?.find((p) => p.state === "Settled");
-    return { order, paymentState: settledPayment?.state ?? "Unknown", paymentFailed, vendureBase };
+    return { order, paymentState: settledPayment?.state ?? "Unknown", vendureBase };
   } catch (err) {
     if (err instanceof Response) throw err;
     // orderByCode can come back FORBIDDEN — a customer's browser returning
@@ -173,14 +179,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return {
       order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", lines: [], payments: [] },
       paymentState: null,
-      paymentFailed,
       vendureBase,
     };
   }
 }
 
 export default function CheckoutSuccessPage() {
-  const { order, paymentState, paymentFailed, vendureBase } = useLoaderData<typeof loader>();
+  const { order, paymentState, vendureBase } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const locale = getLocaleFromPathname(useLocation().pathname);
@@ -190,17 +195,18 @@ export default function CheckoutSuccessPage() {
 
   // Re-checks payment status on an interval while still processing. Cleaned up
   // on unmount (order resolves, or the customer navigates away), unlike the old
-  // meta-refresh approach — see POLL_INTERVAL_MS's comment.
+  // meta-refresh approach — see POLL_INTERVAL_MS's comment. A confirmed decline
+  // never reaches this state — the loader redirects to /checkout/failed instead.
   useEffect(() => {
-    if (!order || isSettled || paymentFailed || timedOut) return;
+    if (!order || isSettled || timedOut) return;
     const interval = setInterval(() => {
       if (revalidator.state === "idle") revalidator.revalidate();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [order, isSettled, paymentFailed, timedOut, revalidator]);
+  }, [order, isSettled, timedOut, revalidator]);
 
   useEffect(() => {
-    if (!order || isSettled || paymentFailed) return;
+    if (!order || isSettled) return;
     const pollKey = `successPollStart:${order.code}`;
     const startedAt = sessionStorage.getItem(pollKey);
     const start = startedAt ? Number(startedAt) : Date.now();
@@ -208,11 +214,11 @@ export default function CheckoutSuccessPage() {
     if (Date.now() - start > POLL_TIMEOUT_MS) {
       setTimedOut(true);
     }
-  }, [order, isSettled, paymentFailed]);
+  }, [order, isSettled]);
 
   useEffect(() => {
-    if ((isSettled || paymentFailed) && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
-  }, [isSettled, paymentFailed, order]);
+    if (isSettled && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
+  }, [isSettled, order]);
 
   useEffect(() => {
     if (order) return;
@@ -312,22 +318,6 @@ export default function CheckoutSuccessPage() {
                   <span>{formatPrice(order.totalWithTax, order.currencyCode, locale)}</span>
                 </div>
               </div>
-            </div>
-          </>
-        ) : paymentFailed ? (
-          <>
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-3xl">✕</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.paymentFailed}</h1>
-            <p className="text-gray-500 leading-relaxed mb-6">{t.paymentFailedBody}</p>
-            <div className="flex flex-col gap-3 max-w-xs mx-auto mb-8">
-              <Link
-                to="/checkout"
-                className="inline-flex items-center justify-center bg-primary text-white font-semibold py-3 px-6 rounded hover:bg-primary/90 transition-colors"
-              >
-                {t.tryAgain}
-              </Link>
             </div>
           </>
         ) : timedOut ? (
