@@ -82,22 +82,37 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   const env = context.cloudflare.env;
-  const { data } = await graphqlRequest<OrderByCodeData>(
-    env,
-    GET_ORDER_BY_CODE_QUERY,
-    { code: orderCode },
-    { request }
-  );
+  try {
+    const { data } = await graphqlRequest<OrderByCodeData>(
+      env,
+      GET_ORDER_BY_CODE_QUERY,
+      { code: orderCode },
+      { request }
+    );
 
-  const order = data.orderByCode;
-  if (!order) {
-    throw new Response("Order not found", { status: 404 });
+    const order = data.orderByCode;
+    if (!order) {
+      throw new Response("Order not found", { status: 404 });
+    }
+
+    // Gateway-agnostic: any Settled payment means the order is paid, regardless of
+    // which method (Sadad, SkipCash, ...) processed it.
+    const settledPayment = order.payments?.find((p) => p.state === "Settled");
+    return { order, paymentState: settledPayment?.state ?? "Unknown" };
+  } catch (err) {
+    if (err instanceof Response) throw err;
+    // orderByCode can come back FORBIDDEN — a customer's browser returning
+    // from a third-party redirect (SkipCash) doesn't always carry the same
+    // order-ownership token Vendure checks against, so this isn't necessarily
+    // a real failure. Degrade to the same "still processing" UI (with its
+    // existing auto-refresh/timeout handling) instead of crashing this page
+    // with a raw 500 right after the customer paid.
+    console.error("[checkout.success] orderByCode failed:", err);
+    return {
+      order: { id: "", code: orderCode, state: "", totalWithTax: 0, currencyCode: "QAR", payments: [] },
+      paymentState: null,
+    };
   }
-
-  // Gateway-agnostic: any Settled payment means the order is paid, regardless of
-  // which method (Sadad, SkipCash, ...) processed it.
-  const settledPayment = order.payments?.find((p) => p.state === "Settled");
-  return { order, paymentState: settledPayment?.state ?? "Unknown" };
 }
 
 export default function CheckoutSuccessPage() {
