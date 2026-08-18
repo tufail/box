@@ -55,6 +55,7 @@ export interface OrderShippingLine {
   shippingMethod: {
     id: string;
     name: string;
+    code: string;
     description: string;
   };
 }
@@ -348,6 +349,7 @@ export const ACTIVE_ORDER_QUERY = `
         shippingMethod {
           id
           name
+          code
           description
         }
       }

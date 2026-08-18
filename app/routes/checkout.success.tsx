@@ -7,6 +7,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION, GET_ORDER_BY_CODE_QUERY, type SkipCashPaymentStatusResult } from "~/graphql/checkout";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import VendureImage from "~/components/VendureImage";
+import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
 import type { VendurePayment } from "~/types/sadad";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
@@ -101,6 +102,7 @@ interface OrderByCodeData {
     subTotalWithTax: number;
     shippingWithTax: number;
     currencyCode: string;
+    customer: { firstName: string; lastName: string; emailAddress: string; user: { id: string } | null } | null;
     lines: OrderLine[];
     payments: VendurePayment[];
   } | null;
@@ -177,7 +179,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // with a raw 500 right after the customer paid.
     console.error("[checkout.success] orderByCode failed:", err);
     return {
-      order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", lines: [], payments: [] },
+      order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", customer: null, lines: [], payments: [] },
       paymentState: null,
       vendureBase,
     };
@@ -192,6 +194,11 @@ export default function CheckoutSuccessPage() {
   const t = COPY[locale];
   const isSettled = paymentState === "Settled";
   const [timedOut, setTimedOut] = useState(false);
+  // Snapshotted once: this page polls/revalidates while payment is processing, and
+  // submitting the account-creation form below also revalidates it — a successful
+  // registration flips order.customer.user from null to set, which would yank the
+  // prompt away mid-success-message if read live from loaderData instead.
+  const [customerSnapshot] = useState(() => order?.customer ?? null);
 
   // Re-checks payment status on an interval while still processing. Cleaned up
   // on unmount (order resolves, or the customer navigates away), unlike the old
@@ -319,6 +326,12 @@ export default function CheckoutSuccessPage() {
                 </div>
               </div>
             </div>
+
+            {customerSnapshot && !customerSnapshot.user && (
+              <div className="mb-8">
+                <PostOrderAccountPrompt email={customerSnapshot.emailAddress} firstName={customerSnapshot.firstName} lastName={customerSnapshot.lastName} locale={locale} />
+              </div>
+            )}
           </>
         ) : timedOut ? (
           <>

@@ -34,30 +34,21 @@ const COPY = {
 	},
 } as const;
 
-// Static — matches real "brand" facet values/codes on the backend (verified against
-// the live shop API), curated down to well-known sports-nutrition/supplement brands.
+// Brands actually stocked in the catalog (verified against the live shop API's
+// "brands" facet values, matched to real in-stock product counts) — replaces the
+// earlier list of well-known brands that weren't necessarily carried here.
 // Brand names are proper nouns and stay unlocalized in both languages.
 const TOP_BRANDS = [
 	{ name: "Optimum Nutrition", code: "optimum-nutrition" },
 	{ name: "MuscleTech", code: "muscletech" },
 	{ name: "Dymatize", code: "dymatize" },
-	{ name: "BSN", code: "bsn" },
-	{ name: "Cellucor", code: "cellucor" },
-	{ name: "MusclePharm", code: "musclepharm" },
-	{ name: "GAT Sport", code: "gat-sport" },
+	{ name: "Applied Nutrition", code: "applied-nutrition" },
 	{ name: "Ghost", code: "ghost" },
-	{ name: "Redcon1", code: "redcon1" },
-	{ name: "ProSupps", code: "prosupps" },
-	{ name: "Kaged", code: "kaged" },
-	{ name: "RYSE", code: "ryse" },
-	{ name: "Isopure", code: "isopure" },
-	{ name: "Xtend", code: "xtend" },
-	{ name: "Universal Nutrition", code: "universal-nutrition" },
-	{ name: "Quest Nutrition", code: "quest-nutrition" },
-	{ name: "Garden of Life", code: "garden-of-life" },
-	{ name: "NOW Foods", code: "now-foods" },
-	{ name: "GNC", code: "gnc" },
-	{ name: "Myprotein", code: "myprotein" },
+	{ name: "EVLution Nutrition", code: "evlution-nutrition" },
+	{ name: "The Flavor Gang", code: "the-flavor-gang" },
+	{ name: "Pride Foods", code: "pride-foods" },
+	{ name: "Bloom", code: "bloom" },
+	{ name: "AB", code: "ab" },
 ];
 
 function normalize(s: string): string {

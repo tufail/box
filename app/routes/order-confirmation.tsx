@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
 import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag, Package } from "lucide-react";
+import type { Route } from "./+types/order-confirmation";
+import { graphqlRequest } from "workers/graphqlClient";
+import { GET_ORDER_CUSTOMER_BY_CODE_QUERY } from "~/graphql/checkout";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
+import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta() {
@@ -31,11 +36,39 @@ const COPY = {
   },
 } as const;
 
-export default function OrderConfirmationPage() {
+interface OrderCustomerData {
+  orderByCode: {
+    code: string;
+    customer: { firstName: string; lastName: string; emailAddress: string; user: { id: string } | null } | null;
+  } | null;
+}
+
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const orderCode = url.searchParams.get("code") ?? "";
+  if (!orderCode) return { customer: null };
+
+  try {
+    const { data } = await graphqlRequest<OrderCustomerData>(context.cloudflare.env, GET_ORDER_CUSTOMER_BY_CODE_QUERY, { code: orderCode }, { request });
+    return { customer: data.orderByCode?.customer ?? null };
+  } catch (err) {
+    // Best-effort only — the account prompt is a nice-to-have, never worth
+    // breaking this page over (e.g. the same post-redirect ownership-token
+    // quirk documented in checkout.success.tsx's loader).
+    console.error("[order-confirmation] orderByCode failed:", err);
+    return { customer: null };
+  }
+}
+
+export default function OrderConfirmationPage({ loaderData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const orderCode = searchParams.get("code");
   const locale = getLocaleFromPathname(useLocation().pathname);
   const t = COPY[locale];
+  // Snapshotted once: submitting the account-creation form below revalidates this
+  // loader, and a successful registration flips customer.user from null to set —
+  // reading loaderData live here would yank the prompt away mid-success-message.
+  const [customer] = useState(loaderData.customer);
 
   return (
     <CheckoutLayout>
@@ -64,6 +97,12 @@ export default function OrderConfirmationPage() {
                 {orderCode}
               </span>
             </div>
+          </div>
+        )}
+
+        {customer && !customer.user && (
+          <div className="mb-8">
+            <PostOrderAccountPrompt email={customer.emailAddress} firstName={customer.firstName} lastName={customer.lastName} locale={locale} />
           </div>
         )}
 

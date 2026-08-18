@@ -9,12 +9,14 @@ import {
   SET_SHIPPING_METHOD_MUTATION,
   ELIGIBLE_SHIPPING_METHODS_QUERY,
   ELIGIBLE_PAYMENT_METHODS_QUERY,
+  ACTIVE_CUSTOMER_QUERY,
   TRANSITION_ORDER_TO_STATE_MUTATION,
   ADD_PAYMENT_TO_ORDER_MUTATION,
   APPLY_COUPON_CODE_MUTATION,
   INITIATE_SKIPCASH_PAYMENT_MUTATION,
   type ShippingMethod,
   type PaymentMethod,
+  type ActiveCustomer,
   type SkipCashCheckoutResult,
 } from "~/graphql/checkout";
 
@@ -82,6 +84,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         { request, locale }
       );
       return Response.json({ paymentMethods: data.eligiblePaymentMethods ?? [] });
+    }
+
+    // Resolves the signed-in customer's real name after a login/social-login that
+    // doesn't itself return one (LOGIN_MUTATION only returns `identifier`) — used to
+    // pre-fill the shipping step's name fields and to advance past a social login
+    // without a full page reload.
+    if (intent === "activeCustomer") {
+      const { data } = await graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(
+        env,
+        ACTIVE_CUSTOMER_QUERY,
+        undefined,
+        { request, locale }
+      );
+      return Response.json({ activeCustomer: data.activeCustomer ?? null });
     }
 
     return Response.json({});

@@ -10,6 +10,7 @@ export interface ActiveCustomer {
 export interface ShippingMethod {
   id: string;
   name: string;
+  code: string;
   description: string;
   price: number;
   priceWithTax: number;
@@ -41,6 +42,7 @@ export const ELIGIBLE_SHIPPING_METHODS_QUERY = `
     eligibleShippingMethods {
       id
       name
+      code
       description
       price
       priceWithTax
@@ -185,6 +187,22 @@ export const ADD_PAYMENT_TO_ORDER_MUTATION = `
   }
 `;
 
+// Lighter than GET_ORDER_BY_CODE_QUERY — order-confirmation.tsx (the COD landing
+// page) only needs the customer's guest/registered status, not the full order.
+export const GET_ORDER_CUSTOMER_BY_CODE_QUERY = `
+  query GetOrderCustomerByCode($code: String!) {
+    orderByCode(code: $code) {
+      code
+      customer {
+        firstName
+        lastName
+        emailAddress
+        user { id }
+      }
+    }
+  }
+`;
+
 export const GET_ORDER_BY_CODE_QUERY = `
   query GetOrderByCode($code: String!) {
     orderByCode(code: $code) {
@@ -195,6 +213,12 @@ export const GET_ORDER_BY_CODE_QUERY = `
       subTotalWithTax
       shippingWithTax
       currencyCode
+      customer {
+        firstName
+        lastName
+        emailAddress
+        user { id }
+      }
       lines {
         id
         quantity
