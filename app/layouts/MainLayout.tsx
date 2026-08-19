@@ -222,6 +222,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	const loading = fetcher.state !== "idle";
 	const t = LAYOUT_COPY[getLocaleFromPathname(useLocation().pathname)];
 	const dialogRef = useRef<HTMLDivElement>(null);
+	// Anti-bot: same honeypot/fill-time pattern as the newsletter form.
+	const formRenderedAt = useRef(Date.now());
 	useFocusTrap(dialogRef, true, onClose);
 
 	useEffect(() => {
@@ -265,6 +267,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 			emailAddress: fd.get("emailAddress") as string,
 			password: fd.get("password") as string,
 			emailOffers: fd.get("emailOffers") as string,
+			company: (fd.get("company") as string) ?? "",
+			renderedAt: String(formRenderedAt.current),
 		};
 		const phone = fd.get("phoneNumber") as string;
 		if (phone) body.phoneNumber = phone;
@@ -364,6 +368,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 								<div>
 									<SocialAuthButtons dividerLabel={t.orSignUpWithEmail} onSuccess={onSocialSuccess} emailOffers={newsletter} />
 									<form onSubmit={handleRegister} className="space-y-4">
+										{/* Honeypot — off-screen and out of tab order, so real users never see or fill it. */}
+										<input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
 										<div className="grid grid-cols-2 gap-3">
 											<div>
 												<label htmlFor="register-firstName" className={labelCls}>

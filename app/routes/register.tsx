@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFetcher, useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { Route } from "./+types/register";
@@ -125,6 +125,8 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
   const [error, setError] = useState<string | null>(null);
   const fetcher = useFetcher<{ registered?: boolean; error?: string }>();
   const loading = fetcher.state !== "idle";
+  // Anti-bot: same honeypot/fill-time pattern as the newsletter form.
+  const formRenderedAt = useRef(Date.now());
 
   const inputCls =
     "w-full border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
@@ -154,6 +156,8 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
       emailAddress: emailVal,
       password: fd.get("password") as string,
       emailOffers: fd.get("emailOffers") as string,
+      company: (fd.get("company") as string) ?? "",
+      renderedAt: String(formRenderedAt.current),
     };
     const phone = fd.get("phoneNumber") as string;
     if (phone) body.phoneNumber = phone;
@@ -211,6 +215,8 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {/* Honeypot — off-screen and out of tab order, so real users never see or fill it. */}
+            <input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="register-firstName" className={labelCls}>

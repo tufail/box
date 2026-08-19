@@ -2,6 +2,8 @@ import { redirect } from "react-router";
 import type { Route } from "./+types/api.auth";
 import { graphqlRequest } from "workers/graphqlClient";
 import { subscribeToNewsletter } from "workers/listmonk";
+import { looksLikeBot } from "workers/botCheck";
+import { isDisposableEmail } from "workers/disposableEmail";
 import { LOGOUT_MUTATION, LOGIN_MUTATION, REGISTER_MUTATION } from "~/graphql/checkout";
 import {
   REQUEST_PASSWORD_RESET_MUTATION,
@@ -70,6 +72,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     const { firstName, lastName, emailAddress, password, phoneNumber, emailOffers } = body as {
       firstName: string; lastName: string; emailAddress: string; password: string; phoneNumber?: string; emailOffers?: string;
     };
+    if (isDisposableEmail(emailAddress)) {
+      return Response.json({ error: "Please use a permanent email address (temporary/disposable addresses aren't accepted)." }, { status: 400 });
+    }
+    // Unlike the newsletter form, a bot-flagged registration can't be silently
+    // faked into "success" — the account wouldn't actually exist, and a real
+    // false-positive user would be stuck unable to log in with no explanation.
+    if (looksLikeBot(request, body)) {
+      return Response.json({ error: "Registration failed. Please try again." }, { status: 400 });
+    }
+
     const input: Record<string, unknown> = { firstName, lastName, emailAddress, password };
     if (phoneNumber) input.phoneNumber = phoneNumber;
     input.customFields = { emailOffers: emailOffers === "true" };
