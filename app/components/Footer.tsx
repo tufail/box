@@ -2,8 +2,7 @@
 import Link from "~/components/LocaleLink";
 import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
-import LocaleLink from "~/components/LocaleLink";
-import { NavLink, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
@@ -71,14 +70,15 @@ const FOOTER_COPY = {
 		getDirections: "Get directions on Google Maps",
 		hours: "Sat-Thu 9am to 8pm",
 		followUs: "Follow Us",
-		signUpForSavings: "Sign up for savings",
+		tagline: "Your trusted destination for authentic sports nutrition, health supplements, and wellness products across Qatar.",
+		contactUs: "Contact Us",
+		newsletterBannerTitle: "Subscribe to our newsletter for the latest deals and updates",
 		newsletterBlurb: "Be the first to get promo offers and reward perks straight to your inbox.",
 		newsletterSignup: "Newsletter signup",
 		emailAddress: "Email Address",
 		subscribe: "Subscribe",
-		languages: "Languages:",
-		english: "English",
-		arabic: "Arabic",
+		unsubscribeNote: "You can unsubscribe at any time. Read our privacy policy",
+		here: "here",
 		copyright: (year: number) => `Copyright © ${year} NutriBox. All rights reserved.`,
 		acceptedPaymentMethods: "Accepted payment methods",
 		paymentMethod: (n: number) => `Payment method ${n}`,
@@ -94,14 +94,15 @@ const FOOTER_COPY = {
 		getDirections: "الحصول على الاتجاهات عبر خرائط جوجل",
 		hours: "السبت-الخميس من 9 صباحًا حتى 8 مساءً",
 		followUs: "تابعنا",
-		signUpForSavings: "اشترك للحصول على التوفيرات",
+		tagline: "وجهتك الموثوقة للمكملات الرياضية الأصلية والمكملات الصحية ومنتجات العافية في جميع أنحاء قطر.",
+		contactUs: "تواصل معنا",
+		newsletterBannerTitle: "اشترك في نشرتنا الإخبارية لأحدث العروض والتحديثات",
 		newsletterBlurb: "كن أول من يحصل على العروض الترويجية ومكافآت الولاء مباشرة في بريدك الإلكتروني.",
 		newsletterSignup: "الاشتراك في النشرة الإخبارية",
 		emailAddress: "البريد الإلكتروني",
 		subscribe: "اشتراك",
-		languages: "اللغات:",
-		english: "الإنجليزية",
-		arabic: "العربية",
+		unsubscribeNote: "يمكنك إلغاء الاشتراك في أي وقت. اطلع على سياسة الخصوصية",
+		here: "هنا",
 		copyright: (year: number) => `جميع الحقوق محفوظة © ${year} نوتري بوكس.`,
 		acceptedPaymentMethods: "طرق الدفع المقبولة",
 		paymentMethod: (n: number) => `طريقة الدفع ${n}`,
@@ -163,52 +164,74 @@ export default function Footer({ pageSections }: FooterProps) {
 					</div>
 				</div>
 
-				{/* Main dark section */}
-				<div className="bg-gradient-to-b from-[#08191c] to-primary text-white">
+				{/* Newsletter banner — the one embossed/raised element; everything else in the
+				    footer matches the page body's own background instead of its own block color. */}
+				<div className="bg-stone-100 pt-6 md:pt-12 pb-6 md:pb-10">
+					<div className="container mx-auto px-4">
+						<div className="relative rounded-3xl bg-gradient-to-br from-primary to-[#08191c] shadow-[0_25px_60px_-15px_rgba(34,77,83,0.45)] ps-6 pe-6 md:ps-[210px] md:pe-12 lg:ps-[270px] py-8 md:py-10">
+							{/* Illustration deliberately bleeds above (and slightly below) the box,
+							    same composition as the reference — needs the ancestors to allow
+							    overflow, which they do (no overflow-hidden above this). */}
+							<img
+								src="/images/healthy-smile.png"
+								alt=""
+								aria-hidden="true"
+								className="hidden md:block absolute bottom-0 start-4 lg:start-10 w-40 lg:w-52 h-auto object-contain pointer-events-none select-none"
+							/>
+							<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+								<div className="max-w-md">
+									<h2 className="text-xl md:text-2xl font-bold text-white leading-snug">{t.newsletterBannerTitle}</h2>
+									<p className="text-sm text-white/80 mt-2">{t.newsletterBlurb}</p>
+								</div>
+								<div className="w-full md:w-auto md:min-w-[380px]">
+									<form
+										onSubmit={(e) => {
+											e.preventDefault();
+											setEmail("");
+										}}
+										className="flex"
+										aria-label={t.newsletterSignup}
+									>
+										<label htmlFor="footer-banner-email" className="sr-only">
+											{t.emailAddress}
+										</label>
+										<input id="footer-banner-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-lime-300" />
+										<button type="submit" className="bg-lime-300 hover:bg-lime-400 text-primary text-sm font-bold px-6 py-3 rounded-e-full transition-colors whitespace-nowrap cursor-pointer">
+											{t.subscribe}
+										</button>
+									</form>
+									<p className="text-xs text-white/60 mt-2.5">
+										{t.unsubscribeNote}{" "}
+										<Link to="/privacy-policy" className="underline hover:text-white">
+											{t.here}
+										</Link>
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				{/* Main footer section — matches the page body background (bg-stone-100), not
+				    its own dark block; the newsletter banner above is the only raised/colored
+				    element. */}
+				<div className="bg-stone-100 text-gray-900">
 					<div className="container mx-auto px-4 py-10">
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
-							{/* Col 1 — Company info */}
-							<address className="not-italic">
-								<h3 className="font-bold text-white mb-2 text-sm">NutriBox</h3>
-								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
-								<div className="space-y-3 text-xs text-white">
-									<div className="flex items-start gap-2">
-										<MapPin size={14} className="mt-0.5 shrink-0 text-white/70" aria-hidden="true" />
-										<span className="leading-relaxed">
-											AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
-											<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" aria-label={t.getDirections} className="inline-flex align-text-top text-white/70 hover:text-lime-300 transition-colors">
-												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
-											</a>
-										</span>
-									</div>
-									<div className="flex items-start gap-2">
-										<Phone size={14} className="shrink-0 text-white/70 mt-0.5" aria-hidden="true" />
-										<div>
-											<a href="tel:+97470157900" className="text-white hover:text-lime-300 transition-colors">
-												+974 7015 7900
-											</a>
-											<p className="text-xs text-white/50 mt-0.5">{t.hours}</p>
-										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										<Mail size={14} className="shrink-0 text-white/70" aria-hidden="true" />
-										<a href="mailto:sales@nutribox.qa" className="text-white hover:text-lime-300 transition-colors break-all">
-											sales@nutribox.qa
+							{/* Col 1 — Logo, tagline, social */}
+							<div>
+								<Link to="/" className="inline-block mb-3">
+									<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-8 w-auto" />
+								</Link>
+								<p className="text-xs text-gray-600 leading-relaxed mb-5">{t.tagline}</p>
+								<div className="flex items-center gap-3">
+									{socialLinks.map(({ href, label, Icon }) => (
+										<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-gray-500 hover:text-primary transition-colors">
+											<Icon />
 										</a>
-									</div>
+									))}
 								</div>
-								<div className="mt-5">
-									<h4 className="font-bold text-white mb-2 text-sm">{t.followUs}</h4>
-									<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-3" />
-									<div className="flex items-center gap-3">
-										{socialLinks.map(({ href, label, Icon }) => (
-											<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-white hover:text-lime-300 transition-colors">
-												<Icon />
-											</a>
-										))}
-									</div>
-								</div>
-							</address>
+							</div>
 
 							{/* Cols 2–3 — Dynamic page sections (Help, Company, …) */}
 							{pageSections.length > 0
@@ -216,8 +239,8 @@ export default function Footer({ pageSections }: FooterProps) {
 										const label = SECTION_LABEL_OVERRIDES[section.slug]?.[locale] ?? section.name;
 										return (
 										<nav key={section.id} aria-label={label}>
-											<h3 className="font-bold text-white mb-2 text-sm">{label}</h3>
-											<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
+											<h3 className="font-bold text-gray-900 mb-2 text-sm">{label}</h3>
+											<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
 											<ul className="space-y-2.5">
 												{section.pages.map((page) => {
 													const url = page.externalUrl?.trim();
@@ -226,11 +249,11 @@ export default function Footer({ pageSections }: FooterProps) {
 													return (
 														<li key={page.id}>
 															{isExternal ? (
-																<a href={url} {...(isNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="text-xs text-white hover:text-lime-300 transition-colors">
+																<a href={url} {...(isNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="text-xs text-gray-600 hover:text-primary transition-colors">
 																	{page.title}
 																</a>
 															) : (
-																<Link to={`/pages/${page.slug}`} className="text-xs text-white hover:text-lime-300 transition-colors">
+																<Link to={`/pages/${page.slug}`} className="text-xs text-gray-600 hover:text-primary transition-colors">
 																	{page.title}
 																</Link>
 															)}
@@ -243,50 +266,47 @@ export default function Footer({ pageSections }: FooterProps) {
 									})
 								: null}
 
-							{/* Col 4 — Newsletter */}
-							<div>
-								<h3 className="font-bold text-white mb-2 text-sm">{t.signUpForSavings}</h3>
-								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-300 to-transparent mb-4" />
-								<p className="text-xs text-white mb-4 leading-relaxed">{t.newsletterBlurb}</p>
-								<form
-									onSubmit={(e) => {
-										e.preventDefault();
-										setEmail("");
-									}}
-									className="flex"
-									aria-label={t.newsletterSignup}
-								>
-									<label htmlFor="footer-email" className="sr-only">
-										{t.emailAddress}
-									</label>
-									<input id="footer-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" className="flex-1 min-w-0 px-4 py-2.5 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-primary" />
-									<button type="submit" className="bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold px-5 py-2.5 rounded-e-full transition-colors whitespace-nowrap cursor-pointer">
-										{t.subscribe}
-									</button>
-								</form>
-								<div className="mt-7 text-xs text-white">
-									{t.languages}{" "}
-									<strong>
-										<NavLink title="English" to="/" className="hover:text-lime-300">
-											{t.english}
-										</NavLink>{" "}
-										|{" "}
-										<NavLink title="Arabic" to="/ar" className="hover:text-lime-300">
-											{t.arabic}
-										</NavLink>
-									</strong>
+							{/* Col 4 — Contact Us */}
+							<address className="not-italic">
+								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.contactUs}</h3>
+								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
+								<div className="space-y-3 text-xs">
+									<div className="flex items-start gap-2">
+										<MapPin size={14} className="mt-0.5 shrink-0 text-gray-400" aria-hidden="true" />
+										<span className="leading-relaxed text-gray-600">
+											AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
+											<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" aria-label={t.getDirections} className="inline-flex align-text-top text-gray-400 hover:text-primary transition-colors">
+												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+											</a>
+										</span>
+									</div>
+									<div className="flex items-start gap-2">
+										<Phone size={14} className="shrink-0 text-gray-400 mt-0.5" aria-hidden="true" />
+										<div>
+											<a href="tel:+97470157900" className="text-gray-700 hover:text-primary transition-colors">
+												+974 7015 7900
+											</a>
+											<p className="text-xs text-gray-400 mt-0.5">{t.hours}</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										<Mail size={14} className="shrink-0 text-gray-400" aria-hidden="true" />
+										<a href="mailto:sales@nutribox.qa" className="text-gray-700 hover:text-primary transition-colors break-all">
+											sales@nutribox.qa
+										</a>
+									</div>
 								</div>
-							</div>
+							</address>
 						</div>
 					</div>
 
 					{/* Bottom bar */}
-					<div className="border-t border-white/20">
+					<div className="border-t border-gray-200">
 						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-xs text-white">{t.copyright(new Date().getFullYear())}</p>
+							<p className="text-xs text-gray-500">{t.copyright(new Date().getFullYear())}</p>
 							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label={t.acceptedPaymentMethods}>
 								{paymentMethods.map((m) => (
-									<span key={m} className="bg-white rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">
+									<span key={m} className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">
 										<img src={`/images/payments/PAY-${m}.jpg`} alt={t.paymentMethod(m)} className="h-6" width={40} height={24} />
 									</span>
 								))}

@@ -1,5 +1,6 @@
 import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
+import { ArrowUpRight } from "lucide-react";
 import type { MegaMenuData } from "~/graphql/megamenu";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 
@@ -26,13 +27,36 @@ const COPY = {
 		about: "About NutriBox",
 		popularSearches: "Popular Searches",
 		topBrands: "Top Brands on NutriBox",
+		faqs: "Frequently Asked Questions",
 	},
 	ar: {
 		about: "حول NutriBox",
 		popularSearches: "عمليات البحث الشائعة",
 		topBrands: "أفضل العلامات التجارية على NutriBox",
+		faqs: "الأسئلة الشائعة",
 	},
 } as const;
+
+// Grounded in facts already established elsewhere on the site (trust badges, checkout
+// flow, footer contact info) — not generic filler.
+const FAQS: Record<Locale, { q: string; a: string }[]> = {
+	en: [
+		{ q: "Does NutriBox deliver across Qatar?", a: "Yes — we deliver nationwide, with express delivery available in as little as two hours and free delivery on orders over QAR 99." },
+		{ q: "Are the products 100% authentic?", a: "Yes. Every product is sourced through verified channels — we only sell 100% authentic products from leading international brands." },
+		{ q: "What payment methods can I use?", a: "You can pay online by card or choose Cash on Delivery at checkout." },
+		{ q: "Do I need an account to place an order?", a: "No — you can check out as a guest with just your email address, or sign in with Google or Facebook for a faster checkout next time." },
+		{ q: "Can I return a product if I change my mind?", a: "Yes, we offer hassle-free returns and refunds — details are shown at checkout and on our policy pages." },
+		{ q: "How can I get in touch with NutriBox?", a: "Chat with us on WhatsApp, call +974 7015 7900, or email sales@nutribox.qa." },
+	],
+	ar: [
+		{ q: "هل يوصل نوتري بوكس إلى جميع أنحاء قطر؟", a: "نعم — نوصل إلى جميع أنحاء قطر، مع إمكانية التوصيل السريع خلال ساعتين، وتوصيل مجاني للطلبات فوق 99 ريال قطري." },
+		{ q: "هل المنتجات أصلية 100%؟", a: "نعم، يتم توفير كل منتج من خلال قنوات موثوقة — نتعامل فقط مع منتجات أصلية 100% من أشهر العلامات التجارية العالمية." },
+		{ q: "ما هي طرق الدفع المتاحة؟", a: "يمكنك الدفع إلكترونيًا بالبطاقة أو اختيار الدفع عند الاستلام عند إتمام الطلب." },
+		{ q: "هل يجب إنشاء حساب لإتمام الطلب؟", a: "لا — يمكنك إتمام الشراء كزائر باستخدام بريدك الإلكتروني فقط، أو تسجيل الدخول عبر جوجل أو فيسبوك لتسريع عملية الشراء في المرة القادمة." },
+		{ q: "هل يمكنني إرجاع منتج إذا غيّرت رأيي؟", a: "نعم، نوفر سياسة إرجاع واسترداد سهلة وبدون تعقيد — التفاصيل متوفرة أثناء إتمام الطلب وفي صفحات سياساتنا." },
+		{ q: "كيف يمكنني التواصل مع نوتري بوكس؟", a: "تواصل معنا عبر واتساب، أو اتصل على +974 7015 7900، أو راسلنا على sales@nutribox.qa." },
+	],
+};
 
 // Brands actually stocked in the catalog (verified against the live shop API's
 // "brands" facet values, matched to real in-stock product counts) — replaces the
@@ -100,9 +124,14 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 	const collectionEntries = flattenMegaMenu(megaMenu);
 	const categories = TOP_CATEGORIES[locale];
 
+	const faqs = FAQS[locale];
+
 	return (
 		<div className="bg-white border-t border-stone-200">
-			<div className="container mx-auto px-4 py-10 max-w-5xl">
+			<div className="container mx-auto px-4 py-10">
+				<div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-10">
+				{/* Left ~60% — About NutriBox (unchanged content) */}
+				<div>
 				<h2 className="font-heading2 text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.about}</h2>
 
 				<div className="space-y-4 text-sm text-gray-500 leading-relaxed">
@@ -207,6 +236,26 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 							</p>
 						</>
 					)}
+				</div>
+				</div>
+
+				{/* Right ~40% — FAQs */}
+				<div>
+					<h2 className="font-heading2 text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.faqs}</h2>
+					<div className="space-y-1">
+						{faqs.map((item, i) => (
+							<details key={i} className="group open:bg-gray-50 open:rounded-2xl -mx-4 px-4 py-4 transition-colors">
+								<summary className="flex items-center justify-between gap-4 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+									<span className="text-sm md:text-base font-semibold text-gray-900">{item.q}</span>
+									<span className="flex-shrink-0 w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center transition-colors group-open:bg-gray-900 group-open:border-gray-900">
+										<ArrowUpRight size={16} strokeWidth={2} className="text-gray-500 rotate-180 rtl:scale-x-[-1] transition-transform duration-200 group-open:rotate-0 group-open:text-white" />
+									</span>
+								</summary>
+								<p className="text-sm text-gray-500 leading-relaxed mt-3 pe-12">{item.a}</p>
+							</details>
+						))}
+					</div>
+				</div>
 				</div>
 			</div>
 		</div>

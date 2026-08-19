@@ -103,7 +103,7 @@ function ConcernScroll({ items, vendureBase }: { items: BannerItem[]; vendureBas
 			<div className="container mx-auto px-4">
 				<div className="mb-4 md:mb-5">
 					<h2 id="shop-by-concern-title" className="font-heading2 text-2xl font-extrabold text-black">
-						{locale === "ar" ? "تسوّق حسب الاحتياج" : "Shop by Concern"}
+						{locale === "ar" ? "تسوّق حسب الهدف" : "Shop by Goal"}
 					</h2>
 				</div>
 
