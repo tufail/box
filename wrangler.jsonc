@@ -18,7 +18,9 @@
 		// frontend's own .env file, not from this Workers runtime config. Listed here
 		// only for reference/consistency; the actual fix is the frontend .env entry.
 		"VITE_GOOGLE_CLIENT_ID": "653181107786-n30fd2tconrqfgrdst1chkjd70sdt9oa.apps.googleusercontent.com",
-		"VITE_FACEBOOK_APP_ID": "1488130163334894"
+		"VITE_FACEBOOK_APP_ID": "1488130163334894",
+		"LISTMONK_URL": "https://lists.nutribox.qa",
+		"LISTMONK_LIST_UUID": "280f87be-c1b4-42bc-907a-a7d3d16d7fb6"
 	},
 	"observability": {
 		"enabled": true,

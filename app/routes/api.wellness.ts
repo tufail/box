@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.wellness";
 import { graphqlRequest } from "workers/graphqlClient";
+import { subscribeToNewsletter } from "workers/listmonk";
 import {
   SAVE_WELLNESS_PROFILE_MUTATION,
   ADD_WELLNESS_PLAN_TO_CART_MUTATION,
@@ -108,20 +109,26 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   // Guest-safe: captures a marketing lead (email + opt-in).
   if (intent === "captureLead") {
+    const email = String(body.email ?? "");
+    const firstName = body.firstName ? String(body.firstName) : undefined;
+    const marketingOptIn = Boolean(body.marketingOptIn);
     try {
       const { data, token } = await graphqlRequest<CaptureWellnessLeadResult, { input: { firstName?: string; email: string; marketingOptIn?: boolean; goalCode?: string } }>(
         env,
         CAPTURE_WELLNESS_LEAD_MUTATION,
         {
           input: {
-            firstName: body.firstName ? String(body.firstName) : undefined,
-            email: String(body.email ?? ""),
-            marketingOptIn: Boolean(body.marketingOptIn),
+            firstName,
+            email,
+            marketingOptIn,
             goalCode: body.goalCode ? String(body.goalCode) : undefined,
           },
         },
         { request }
       );
+      if (marketingOptIn) {
+        await subscribeToNewsletter(env, { email, name: firstName });
+      }
       return new Response(JSON.stringify({ captured: data.captureWellnessLead }), { headers: makeHeaders(token) });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save your email";

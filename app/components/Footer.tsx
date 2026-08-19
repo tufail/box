@@ -2,7 +2,7 @@
 import Link from "~/components/LocaleLink";
 import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
-import { useLocation } from "react-router";
+import { useLocation, useFetcher } from "react-router";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
@@ -77,6 +77,9 @@ const FOOTER_COPY = {
 		newsletterSignup: "Newsletter signup",
 		emailAddress: "Email Address",
 		subscribe: "Subscribe",
+		subscribing: "Subscribing…",
+		subscribed: "Thanks — you're subscribed!",
+		subscribeError: "Couldn't subscribe you — please try again.",
 		unsubscribeNote: "You can unsubscribe at any time. Read our privacy policy",
 		here: "here",
 		copyright: (year: number) => `Copyright © ${year} NutriBox. All rights reserved.`,
@@ -101,6 +104,9 @@ const FOOTER_COPY = {
 		newsletterSignup: "الاشتراك في النشرة الإخبارية",
 		emailAddress: "البريد الإلكتروني",
 		subscribe: "اشتراك",
+		subscribing: "جارٍ الاشتراك…",
+		subscribed: "شكرًا لك — تم اشتراكك!",
+		subscribeError: "تعذّر الاشتراك — يرجى المحاولة مرة أخرى.",
 		unsubscribeNote: "يمكنك إلغاء الاشتراك في أي وقت. اطلع على سياسة الخصوصية",
 		here: "هنا",
 		copyright: (year: number) => `جميع الحقوق محفوظة © ${year} نوتري بوكس.`,
@@ -141,6 +147,9 @@ export default function Footer({ pageSections }: FooterProps) {
 	const [email, setEmail] = useState("");
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = FOOTER_COPY[locale];
+	const newsletterFetcher = useFetcher<{ ok?: boolean; error?: string }>();
+	const subscribing = newsletterFetcher.state !== "idle";
+	const subscribed = newsletterFetcher.data?.ok === true;
 
 	return (
 		<>
@@ -184,22 +193,28 @@ export default function Footer({ pageSections }: FooterProps) {
 									<p className="text-sm text-white/80 mt-2">{t.newsletterBlurb}</p>
 								</div>
 								<div className="w-full md:w-auto md:min-w-[380px]">
-									<form
-										onSubmit={(e) => {
-											e.preventDefault();
-											setEmail("");
-										}}
-										className="flex"
-										aria-label={t.newsletterSignup}
-									>
-										<label htmlFor="footer-banner-email" className="sr-only">
-											{t.emailAddress}
-										</label>
-										<input id="footer-banner-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-lime-300" />
-										<button type="submit" className="bg-lime-300 hover:bg-lime-400 text-primary text-sm font-bold px-6 py-3 rounded-e-full transition-colors whitespace-nowrap cursor-pointer">
-											{t.subscribe}
-										</button>
-									</form>
+									{subscribed ? (
+										<p className="text-sm font-medium text-lime-300 py-3">{t.subscribed}</p>
+									) : (
+										<form
+											onSubmit={(e) => {
+												e.preventDefault();
+												newsletterFetcher.submit({ email }, { method: "post", encType: "application/json", action: "/api/newsletter" });
+												setEmail("");
+											}}
+											className="flex"
+											aria-label={t.newsletterSignup}
+										>
+											<label htmlFor="footer-banner-email" className="sr-only">
+												{t.emailAddress}
+											</label>
+											<input id="footer-banner-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" disabled={subscribing} className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-lime-300 disabled:opacity-70" />
+											<button type="submit" disabled={subscribing} className="bg-lime-300 hover:bg-lime-400 text-primary text-sm font-bold px-6 py-3 rounded-e-full transition-colors whitespace-nowrap cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
+												{subscribing ? t.subscribing : t.subscribe}
+											</button>
+										</form>
+									)}
+									{newsletterFetcher.data?.error && <p className="text-xs text-red-300 mt-1.5">{newsletterFetcher.data.error}</p>}
 									<p className="text-xs text-white/60 mt-2.5">
 										{t.unsubscribeNote}{" "}
 										<Link to="/privacy-policy" className="underline hover:text-white">

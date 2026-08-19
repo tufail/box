@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 import type { Route } from "./+types/api.auth";
 import { graphqlRequest } from "workers/graphqlClient";
+import { subscribeToNewsletter } from "workers/listmonk";
 import { LOGOUT_MUTATION, LOGIN_MUTATION, REGISTER_MUTATION } from "~/graphql/checkout";
 import {
   REQUEST_PASSWORD_RESET_MUTATION,
@@ -85,6 +86,9 @@ export async function action({ request, context }: Route.ActionArgs) {
 
       const result = data.registerCustomerAccount;
       if (result.__typename === "Success") {
+        if (emailOffers === "true") {
+          await subscribeToNewsletter(env, { email: emailAddress, name: `${firstName} ${lastName}`.trim() });
+        }
         return Response.json({ registered: true });
       }
       return Response.json(
@@ -194,6 +198,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
       const result = data.authenticate;
       if (result.__typename === "CurrentUser") {
+        if (emailOffers === "true" && result.identifier) {
+          await subscribeToNewsletter(env, { email: result.identifier });
+        }
         return new Response(JSON.stringify({ success: true, identifier: result.identifier }), {
           headers: makeHeaders(authToken),
         });

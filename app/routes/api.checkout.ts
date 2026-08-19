@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.checkout";
 import { graphqlRequest } from "workers/graphqlClient";
+import { subscribeToNewsletter } from "workers/listmonk";
 import type { Locale } from "~/lib/i18n";
 import {
   LOGIN_MUTATION,
@@ -171,10 +172,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     // ── Guest checkout ───────────────────────────────────────────────────────
     if (intent === "guest") {
-      const { firstName, lastName, emailAddress } = body as {
+      const { firstName, lastName, emailAddress, emailOffers } = body as {
         firstName: string;
         lastName: string;
         emailAddress: string;
+        emailOffers?: string;
       };
       const { data, token } = await graphqlRequest<{ setCustomerForOrder: GQLResult }>(
         env,
@@ -182,6 +184,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         { input: { firstName, lastName, emailAddress } },
         { request }
       );
+      if (emailOffers === "true" && data.setCustomerForOrder.__typename === "Order") {
+        await subscribeToNewsletter(env, { email: emailAddress, name: `${firstName} ${lastName}`.trim() || undefined });
+      }
       return new Response(
         JSON.stringify({ setCustomerForOrder: data.setCustomerForOrder }),
         { headers: makeHeaders(token) }

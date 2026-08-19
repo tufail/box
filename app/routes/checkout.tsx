@@ -467,7 +467,7 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 		setError(null);
 		if (!needsPassword) {
 			submittedEmailRef.current = email;
-			fetcher.submit({ _intent: "guest", firstName: "", lastName: "", emailAddress: email }, { method: "post", encType: "application/json", action: "/api/checkout" });
+			fetcher.submit({ _intent: "guest", firstName: "", lastName: "", emailAddress: email, emailOffers: newsletterChecked ? "true" : "false" }, { method: "post", encType: "application/json", action: "/api/checkout" });
 		} else {
 			const password = (fd.get("password") as string) ?? "";
 			fetcher.submit({ _intent: "login", username: email, password }, { method: "post", encType: "application/json", action: "/api/checkout" });

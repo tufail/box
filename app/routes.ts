@@ -71,4 +71,5 @@ export default [
 	route("api/subscription-plans", "routes/api.subscription-plans.ts"),
 	route("api/subscriptions", "routes/api.subscriptions.ts"),
 	route("api/questions", "routes/api.questions.ts"),
+	route("api/newsletter", "routes/api.newsletter.ts"),
 ] satisfies RouteConfig;
