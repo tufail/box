@@ -1,6 +1,8 @@
 import type { Route } from "./+types/api.wellness";
 import { graphqlRequest } from "workers/graphqlClient";
 import { subscribeToNewsletter } from "workers/listmonk";
+import { looksLikeBot } from "workers/botCheck";
+import { isDisposableEmail } from "workers/disposableEmail";
 import {
   SAVE_WELLNESS_PROFILE_MUTATION,
   ADD_WELLNESS_PLAN_TO_CART_MUTATION,
@@ -112,6 +114,17 @@ export async function action({ request, context }: Route.ActionArgs) {
     const email = String(body.email ?? "");
     const firstName = body.firstName ? String(body.firstName) : undefined;
     const marketingOptIn = Boolean(body.marketingOptIn);
+
+    if (isDisposableEmail(email)) {
+      return Response.json({ error: "Please use a permanent email address (temporary/disposable addresses aren't accepted)." }, { status: 400 });
+    }
+
+    // Bot traffic gets a fake success instead of an error — a hard rejection
+    // just tells the bot which check to defeat next.
+    if (looksLikeBot(request, body)) {
+      return Response.json({ captured: true });
+    }
+
     try {
       const { data, token } = await graphqlRequest<CaptureWellnessLeadResult, { input: { firstName?: string; email: string; marketingOptIn?: boolean; goalCode?: string } }>(
         env,

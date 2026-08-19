@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFetcher, useLocation } from "react-router";
 import type { Route } from "./+types/wellness";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -181,6 +181,9 @@ function EmailCapture({ goalCode, name }: { goalCode: string; name: string }) {
 	const [optIn, setOptIn] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const sent = fetcher.data?.captured === true;
+	// Anti-bot: same honeypot/fill-time pattern as the footer newsletter form.
+	const companyRef = useRef<HTMLInputElement>(null);
+	const formRenderedAt = useRef(Date.now());
 
 	function submit() {
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -189,10 +192,15 @@ function EmailCapture({ goalCode, name }: { goalCode: string; name: string }) {
 		}
 		setError(null);
 		fetcher.submit(
-			{ _intent: "captureLead", firstName: name.trim(), email: email.trim(), marketingOptIn: optIn, goalCode },
+			{ _intent: "captureLead", firstName: name.trim(), email: email.trim(), marketingOptIn: optIn, goalCode, company: companyRef.current?.value ?? "", renderedAt: formRenderedAt.current },
 			{ method: "post", encType: "application/json", action: "/api/wellness" }
 		);
 	}
+
+	useEffect(() => {
+		if (fetcher.state !== "idle" || !fetcher.data) return;
+		if (fetcher.data.error) setError(fetcher.data.error);
+	}, [fetcher.state, fetcher.data]);
 
 	if (sent) {
 		return (
@@ -206,6 +214,8 @@ function EmailCapture({ goalCode, name }: { goalCode: string; name: string }) {
 		<div className="border border-gray-100 rounded-xl p-4">
 			<p className="text-sm font-semibold text-gray-900">{t.emailCaptureTitle}</p>
 			<p className="text-xs text-gray-500 mt-0.5 mb-3">{t.emailCaptureBody}</p>
+			{/* Honeypot — off-screen and out of tab order, so real users never see or fill it. */}
+			<input ref={companyRef} type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
 			<div className="flex flex-col sm:flex-row gap-2">
 				<input
 					type="email"

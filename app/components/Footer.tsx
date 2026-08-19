@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useState, useRef } from "react";
 import Link from "~/components/LocaleLink";
 import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
@@ -150,6 +150,10 @@ export default function Footer({ pageSections }: FooterProps) {
 	const newsletterFetcher = useFetcher<{ ok?: boolean; error?: string }>();
 	const subscribing = newsletterFetcher.state !== "idle";
 	const subscribed = newsletterFetcher.data?.ok === true;
+	// Anti-bot: renderedAt lets the server reject submissions that arrive faster
+	// than a human could plausibly fill the field; "company" is a honeypot real
+	// users never see or fill (see api.newsletter.ts for how these are used).
+	const formRenderedAt = useRef(Date.now());
 
 	return (
 		<>
@@ -199,12 +203,19 @@ export default function Footer({ pageSections }: FooterProps) {
 										<form
 											onSubmit={(e) => {
 												e.preventDefault();
-												newsletterFetcher.submit({ email }, { method: "post", encType: "application/json", action: "/api/newsletter" });
+												const fd = new FormData(e.currentTarget);
+												newsletterFetcher.submit(
+													{ email, company: String(fd.get("company") ?? ""), renderedAt: formRenderedAt.current },
+													{ method: "post", encType: "application/json", action: "/api/newsletter" }
+												);
 												setEmail("");
 											}}
 											className="flex"
 											aria-label={t.newsletterSignup}
 										>
+											{/* Honeypot — off-screen and out of tab order, so real users never
+											    see or fill it; bots that blanket-fill every field on the page do. */}
+											<input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
 											<label htmlFor="footer-banner-email" className="sr-only">
 												{t.emailAddress}
 											</label>
