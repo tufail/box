@@ -609,7 +609,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 					</button>
 				</div>
 			</div>
-			<header className={`bg-white border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
+			<header className={`bg-white/95 border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
 				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4 relative">
 					<div className="flex items-center gap-2 flex-shrink-0">
 						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu} aria-haspopup="true" aria-expanded={mobileMenuOpen}>

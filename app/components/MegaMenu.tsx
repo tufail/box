@@ -371,10 +371,11 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 								<div
 									onMouseEnter={cancelCloseDesktop}
 									onMouseLeave={scheduleCloseDesktop}
-									className={`absolute start-0 top-full bg-white border border-gray-200 shadow-xl transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-									<div className="grid grid-cols-5 gap-6 p-6 divide-x divide-gray-100">
+									className={`absolute start-0 top-full bg-white/85 backdrop-blur-xl border border-white/40 shadow-xl rounded-b-2xl overflow-hidden transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
+									<div className="grid grid-cols-4 gap-6 p-6 divide-x divide-gray-100">
 										{[...item.columns]
 											.sort((a, b) => a.position - b.position)
+											.slice(0, 4)
 											.map((col, ci) => (
 												<div key={ci} className="flex flex-col gap-4 ps-8 first:ps-0">
 													{col.sections.length > 0 && (
@@ -422,6 +423,23 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 													)}
 												</div>
 											))}
+									</div>
+
+									{/* Brand logos — full-width row along the bottom, replacing what would
+									    otherwise be a 5th column of the same grid. */}
+									<div className="border-t border-gray-100 bg-white/40 px-6 py-4 flex items-center justify-center flex-wrap gap-x-8 gap-y-3">
+										{TOP_BRANDS.map((brand) => (
+											<Link key={brand.code} to={`/brands/${brand.code}`} onClick={() => setDesktopOpen(null)} title={brand.name} className="opacity-70 hover:opacity-100 transition-opacity">
+												<img
+													src={`/images/brands/${brand.code}.jpg`}
+													alt={brand.name}
+													className="h-6 w-auto object-contain"
+													onError={(e) => {
+														e.currentTarget.style.display = "none";
+													}}
+												/>
+											</Link>
+										))}
 									</div>
 								</div>
 							)}
