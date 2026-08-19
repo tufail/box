@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, ChevronDown } from "lucide-react";
 import type { ProductHighlightValue } from "~/graphql/product";
 
 function formatHighlightValue(highlight: ProductHighlightValue) {
@@ -53,7 +53,10 @@ function HighlightCard({ highlight }: { highlight: ProductHighlightValue }) {
 	);
 }
 
-export default function ProductHighlights({ highlights, title }: { highlights: ProductHighlightValue[]; title?: string }) {
+// `collapsible` renders the whole block as a <details>, closed by default, with
+// `title` doubling as the toggle — used on the mobile product page so the section
+// doesn't push the Add to Cart box further down the page by default.
+export default function ProductHighlights({ highlights, title, collapsible = false }: { highlights: ProductHighlightValue[]; title?: string; collapsible?: boolean }) {
 	if (!highlights || highlights.length === 0) return null;
 
 	// The API pre-sorts by group then type sortOrder, so same-group items are
@@ -66,14 +69,8 @@ export default function ProductHighlights({ highlights, title }: { highlights: P
 		else groups.push({ label, items: [highlight] });
 	}
 
-	return (
+	const grid = (
 		<div className="flex flex-col gap-3">
-			{title && (
-				<>
-					<hr className="border-gray-200" />
-					<h4 className="text-sm font-bold text-gray-900">{title}</h4>
-				</>
-			)}
 			{groups.map((group, i) => (
 				<div key={i} className="flex flex-col gap-1.5">
 					{group.label && groups.length > 1 && <p className="text-xs font-semibold text-gray-500">{group.label}</p>}
@@ -84,6 +81,31 @@ export default function ProductHighlights({ highlights, title }: { highlights: P
 					</div>
 				</div>
 			))}
+		</div>
+	);
+
+	if (collapsible) {
+		return (
+			<details className="group mt-5">
+				<hr className="border-gray-200 mb-3" />
+				<summary className="flex items-center justify-between cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+					{title && <h4 className="text-sm font-bold text-gray-900">{title}</h4>}
+					<ChevronDown size={16} className="text-gray-400 transition-transform group-open:rotate-180" />
+				</summary>
+				<div className="mt-3">{grid}</div>
+			</details>
+		);
+	}
+
+	return (
+		<div className="flex flex-col gap-3">
+			{title && (
+				<>
+					<hr className="border-gray-200" />
+					<h4 className="text-sm font-bold text-gray-900">{title}</h4>
+				</>
+			)}
+			{grid}
 		</div>
 	);
 }

@@ -330,7 +330,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 			{mounted && createPortal(mobilePanel, document.body)}
 
 			{/* ── Desktop nav row — inline, sits next to the logo in the header ──── */}
-			<div className="hidden md:flex items-center gap-6 lg:gap-8 flex-1 justify-center" ref={menuRef}>
+			<div className="hidden md:flex items-center gap-6 lg:gap-8" ref={menuRef}>
 				<BrandsDropdown />
 
 				{navItems.map((item, index) => {

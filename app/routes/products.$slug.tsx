@@ -1242,7 +1242,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									);
 								})}
 
-								<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} />
+								{/* Desktop/tablet only here — on mobile this section moves below the Add to
+								    Cart box instead (see the collapsible copy just after the inner 2-col). */}
+								<div className="hidden md:block">
+									<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} />
+								</div>
 								{/* Product-level additional info */}
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
 								{/* ── Sales & Rankings ── */}
@@ -1405,6 +1409,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							</div>
 						</div>
 						{/* end inner 2-col */}
+
+						{/* Mobile only — after the Add to Cart box, collapsed by default */}
+						<div className="md:hidden">
+							<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} collapsible />
+						</div>
 					</div>
 					{/* end detail column */}
 				</div>

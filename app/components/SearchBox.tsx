@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionCollection, SearchSuggestionFacetValue } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
+import { useTypewriter } from "~/hooks/useTypewriter";
 
 function highlight(text: string, term: string) {
 	const idx = text.toLowerCase().indexOf(term.toLowerCase());
@@ -80,8 +81,19 @@ function SectionLabel({ label }: { label: string }) {
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const SEARCH_COPY = {
-	en: { placeholder: "Search Products", search: "Search", products: "Products" },
-	ar: { placeholder: "ابحث عن المنتجات", search: "بحث", products: "المنتجات" },
+	en: {
+		search: "Search",
+		products: "Products",
+		// "Search: " itself stays fixed in the placeholder — only this part types/deletes.
+		searchPrefix: "Search: ",
+		typingCategories: ["Whey Protein", "Creatine", "Pre-Workout", "Vitamins", "Mass Gainers"],
+	},
+	ar: {
+		search: "بحث",
+		products: "المنتجات",
+		searchPrefix: "بحث: ",
+		typingCategories: ["بروتين واي", "كرياتين", "ما قبل التمرين", "فيتامينات", "مكملات زيادة الوزن"],
+	},
 } as const;
 
 export default function SearchBox() {
@@ -95,6 +107,10 @@ export default function SearchBox() {
 	const navigate = useNavigate();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = SEARCH_COPY[locale];
+	// Only the category name types/deletes — "Search: " itself is a constant part
+	// of the string, not part of the animation. Stops once the user's own text is
+	// showing instead of the placeholder anyway, no point burning timers in the background.
+	const typedCategory = useTypewriter(t.typingCategories, term.length === 0);
 
 	const fetchSuggestions = useCallback(async (q: string) => {
 		if (q.length < 2) {
@@ -180,7 +196,7 @@ export default function SearchBox() {
 								setOpen(true);
 							}
 						}}
-						placeholder={t.placeholder}
+						placeholder={`${t.searchPrefix}${typedCategory}`}
 						className="border border-stone-400 py-2 text-sm px-4 w-full focus:outline-none focus:ring-2 focus:ring-primary pe-12 rounded-full bg-white"
 						autoComplete="off"
 					/>

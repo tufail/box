@@ -11,9 +11,8 @@ import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher, useLocation, useNavigate } from "react-router";
 import LocaleLink from "../components/LocaleLink";
-import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check, Search } from "lucide-react";
+import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
-import SearchOverlay from "../components/SearchOverlay";
 import { useWishlist } from "../context/WishlistContext";
 import { getLocaleFromPathname, stripLocalePrefix, toggleLocalePath } from "~/lib/i18n";
 import { useFocusTrap } from "~/hooks/useFocusTrap";
@@ -35,7 +34,6 @@ const LAYOUT_COPY = {
 		fastShipping: "Fast Shipping Across Qatar",
 		skipToContent: "Skip to content",
 		openMenu: "Open menu",
-		search: "Search",
 		wishlist: "Wishlist",
 		openCart: "Open cart",
 		account: "Account",
@@ -83,7 +81,6 @@ const LAYOUT_COPY = {
 		fastShipping: "شحن سريع في جميع أنحاء قطر",
 		skipToContent: "التخطي إلى المحتوى",
 		openMenu: "فتح القائمة",
-		search: "بحث",
 		wishlist: "المفضلة",
 		openCart: "فتح السلة",
 		account: "الحساب",
@@ -526,7 +523,6 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 	const [accountOpen, setAccountOpen] = useState(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const [searchOpen, setSearchOpen] = useState(false);
 	const [profilePromptDismissed, setProfilePromptDismissed] = useState(false);
 	const [headerVisible, setHeaderVisible] = useState(true);
 	const lastScrollY = useRef(0);
@@ -610,20 +606,29 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 				</div>
 			</div>
 			<header className={`bg-white/95 border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
-				<div className="container mx-auto px-4 py-2 flex items-center gap-2 lg:gap-4 relative">
-					<div className="flex items-center gap-2 flex-shrink-0">
-						<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu} aria-haspopup="true" aria-expanded={mobileMenuOpen}>
-							<Menu size={22} strokeWidth={1.5} />
-						</button>
-						<LocaleLink to="/" className="font-bold text-xl md:ms-0">
-							<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-12 w-auto inline-block" />
-						</LocaleLink>
+				{/* justify-between still guards mobile — on mobile the logo/nav group's own
+				    nav row is display:none, so justify-between is what keeps the icons block
+				    pinned to the end of the row instead of collapsing against the logo. */}
+				<div className="container mx-auto px-4 py-2 flex items-center justify-between gap-2 lg:gap-4 relative">
+					{/* Logo + desktop nav grouped together on the left, right next to each
+					    other — not centered in the header. */}
+					<div className="flex items-center gap-4 lg:gap-6 flex-shrink-0 min-w-0">
+						<div className="flex items-center gap-2 flex-shrink-0">
+							<button className="md:hidden text-gray-600 hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(true)} aria-label={t.openMenu} aria-haspopup="true" aria-expanded={mobileMenuOpen}>
+								<Menu size={22} strokeWidth={1.5} />
+							</button>
+							<LocaleLink to="/" className="font-bold text-xl md:ms-0">
+								<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-12 w-auto inline-block" />
+							</LocaleLink>
+						</div>
+						<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
 					</div>
-					<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
 					<div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
-						<button onClick={() => setSearchOpen(true)} className="hidden md:inline-flex text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label={t.search}>
-							<Search size={22} strokeWidth={1.5} />
-						</button>
+						{/* Real search input on desktop, not just an icon — mobile keeps its own
+						    full-width SearchBox below the header instead. */}
+						<div className="hidden md:block w-56 lg:w-72">
+							<SearchBox />
+						</div>
 						<LocaleLink to="/wishlist" className="text-gray-600 relative hover:text-primary hover:scale-110 transition-all duration-200 inline-block" aria-label={t.wishlist}>
 							<Heart size={24} strokeWidth={1.5} />
 							{wishlistCount > 0 && <span className="absolute bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1.5 -end-1.5 pointer-events-none">{wishlistCount > 99 ? "99+" : wishlistCount}</span>}
@@ -697,8 +702,6 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			<Footer pageSections={pageSections} />
 
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
-
-			<SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
 			{authModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
 

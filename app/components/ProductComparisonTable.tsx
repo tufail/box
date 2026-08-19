@@ -273,7 +273,7 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 												const isCurrent = p.id === currentProductId;
 												const value = highlightsByProductId.get(p.id)?.[typeIndex];
 												return (
-													<td key={p.id} className={`p-3 text-center text-gray-700 bg-white border-t border-gray-100 ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
+													<td key={p.id} className={`p-3 text-start text-gray-700 bg-white border-t border-gray-100 ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
 														{formatCell(type, value)}
 													</td>
 												);

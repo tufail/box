@@ -129,7 +129,9 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 	return (
 		<div className="bg-white border-t border-stone-200">
 			<div className="container mx-auto px-4 py-10">
-				<div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-10">
+				{/* fr units, not percentages — percentage columns plus `gap` push the total
+			    past 100% of the container, overflowing the right column off-screen. */}
+			<div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-10">
 				{/* Left ~60% — About NutriBox (unchanged content) */}
 				<div>
 				<h2 className="font-heading2 text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.about}</h2>
@@ -242,9 +244,9 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 				{/* Right ~40% — FAQs */}
 				<div>
 					<h2 className="font-heading2 text-lg md:text-xl font-extrabold text-gray-900 mb-4 uppercase tracking-tight">{t.faqs}</h2>
-					<div className="space-y-1">
+					<div className="space-y-3">
 						{faqs.map((item, i) => (
-							<details key={i} className="group open:bg-gray-50 open:rounded-2xl -mx-4 px-4 py-4 transition-colors">
+							<details key={i} className="group bg-white open:bg-gray-50 rounded-2xl shadow-md open:shadow-lg px-4 py-4 transition-all">
 								<summary className="flex items-center justify-between gap-4 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
 									<span className="text-sm md:text-base font-semibold text-gray-900">{item.q}</span>
 									<span className="flex-shrink-0 w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center transition-colors group-open:bg-gray-900 group-open:border-gray-900">
