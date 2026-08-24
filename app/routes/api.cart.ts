@@ -22,6 +22,33 @@ import {
   type ActiveOrderBundlesData,
   type ValidateOrderBundlesResult,
 } from "~/graphql/bundle";
+import { TRANSITION_ORDER_TO_STATE_MUTATION } from "~/graphql/checkout";
+
+// A customer who started checkout (order now locked in ArrangingPayment), then came
+// back and tried to change their cart from somewhere else -- the side panel, a
+// product page -- hits Vendure's OrderModificationError. Vendure's own default order
+// process already allows ArrangingPayment -> AddingItems (see @vendure/core's
+// default-order-process.ts), so this reopens it and lets the caller retry once,
+// transparently, instead of surfacing "Order contents may only be modified..." for
+// what's actually a completely routine action.
+// Success is NOT the same thing as "a new token came back" -- when the session's
+// existing token is already valid, Vendure doesn't need to rotate it, so `token`
+// is empty even on a fully successful transition. Callers should retry whenever
+// `success` is true, falling back to the request's own cookie (still valid) when
+// `token` is empty rather than treating that as a failure.
+async function reopenIfLocked(env: Env, request: Request): Promise<{ success: boolean; token?: string }> {
+  try {
+    const { data, token } = await graphqlRequest<{ transitionOrderToState: { __typename: string } }>(
+      env,
+      TRANSITION_ORDER_TO_STATE_MUTATION,
+      { state: "AddingItems" },
+      { request }
+    );
+    return { success: data.transitionOrderToState.__typename === "Order", token: token ?? undefined };
+  } catch {
+    return { success: false };
+  }
+}
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const env = context.cloudflare.env;
@@ -56,12 +83,24 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     if (intent === "adjust") {
       const { orderLineId, quantity } = body as unknown as AdjustOrderLineVariables & { _intent: string };
-      const { data, token } = await graphqlRequest<AdjustOrderLineResult, AdjustOrderLineVariables>(
+      const adjustVars = { orderLineId: String(orderLineId), quantity: Number(quantity) };
+      let { data, token } = await graphqlRequest<AdjustOrderLineResult, AdjustOrderLineVariables>(
         env,
         ADJUST_ORDER_LINE_MUTATION,
-        { orderLineId: String(orderLineId), quantity: Number(quantity) },
+        adjustVars,
         { request }
       );
+      if (data.adjustOrderLine.__typename === "OrderModificationError") {
+        const reopen = await reopenIfLocked(env, request);
+        if (reopen.success) {
+          ({ data, token } = await graphqlRequest<AdjustOrderLineResult, AdjustOrderLineVariables>(
+            env,
+            ADJUST_ORDER_LINE_MUTATION,
+            adjustVars,
+            { request, ...(reopen.token ? { authToken: reopen.token } : {}) }
+          ));
+        }
+      }
       let bundleGroups: ActiveOrderBundlesData["activeOrderBundles"] = [];
       try {
         const { data: vd } = await graphqlRequest<ValidateOrderBundlesResult>(env, VALIDATE_ORDER_BUNDLES_MUTATION, undefined, { request });
@@ -91,12 +130,23 @@ export async function action({ request, context }: Route.ActionArgs) {
         bundleCascaded = data.removeCartItem?.bundleCascaded ?? false;
       } catch {
         // removeCartItem not available — fall back to removeOrderLine
-        const { data, token: t } = await graphqlRequest<RemoveOrderLineResult, RemoveOrderLineVariables>(
+        let { data, token: t } = await graphqlRequest<RemoveOrderLineResult, RemoveOrderLineVariables>(
           env,
           REMOVE_ORDER_LINE_MUTATION,
           { orderLineId: lineId },
           { request }
         );
+        if (data.removeOrderLine.__typename === "OrderModificationError") {
+          const reopen = await reopenIfLocked(env, request);
+          if (reopen.success) {
+            ({ data, token: t } = await graphqlRequest<RemoveOrderLineResult, RemoveOrderLineVariables>(
+              env,
+              REMOVE_ORDER_LINE_MUTATION,
+              { orderLineId: lineId },
+              { request, ...(reopen.token ? { authToken: reopen.token } : {}) }
+            ));
+          }
+        }
         token = t;
         if (data.removeOrderLine.__typename !== "Order") {
           const err = data.removeOrderLine as { message?: string };
@@ -118,16 +168,18 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     // Default: add to cart
     const { productVariantId, quantity, subscriptionPlanId } = body as unknown as AddToCartVariables & { subscriptionPlanId?: string };
-    const { data, token } = await graphqlRequest<AddToCartResult, AddToCartVariables>(
-      env,
-      ADD_TO_CART_MUTATION,
-      {
-        productVariantId: String(productVariantId),
-        quantity: Number(quantity),
-        customFields: subscriptionPlanId ? { subscriptionPlanId: String(subscriptionPlanId) } : undefined,
-      },
-      { request }
-    );
+    const addVars = {
+      productVariantId: String(productVariantId),
+      quantity: Number(quantity),
+      customFields: subscriptionPlanId ? { subscriptionPlanId: String(subscriptionPlanId) } : undefined,
+    };
+    let { data, token } = await graphqlRequest<AddToCartResult, AddToCartVariables>(env, ADD_TO_CART_MUTATION, addVars, { request });
+    if (data.addItemToOrder.__typename === "OrderModificationError") {
+      const reopen = await reopenIfLocked(env, request);
+      if (reopen.success) {
+        ({ data, token } = await graphqlRequest<AddToCartResult, AddToCartVariables>(env, ADD_TO_CART_MUTATION, addVars, { request, ...(reopen.token ? { authToken: reopen.token } : {}) }));
+      }
+    }
     return new Response(JSON.stringify({ addItemToOrder: data.addItemToOrder }), { headers: makeHeaders(token) });
   } catch (e) {
     return Response.json({ error: String(e) });
