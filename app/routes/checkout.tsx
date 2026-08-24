@@ -9,6 +9,7 @@ import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X, Re
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
 import { useCart } from "~/context/CartContext";
+import { useNotification } from "~/context/NotificationContext";
 import { qatarZones } from "~/constants/qatar";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
 import type { SadadPaymentMetadata } from "~/types/sadad";
@@ -70,6 +71,7 @@ const CHECKOUT_COPY = {
 		phoneNumber: "Phone Number",
 		loginFailed: "Login failed. Check your credentials.",
 		couldNotProceedAsGuest: "Could not proceed as guest.",
+		couldNotReopenOrder: "Could not reopen your order for editing. Please try again.",
 		loginAndContinue: "Login & Continue",
 		addressLabel: "Address (villa, flat, building & block, etc.)",
 		street: "Street",
@@ -137,6 +139,7 @@ const CHECKOUT_COPY = {
 		phoneNumber: "رقم الهاتف",
 		loginFailed: "فشل تسجيل الدخول. تحقق من بيانات الاعتماد الخاصة بك.",
 		couldNotProceedAsGuest: "تعذّرت المتابعة كزائر.",
+		couldNotReopenOrder: "تعذّر إعادة فتح طلبك للتعديل. يرجى المحاولة مرة أخرى.",
 		loginAndContinue: "تسجيل الدخول والمتابعة",
 		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
 		street: "الشارع",
@@ -1239,6 +1242,41 @@ export default function CheckoutPage() {
 	const [customerName, setCustomerName] = useState<{ firstName: string; lastName: string; email?: string; isGuest?: boolean } | null>(initialState.orderCustomer ? { firstName: initialState.orderCustomer.firstName, lastName: initialState.orderCustomer.lastName } : null);
 	const [shippingAddressDraft, setShippingAddressDraft] = useState<ShippingAddressValues | null>(initialState.shippingAddressDraft);
 	const [shippingMethodDraft, setShippingMethodDraft] = useState<string | null>(initialState.shippingMethodDraft);
+	const { notify } = useNotification();
+	// Vendure locks the order (ArrangingPayment) once the customer reaches Payment --
+	// none of the earlier steps' mutations (setOrderShippingAddress, etc.) work until
+	// it's reopened. Navigating back to a completed step while locked reopens it first
+	// (a standard Vendure transition, ArrangingPayment -> AddingItems) before switching.
+	const [reopening, setReopening] = useState(false);
+	const pendingStepRef = useRef<number | null>(null);
+	const reopenFetcher = useFetcher<{ transitionOrderToState?: { state?: string }; error?: string }>();
+
+	useEffect(() => {
+		if (reopenFetcher.state !== "idle" || !reopenFetcher.data || pendingStepRef.current === null) return;
+		const target = pendingStepRef.current;
+		pendingStepRef.current = null;
+		setReopening(false);
+		if (reopenFetcher.data.transitionOrderToState) {
+			setOrder((prev) => ({ ...prev, state: reopenFetcher.data!.transitionOrderToState!.state ?? "AddingItems" }));
+			setStep(target);
+		} else {
+			notify(reopenFetcher.data.error ?? t.couldNotReopenOrder, "error");
+		}
+	}, [reopenFetcher.state, reopenFetcher.data]);
+
+	// A physical browser Back press after redirecting to an external payment gateway
+	// (SkipCash) can restore this exact page from the browser's bfcache instead of
+	// re-running the loader -- showing whatever was on screen right before the
+	// redirect, which may no longer match the order's real state server-side (it's
+	// likely ArrangingPayment now). A full reload guarantees this page reflects
+	// reality instead of silently trusting a frozen snapshot.
+	useEffect(() => {
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (event.persisted) window.location.reload();
+		};
+		window.addEventListener("pageshow", handlePageShow);
+		return () => window.removeEventListener("pageshow", handlePageShow);
+	}, []);
 
 	function complete(n: number) {
 		setCompleted((prev) => [...new Set([...prev, n])]);
@@ -1246,7 +1284,15 @@ export default function CheckoutPage() {
 	}
 
 	function goTo(n: number) {
-		if (completed.includes(n - 1) || n === 1) setStep(n);
+		if (reopening) return;
+		if (!(completed.includes(n - 1) || n === 1)) return;
+		if (order.state === "ArrangingPayment" && n < step) {
+			pendingStepRef.current = n;
+			setReopening(true);
+			reopenFetcher.submit({ _intent: "reopenCart" }, { method: "post", encType: "application/json", action: "/api/checkout" });
+			return;
+		}
+		setStep(n);
 	}
 
 	// Breaks out of CheckoutLayout's centered `container mx-auto` so the background

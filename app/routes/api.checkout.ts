@@ -345,6 +345,37 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
     }
 
+    // ── Reopen cart (undo "arranging payment") ────────────────────────────────────
+    // Vendure's default order process already allows ArrangingPayment -> AddingItems
+    // (see @vendure/core's default-order-process.ts) -- this just calls it. Needed
+    // whenever a customer wants to edit their order after starting checkout: payment
+    // cancelled/failed and they want to change something, or they navigated back to
+    // an earlier step. Without this, the order stays locked and every edit mutation
+    // (setOrderShippingAddress, adjustOrderLine, etc.) fails server-side.
+    if (intent === "reopenCart") {
+      const { data, token } = await graphqlRequest<{ transitionOrderToState: GQLResult }>(
+        env,
+        TRANSITION_ORDER_TO_STATE_MUTATION,
+        { state: "AddingItems" },
+        { request }
+      );
+      const result = data.transitionOrderToState;
+      if (result.__typename === "OrderStateTransitionError") {
+        // Already back in AddingItems (e.g. a duplicate click) -- treat as success.
+        if (result.fromState === "AddingItems") {
+          return new Response(JSON.stringify({ transitionOrderToState: { __typename: "Order", state: "AddingItems" } }), { headers: makeHeaders(token) });
+        }
+        return new Response(
+          JSON.stringify({ error: (result.message as string) || "Could not reopen your order" }),
+          { headers: makeHeaders(token) }
+        );
+      }
+      return new Response(
+        JSON.stringify({ transitionOrderToState: result }),
+        { headers: makeHeaders(token) }
+      );
+    }
+
     // ── Apply coupon code ────────────────────────────────────────────────────────
     if (intent === "applyCoupon") {
       const { couponCode } = body as { couponCode: string };
