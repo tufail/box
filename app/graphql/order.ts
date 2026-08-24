@@ -18,7 +18,7 @@ export interface OrderLineItem {
     name: string;
     sku: string;
     priceWithTax: number;
-    customFields?: { slug: string | null } | null;
+    customFields?: { slug: string | null; sizeSpecifications: string | null } | null;
     product: {
       name: string;
       slug: string;
@@ -370,7 +370,7 @@ export const ACTIVE_ORDER_QUERY = `
           name
           sku
           priceWithTax
-          customFields { slug }
+          customFields { slug sizeSpecifications }
           product {
             name
             slug
