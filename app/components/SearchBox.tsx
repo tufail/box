@@ -5,6 +5,7 @@ import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionC
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { useTypewriter } from "~/hooks/useTypewriter";
+import VendureImage from "~/components/VendureImage";
 
 function highlight(text: string, term: string) {
 	const idx = text.toLowerCase().indexOf(term.toLowerCase());
@@ -23,6 +24,9 @@ interface ProductRowProps {
 	term: string;
 	onSelect: () => void;
 	locale: Locale;
+	inStockLabel: string;
+	soldOutLabel: string;
+	vendureBase: string;
 }
 function formatPrice(price: SearchSuggestionItem["price"], locale: Locale) {
 	const fmt = (cents: number) => formatCurrency(cents, "QAR", locale);
@@ -30,18 +34,31 @@ function formatPrice(price: SearchSuggestionItem["price"], locale: Locale) {
 	return price.min === price.max ? fmt(price.min) : `${fmt(price.min)} – ${fmt(price.max)}`;
 }
 
-function ProductRow({ item, term, onSelect, locale }: ProductRowProps) {
+function ProductRow({ item, term, onSelect, locale, inStockLabel, soldOutLabel, vendureBase }: ProductRowProps) {
+	const imagePreview = item.productVariantAsset?.preview ?? item.productAsset?.preview;
+	// Same precedence as ProductCard: the variant's own name is the fuller,
+	// more specific one (e.g. includes flavor/size) — falls back to the bare
+	// product name only when a product has no distinct variant name.
+	const displayName = item.productVariantName || item.productName;
 	return (
-		<button onMouseDown={onSelect} className="w-full text-start px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3 transition-colors">
-			{item.productAsset?.preview ? (
-				<img src={item.productAsset.preview + "?preset=tiny"} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 bg-gray-100" />
+		<button onMouseDown={onSelect} className="w-full text-start px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer">
+			{imagePreview ? (
+				// Same VendureImage component (and blur-up-then-sharp loading) every
+				// other product image on the site uses — real alt text, width/height,
+				// lazy loading — instead of a bare <img> with no SEO signal at all.
+				<div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+					<VendureImage src={imagePreview} vendureBase={vendureBase} alt={displayName} width={32} height={32} objectFit="cover" />
+				</div>
 			) : (
 				<span className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-gray-300">
 					<Search size={14} />
 				</span>
 			)}
-			<span className="text-sm text-gray-800 truncate flex-1">{highlight(item.productName, term)}</span>
-			<span className="text-sm font-medium text-primary whitespace-nowrap">{formatPrice(item.price, locale)}</span>
+			<span className="text-xs text-gray-800 line-clamp-2 flex-1">{highlight(displayName, term)}</span>
+			<span className="flex flex-col items-end gap-0.5 flex-shrink-0">
+				<span className="text-xs font-medium text-primary whitespace-nowrap">{formatPrice(item.price, locale)}</span>
+				<span className={`text-[10px] font-medium whitespace-nowrap ${item.inStock ? "text-green-600" : "text-gray-400"}`}>{item.inStock ? inStockLabel : soldOutLabel}</span>
+			</span>
 		</button>
 	);
 }
@@ -53,9 +70,9 @@ interface CollectionChipProps {
 }
 function CollectionChip({ col, term, onSelect }: CollectionChipProps) {
 	return (
-		<button onMouseDown={onSelect} className="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
+		<button onMouseDown={onSelect} className="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap cursor-pointer">
 			{highlight(col.collection.name, term)}
-			<span className="text-xs text-gray-400">{col.count}</span>
+			<span className="text-[10px] text-gray-400">{col.count}</span>
 		</button>
 	);
 }
@@ -67,7 +84,7 @@ interface FacetChipProps {
 }
 function FacetChip({ fv, term, onSelect }: FacetChipProps) {
 	return (
-		<button onMouseDown={onSelect} className="inline-flex items-center px-3 py-1 rounded border border-gray-300 text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap">
+		<button onMouseDown={onSelect} className="inline-flex items-center px-3 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap cursor-pointer">
 			{highlight(fv.facetValue.name, term)}
 		</button>
 	);
@@ -84,6 +101,10 @@ const SEARCH_COPY = {
 	en: {
 		search: "Search",
 		products: "Products",
+		collections: "Collections",
+		brands: "Brands",
+		inStock: "In Stock",
+		soldOut: "Sold Out",
 		// "Search: " itself stays fixed in the placeholder — only this part types/deletes.
 		searchPrefix: "Search: ",
 		typingCategories: ["Whey Protein", "Creatine", "Pre-Workout", "Vitamins", "Mass Gainers"],
@@ -91,6 +112,10 @@ const SEARCH_COPY = {
 	ar: {
 		search: "بحث",
 		products: "المنتجات",
+		collections: "التصنيفات",
+		brands: "العلامات التجارية",
+		inStock: "متوفر",
+		soldOut: "نفدت الكمية",
 		searchPrefix: "بحث: ",
 		typingCategories: ["بروتين واي", "كرياتين", "ما قبل التمرين", "فيتامينات", "مكملات زيادة الوزن"],
 	},
@@ -207,21 +232,21 @@ export default function SearchBox() {
 			</form>
 
 			{open && (
-				<div className="absolute top-full start-0 end-0 mt-1 bg-white border border-gray-200 shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
+				<div className="absolute top-full start-0 end-0 md:end-auto md:w-[26rem] mt-1 bg-white border border-gray-200 shadow-xl z-[200] overflow-hidden max-h-[70vh] overflow-y-auto">
 					{hasItems && (
 						<>
 							<SectionLabel label={t.products} />
 							{results.items.map((item) => (
-								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)} locale={locale} />
+								<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)} locale={locale} inStockLabel={t.inStock} soldOutLabel={t.soldOut} vendureBase={results?.vendureBase ?? ""} />
 							))}
 						</>
 					)}
 
-					{/* {(hasCollections || hasFacets) && (
+					{(hasCollections || hasFacets) && (
 						<div className="px-4 pb-3 border-t border-gray-100">
 							{hasCollections && (
 								<>
-									<SectionLabel label="Collections" />
+									<SectionLabel label={t.collections} />
 									<div className="flex flex-wrap gap-2 mt-1">
 										{results.collections.map(({ collection, count }) => (
 											<CollectionChip key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
@@ -232,7 +257,7 @@ export default function SearchBox() {
 
 							{hasFacets && (
 								<>
-									<SectionLabel label="Brands" />
+									<SectionLabel label={t.brands} />
 									<div className="flex flex-wrap gap-2 mt-1">
 										{brandFacets.map((fv) => (
 											<FacetChip key={fv.facetValue.id} fv={fv} term={term} onSelect={() => selectFacet(fv.facetValue.facet.name, fv.facetValue.name)} />
@@ -241,7 +266,7 @@ export default function SearchBox() {
 								</>
 							)}
 						</div>
-					)} */}
+					)}
 				</div>
 			)}
 		</div>

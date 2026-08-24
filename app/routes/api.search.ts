@@ -13,11 +13,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // the calling page passes its locale through explicitly instead.
   const locale: Locale = url.searchParams.get("lang") === "ar" ? "ar" : "en";
 
-  if (term.length < 2) {
-    return Response.json({ items: [], collections: [], facetValues: [] } satisfies SearchSuggestionsResponse);
-  }
-
   const env = context.cloudflare.env;
+  const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
+
+  if (term.length < 2) {
+    return Response.json({ items: [], collections: [], facetValues: [], vendureBase } satisfies SearchSuggestionsResponse);
+  }
 
   try {
     const { data } = await graphqlRequest<{ search: SearchSuggestionsResponse }>(
@@ -26,8 +27,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       { term },
       { request, locale }
     );
-    return Response.json(data.search);
+    return Response.json({ ...data.search, vendureBase });
   } catch {
-    return Response.json({ items: [], collections: [], facetValues: [] } satisfies SearchSuggestionsResponse);
+    return Response.json({ items: [], collections: [], facetValues: [], vendureBase } satisfies SearchSuggestionsResponse);
   }
 }

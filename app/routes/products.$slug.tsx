@@ -608,7 +608,9 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 			<div className="relative">
 				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white">
 					{resolved[currentIdx] ? (
-						<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={900} height={900} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
+						// medium (not xlarge) — the full-resolution asset is reserved for the
+						// zoom lightbox below, which is the only view that actually needs it.
+						<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={500} height={500} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
 					) : (
 						<div className="w-full h-full flex items-center justify-center text-gray-300 text-6xl font-bold bg-gray-50">{name[0]}</div>
 					)}
