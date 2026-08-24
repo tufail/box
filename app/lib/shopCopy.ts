@@ -66,6 +66,15 @@ export function sortFacetGroups<T extends { facetName: string }>(groups: T[]): T
 	return [...groups].sort((a, b) => facetGroupSortIndex(a.facetName) - facetGroupSortIndex(b.facetName));
 }
 
+// "sizeSpecifications" is free text (e.g. "76 Servings", "2kg - 60 Servings") -- pulls
+// the number right before "serving(s)" rather than assuming a fixed format, since it's
+// phrased slightly differently across products. Returns null for anything that doesn't
+// match, e.g. non-serving-based products.
+export function parseServings(sizeSpecifications: string | null | undefined): number | null {
+	const match = sizeSpecifications?.match(/(\d+)\s*servings?/i);
+	return match ? Number(match[1]) : null;
+}
+
 // Arabic countable-noun agreement (0/1/2/3-10/11+) — a plain "${n} منتجات" for
 // every count reads as a grammatical error to an Arabic speaker, unlike
 // English's simple singular/plural split.

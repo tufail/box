@@ -15,15 +15,6 @@ interface CartSidePanelProps {
 	onClose: () => void;
 }
 
-// "sizeSpecifications" is free text (e.g. "76 Servings", "2kg - 60 Servings") -- pulls
-// the number right before "serving(s)" rather than assuming a fixed format, since it's
-// phrased slightly differently across products. Returns null (hiding the price-per-
-// serving line entirely) for anything that doesn't match, e.g. non-serving-based products.
-function parseServings(sizeSpecifications: string | null | undefined): number | null {
-	const match = sizeSpecifications?.match(/(\d+)\s*servings?/i);
-	return match ? Number(match[1]) : null;
-}
-
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
@@ -51,7 +42,6 @@ const CART_COPY = {
 		subtotal: "Subtotal",
 		total: "Total",
 		proceedToCheckout: "Proceed to Checkout",
-		perServing: (price: string) => `${price}/serving`,
 	},
 	ar: {
 		decreaseQuantity: "إنقاص الكمية",
@@ -76,7 +66,6 @@ const CART_COPY = {
 		subtotal: "المجموع الفرعي",
 		total: "الإجمالي",
 		proceedToCheckout: "المتابعة إلى الدفع",
-		perServing: (price: string) => `${price}/حصة`,
 	},
 } as const;
 
@@ -124,8 +113,6 @@ function LineControls({ line, currencyCode, onCartUpdated }: LineControlsProps) 
 	}, [removeFetcher.state, removeFetcher.data]);
 
 	const isBusy = adjustFetcher.state !== "idle" || removeFetcher.state !== "idle";
-	const servings = parseServings(line.productVariant.customFields?.sizeSpecifications);
-	const pricePerServing = servings ? line.unitPriceWithTax / servings : null;
 
 	function adjust(newQty: number) {
 		adjustFetcher.submit({ _intent: "adjust", orderLineId: line.id, quantity: newQty }, { method: "POST", action: "/api/cart", encType: "application/json" });
@@ -137,17 +124,14 @@ function LineControls({ line, currencyCode, onCartUpdated }: LineControlsProps) 
 
 	return (
 		<div className="flex items-center justify-between mt-2">
-			<div className="flex flex-col items-start gap-1">
-				<div className="flex items-center gap-1">
-					<button onClick={() => adjust(line.quantity - 1)} disabled={line.quantity <= 1 || isBusy} aria-label={t.decreaseQuantity} className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
-						<Minus size={11} />
-					</button>
-					<span className="w-6 text-center text-sm font-medium text-gray-900 tabular-nums">{adjustFetcher.state !== "idle" ? "…" : line.quantity}</span>
-					<button onClick={() => adjust(line.quantity + 1)} disabled={isBusy} aria-label={t.increaseQuantity} className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
-						<Plus size={11} />
-					</button>
-				</div>
-				{pricePerServing != null && <span className="text-[10px] text-gray-400">{t.perServing(formatPrice(pricePerServing, currencyCode, locale))}</span>}
+			<div className="flex items-center gap-1">
+				<button onClick={() => adjust(line.quantity - 1)} disabled={line.quantity <= 1 || isBusy} aria-label={t.decreaseQuantity} className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
+					<Minus size={11} />
+				</button>
+				<span className="w-6 text-center text-sm font-medium text-gray-900 tabular-nums">{adjustFetcher.state !== "idle" ? "…" : line.quantity}</span>
+				<button onClick={() => adjust(line.quantity + 1)} disabled={isBusy} aria-label={t.increaseQuantity} className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
+					<Plus size={11} />
+				</button>
 			</div>
 			<div className="flex flex-col items-end gap-0.5">
 				<button onClick={remove} disabled={isBusy} aria-label={t.removeFromCart(line.productVariant.product.name)} className="text-gray-400 hover:text-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer self-end">

@@ -24,6 +24,7 @@ import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
+import { parseServings } from "~/lib/shopCopy";
 import type { BannerItem } from "~/graphql/banner";
 
 const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
@@ -75,6 +76,7 @@ const PDP_COPY = {
 		addToCart: "Add to Cart",
 		quickDelivery: "Quick Delivery",
 		percentOff: (n: number) => `${n}% Off`,
+		perServing: (price: string) => `${price}/serving`,
 		by: "by",
 		whatsappEnquiry: "WhatsApp Enquiry",
 		trustBadges: (express: boolean) => [express ? "Quick delivery within 2 hours" : "Standard delivery within Qatar in 2–6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
@@ -152,6 +154,7 @@ const PDP_COPY = {
 		addToCart: "أضف إلى السلة",
 		quickDelivery: "توصيل سريع",
 		percentOff: (n: number) => `خصم ${n}%`,
+		perServing: (price: string) => `${price}/حصة`,
 		by: "بواسطة",
 		whatsappEnquiry: "استفسار عبر واتساب",
 		trustBadges: (express: boolean) => [express ? "توصيل سريع خلال ساعتين" : "التوصيل القياسي داخل قطر خلال 2-6 أيام عمل", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
@@ -1001,6 +1004,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const hasDiscount = rrp !== null && price !== null && rrp > price;
 	const discountPct = hasDiscount ? Math.round(100 - (price! / rrp!) * 100) : 0;
 	const inStock = activeVariant ? isInStock(activeVariant.stockLevel) : false;
+	const servings = parseServings(activeVariant?.customFields?.sizeSpecifications);
+	const pricePerServing = servings && price !== null ? price / servings : null;
 
 	// Subscribe & Save
 	const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId) ?? null;
@@ -1275,6 +1280,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									{subscriptionPlans.length === 0 && (
 										<div>
 											<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</div>
+											{pricePerServing !== null && <div className="text-xs text-gray-400 mt-0.5">{t.perServing(formatCurrency(pricePerServing, activeVariant?.currencyCode ?? "QAR", locale))}</div>}
 											{hasDiscount && rrp !== null && (
 												<div className="flex items-center gap-2 mt-1 flex-wrap">
 													<span className="text-sm text-gray-400 line-through">{formatCurrency(rrp, activeVariant?.currencyCode ?? "QAR", locale)}</span>
