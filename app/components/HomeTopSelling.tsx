@@ -12,9 +12,12 @@ interface Props {
 	vendureBase: string;
 	title?: React.ReactNode;
 	viewAllHref?: string;
+	// "scroll" (default) is the existing horizontal carousel. "grid" wraps every
+	// item into a static multi-row grid instead — no arrows, no overflow-scroll.
+	layout?: "scroll" | "grid";
 }
 
-export default function HomeTopSelling({ products, vendureBase, title, viewAllHref }: Props) {
+export default function HomeTopSelling({ products, vendureBase, title, viewAllHref, layout = "scroll" }: Props) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const resolvedTitle = title ?? (locale === "ar" ? "الأكثر مبيعًا" : "Best-Sellers Edition");
 	// embla has its own RTL mode (correct scroll-physics/drag direction for
@@ -62,25 +65,35 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 				)}
 			</div>
 
-			<div className="relative">
-				<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label={locale === "ar" ? "المنتجات السابقة" : "Previous products"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
-					<ChevronLeft size={14} className="rtl:rotate-180" />
-				</button>
-
-				<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
-					<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
-						{products.map((product, index) => (
-							<div key={product.productVariantId} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2" role="listitem">
-								<ProductCard product={product} vendureBase={vendureBase} eager={index < 4} />
-							</div>
-						))}
-					</div>
+			{layout === "grid" ? (
+				<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
+					{products.map((product, index) => (
+						<div key={product.productVariantId} role="listitem">
+							<ProductCard product={product} vendureBase={vendureBase} eager={index < 4} />
+						</div>
+					))}
 				</div>
+			) : (
+				<div className="relative">
+					<button onClick={() => emblaApi?.scrollPrev()} disabled={!canPrev} aria-label={locale === "ar" ? "المنتجات السابقة" : "Previous products"} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-4 rtl:translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+						<ChevronLeft size={14} className="rtl:rotate-180" />
+					</button>
 
-				<button onClick={() => emblaApi?.scrollNext()} disabled={!canNext} aria-label={locale === "ar" ? "المنتجات التالية" : "Next products"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
-					<ChevronRight size={14} className="rtl:rotate-180" />
-				</button>
-			</div>
+					<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
+						<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
+							{products.map((product, index) => (
+								<div key={product.productVariantId} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2" role="listitem">
+									<ProductCard product={product} vendureBase={vendureBase} eager={index < 4} />
+								</div>
+							))}
+						</div>
+					</div>
+
+					<button onClick={() => emblaApi?.scrollNext()} disabled={!canNext} aria-label={locale === "ar" ? "المنتجات التالية" : "Next products"} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-4 rtl:-translate-x-4 z-10 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-0 disabled:pointer-events-none">
+						<ChevronRight size={14} className="rtl:rotate-180" />
+					</button>
+				</div>
+			)}
 		</section>
 	);
 }

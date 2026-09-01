@@ -121,7 +121,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 			<HomeShopByConcern vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
-			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" />
+			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" layout="grid" />
 		</div>
 	);
 }
