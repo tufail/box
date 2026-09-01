@@ -66,7 +66,7 @@ export default function HomeTopSelling({ products, vendureBase, title, viewAllHr
 			</div>
 
 			{layout === "grid" ? (
-				<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
+				<div className="grid grid-cols-2 md:grid-cols-5 gap-4" role="list" aria-label={locale === "ar" ? "المنتجات المميزة" : "Featured products"}>
 					{products.map((product, index) => (
 						<div key={product.productVariantId} role="listitem">
 							<ProductCard product={product} vendureBase={vendureBase} eager={index < 4} />
