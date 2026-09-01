@@ -121,11 +121,11 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 			<HomeFeaturedCollections collections={collections} vendureBase={vendureBase} />
 			<HomeTopSelling products={products} vendureBase={vendureBase} viewAllHref="/collections" />
 			<HomeTrending vendureBase={vendureBase} />
-			<RecentlyViewed vendureBase={vendureBase} />
 			<HomeShopByConcern vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
 			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" layout="grid" />
+			<RecentlyViewed vendureBase={vendureBase} />
 		</div>
 	);
 }
