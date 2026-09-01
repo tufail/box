@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router";
 import { Search, X } from "lucide-react";
-import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionCollection, SearchSuggestionFacetValue } from "~/graphql/search";
+import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionCollection, SearchSuggestionFacetValue, PopularSearchTerm } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { useTypewriter } from "~/hooks/useTypewriter";
@@ -96,6 +96,20 @@ function SectionLabel({ label }: { label: string }) {
 	return <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 select-none">{label}</div>;
 }
 
+interface PopularSearchRowProps {
+	popular: PopularSearchTerm;
+	term: string;
+	onSelect: () => void;
+}
+function PopularSearchRow({ popular, term, onSelect }: PopularSearchRowProps) {
+	return (
+		<button onMouseDown={onSelect} className="w-full text-start px-4 py-2 flex items-center gap-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
+			<Search size={14} className="text-gray-300 flex-shrink-0" />
+			<span className="truncate">{highlight(popular.term, term)}</span>
+		</button>
+	);
+}
+
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
@@ -103,6 +117,7 @@ const SEARCH_COPY = {
 	en: {
 		search: "Search",
 		closeSearch: "Close search",
+		popularSearches: "Popular Searches",
 		products: "Products",
 		collections: "Collections",
 		brands: "Brands",
@@ -118,6 +133,7 @@ const SEARCH_COPY = {
 	ar: {
 		search: "بحث",
 		closeSearch: "إغلاق البحث",
+		popularSearches: "عمليات البحث الشائعة",
 		products: "المنتجات",
 		collections: "التصنيفات",
 		brands: "العلامات التجارية",
@@ -248,10 +264,16 @@ export default function SearchBox() {
 		navigate(localizePath(`/search?facet=${encodeURIComponent(facetName)}=${encodeURIComponent(valueName)}`, locale));
 	};
 
+	const selectPopularTerm = (popularTerm: string) => {
+		setOpen(false);
+		navigate(localizePath(`/search?q=${encodeURIComponent(popularTerm)}`, locale));
+	};
+
 	const hasItems = !!results && results.items.length > 0;
 	const hasCollections = !!results && results.collections.length > 0;
 	const brandFacets = results?.facetValues.filter((fv) => fv.facetValue.facet.name.toLowerCase() === "brand") ?? [];
 	const hasFacets = brandFacets.length > 0;
+	const hasPopular = !!results && results.popularSearchTerms.length > 0;
 	const isSearching = term.trim().length >= 2;
 	const hasAnyResults = hasItems || hasCollections || hasFacets;
 
@@ -323,50 +345,61 @@ export default function SearchBox() {
 								</button>
 							</form>
 
-							<div className="flex-1 min-h-0 overflow-y-auto">
+							<div className="flex-1 min-h-0 overflow-y-auto sm:flex">
 								{!isSearching ? (
-									<div className="px-5 py-10 text-center text-sm text-gray-400">{t.startTyping}</div>
+									<div className="px-5 py-10 text-center text-sm text-gray-400 w-full">{t.startTyping}</div>
 								) : !results ? (
-									<div className="px-5 py-10 text-center text-sm text-gray-400">{t.searching}</div>
-								) : hasAnyResults ? (
+									<div className="px-5 py-10 text-center text-sm text-gray-400 w-full">{t.searching}</div>
+								) : hasAnyResults || hasPopular ? (
 									<>
-										{hasItems && (
-											<>
-												<SectionLabel label={t.products} />
-												{results.items.map((item) => (
-													<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)} locale={locale} inStockLabel={t.inStock} soldOutLabel={t.soldOut} vendureBase={results?.vendureBase ?? ""} />
+										{hasPopular && (
+											<div className="sm:w-2/5 sm:flex-shrink-0 sm:border-e border-b sm:border-b-0 border-gray-100 py-1">
+												<SectionLabel label={t.popularSearches} />
+												{results.popularSearchTerms.map((popular) => (
+													<PopularSearchRow key={popular.term} popular={popular} term={term} onSelect={() => selectPopularTerm(popular.term)} />
 												))}
-											</>
-										)}
-
-										{(hasCollections || hasFacets) && (
-											<div className="px-4 pb-4 border-t border-gray-100">
-												{hasCollections && (
-													<>
-														<SectionLabel label={t.collections} />
-														<div className="flex flex-wrap gap-2 mt-1">
-															{results.collections.map(({ collection, count }) => (
-																<CollectionChip key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
-															))}
-														</div>
-													</>
-												)}
-
-												{hasFacets && (
-													<>
-														<SectionLabel label={t.brands} />
-														<div className="flex flex-wrap gap-2 mt-1">
-															{brandFacets.map((fv) => (
-																<FacetChip key={fv.facetValue.id} fv={fv} term={term} onSelect={() => selectFacet(fv.facetValue.facet.name, fv.facetValue.name)} />
-															))}
-														</div>
-													</>
-												)}
 											</div>
 										)}
+
+										<div className="sm:flex-1 sm:min-w-0">
+											{hasItems && (
+												<>
+													<SectionLabel label={t.products} />
+													{results.items.map((item) => (
+														<ProductRow key={item.slug} item={item} term={term} onSelect={() => selectProduct(item.customProductVariantMappings?.slug ?? item.slug)} locale={locale} inStockLabel={t.inStock} soldOutLabel={t.soldOut} vendureBase={results?.vendureBase ?? ""} />
+													))}
+												</>
+											)}
+
+											{(hasCollections || hasFacets) && (
+												<div className="px-4 pb-4 border-t border-gray-100">
+													{hasCollections && (
+														<>
+															<SectionLabel label={t.collections} />
+															<div className="flex flex-wrap gap-2 mt-1">
+																{results.collections.map(({ collection, count }) => (
+																	<CollectionChip key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
+																))}
+															</div>
+														</>
+													)}
+
+													{hasFacets && (
+														<>
+															<SectionLabel label={t.brands} />
+															<div className="flex flex-wrap gap-2 mt-1">
+																{brandFacets.map((fv) => (
+																	<FacetChip key={fv.facetValue.id} fv={fv} term={term} onSelect={() => selectFacet(fv.facetValue.facet.name, fv.facetValue.name)} />
+																))}
+															</div>
+														</>
+													)}
+												</div>
+											)}
+										</div>
 									</>
 								) : (
-									<div className="px-5 py-10 text-center text-sm text-gray-400">{t.noResultsFor(term)}</div>
+									<div className="px-5 py-10 text-center text-sm text-gray-400 w-full">{t.noResultsFor(term)}</div>
 								)}
 							</div>
 						</div>

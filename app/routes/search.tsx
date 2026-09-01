@@ -1,6 +1,6 @@
 import type { Route } from "./+types/search";
 import { useSearchParams } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import Breadcrumb from "~/components/Breadcrumb";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -225,6 +225,21 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   const facetGroups = groupFacets(facetValues);
+
+  // Fire-and-forget, client-side only -- same reasoning as the product detail
+  // page's view-tracking effect: a server-side loader call would also fire on
+  // prefetch (hovering a search suggestion) and on bots, inflating "popular
+  // searches" with searches that never actually happened. Keyed on q (not
+  // sort/page/filters) since paging or re-sorting the same results isn't a
+  // new search.
+  useEffect(() => {
+    if (!q) return;
+    fetch("/api/track-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ term: q }),
+    }).catch(() => {/* non-critical */});
+  }, [q]);
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams);

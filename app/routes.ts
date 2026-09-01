@@ -74,4 +74,5 @@ export default [
 	route("api/newsletter", "routes/api.newsletter.ts"),
 	route("api/trending", "routes/api.trending.ts"),
 	route("api/track-view", "routes/api.track-view.ts"),
+	route("api/track-search", "routes/api.track-search.ts"),
 ] satisfies RouteConfig;

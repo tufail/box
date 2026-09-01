@@ -25,6 +25,32 @@ export const SEARCH_SUGGESTIONS_QUERY = `
   }
 `;
 
+// Deliberately a SEPARATE request from SEARCH_SUGGESTIONS_QUERY above rather
+// than one combined query -- popularSearchTerms is a newer backend field that
+// may not be deployed yet. A GraphQL query fails validation as a whole unit
+// on an unknown field, so bundling them would take down the entire
+// (otherwise-working) product/collection suggestions the moment this field
+// isn't recognized, instead of just leaving the popular-searches list empty.
+export const POPULAR_SEARCH_TERMS_QUERY = `
+  query PopularSearchTerms($prefix: String!, $limit: Int!) {
+    popularSearchTerms(prefix: $prefix, limit: $limit) {
+      term
+      searchCount
+    }
+  }
+`;
+
+export const RECORD_SEARCH_QUERY_MUTATION = `
+  mutation RecordSearchQuery($term: String!) {
+    recordSearchQuery(term: $term)
+  }
+`;
+
+export interface PopularSearchTerm {
+  term: string;
+  searchCount: number;
+}
+
 export interface SearchSuggestionItem {
   productName: string;
   productVariantName: string;
@@ -52,6 +78,7 @@ export interface SearchSuggestionsResponse {
   items: SearchSuggestionItem[];
   collections: SearchSuggestionCollection[];
   facetValues: SearchSuggestionFacetValue[];
+  popularSearchTerms: PopularSearchTerm[];
   // Not part of the raw GraphQL response — api.search.ts adds this so the
   // client (SearchBox, which has no server-side env access) can resolve
   // asset URLs through VendureImage the same way every other page does.
