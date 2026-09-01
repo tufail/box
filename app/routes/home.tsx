@@ -66,14 +66,17 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const cacheOpts = { request, cf: { cacheTtl: 300, cacheEverything: true } } as const;
 
   // topSellers is a dedicated resolver with no inStock filter argument, so it's
-  // over-fetched (24 for a target of 12) and filtered to inStock below instead.
-  // The search index's SearchInput does support inStock directly (used below),
-  // so new arrivals doesn't need the same over-fetch treatment.
+  // over-fetched and filtered to inStock below instead. Stock is thin enough
+  // in practice that only ~20 of the ~134 total ranked products are ever in
+  // stock at once (the 12th in-stock one can rank as low as #118), so the
+  // over-fetch window needs to cover effectively the whole ranked list, not
+  // just the top few dozen. The search index's SearchInput does support
+  // inStock directly (used below), so new arrivals doesn't need this treatment.
   const [topSellingResult, newArrivalsResult, bannerResult, collectionsResult] = await Promise.allSettled([
     graphqlRequest<TopSellersData, TopSellersVariables>(
       env,
       TOP_SELLERS_QUERY,
-      { limit: 24 },
+      { limit: 200 },
       cacheOpts
     ),
     graphqlRequest<SearchProductsData, SearchTopSellingVariables>(
