@@ -65,16 +65,21 @@ function ProductRow({ item, term, onSelect, locale, inStockLabel, soldOutLabel, 
 	);
 }
 
-interface CollectionChipProps {
+interface CollectionRowProps {
 	col: SearchSuggestionCollection;
 	term: string;
 	onSelect: () => void;
 }
-function CollectionChip({ col, term, onSelect }: CollectionChipProps) {
+function CollectionRow({ col, term, onSelect }: CollectionRowProps) {
+	// breadcrumbs[0] is always the synthetic root collection -- drop only
+	// that. The rest (including the collection's own name again at the end)
+	// mirrors the reference design's "Category \n Full / Breadcrumb / Path"
+	// layout.
+	const path = col.collection.breadcrumbs.slice(1).map((b) => b.name);
 	return (
-		<button onMouseDown={onSelect} className="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:border-primary hover:text-primary transition-colors whitespace-nowrap cursor-pointer">
-			{highlight(col.collection.name, term)}
-			<span className="text-[10px] text-gray-400">{col.count}</span>
+		<button onMouseDown={onSelect} className="w-full text-start px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+			<div className="text-sm text-gray-800">{highlight(col.collection.name, term)}</div>
+			{path.length > 1 && <div className="text-xs text-gray-400 mt-0.5">{path.join(" / ")}</div>}
 		</button>
 	);
 }
@@ -150,6 +155,9 @@ const SEARCH_COPY = {
 // How much wider the expanded overlay grows past the trigger's own width —
 // capped so it doesn't sprawl the full viewport on a huge monitor.
 const EXPANDED_MAX_WIDTH = 640;
+
+// Cap on how many matching collections to list -- see topCollections below.
+const MAX_COLLECTIONS = 4;
 
 interface Anchor {
 	top: number;
@@ -270,7 +278,11 @@ export default function SearchBox() {
 	};
 
 	const hasItems = !!results && results.items.length > 0;
-	const hasCollections = !!results && results.collections.length > 0;
+	// Ranked by match count and capped -- the raw list can run to a dozen+
+	// collections for a broad term, most of them barely relevant. A handful
+	// of the best matches is far more useful here than an exhaustive list.
+	const topCollections = [...(results?.collections ?? [])].sort((a, b) => b.count - a.count).slice(0, MAX_COLLECTIONS);
+	const hasCollections = topCollections.length > 0;
 	const brandFacets = results?.facetValues.filter((fv) => fv.facetValue.facet.name.toLowerCase() === "brand") ?? [];
 	const hasFacets = brandFacets.length > 0;
 	const hasPopular = !!results && results.popularSearchTerms.length > 0;
@@ -352,12 +364,25 @@ export default function SearchBox() {
 									<div className="px-5 py-10 text-center text-sm text-gray-400 w-full">{t.searching}</div>
 								) : hasAnyResults || hasPopular ? (
 									<>
-										{hasPopular && (
+										{(hasPopular || hasCollections) && (
 											<div className="sm:w-2/5 sm:flex-shrink-0 sm:border-e border-b sm:border-b-0 border-gray-100 py-1">
-												<SectionLabel label={t.popularSearches} />
-												{results.popularSearchTerms.map((popular) => (
-													<PopularSearchRow key={popular.term} popular={popular} term={term} onSelect={() => selectPopularTerm(popular.term)} />
-												))}
+												{hasPopular && (
+													<>
+														<SectionLabel label={t.popularSearches} />
+														{results.popularSearchTerms.map((popular) => (
+															<PopularSearchRow key={popular.term} popular={popular} term={term} onSelect={() => selectPopularTerm(popular.term)} />
+														))}
+													</>
+												)}
+
+												{hasCollections && (
+													<>
+														<SectionLabel label={t.collections} />
+														{topCollections.map(({ collection, count }) => (
+															<CollectionRow key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
+														))}
+													</>
+												)}
 											</div>
 										)}
 
@@ -371,29 +396,14 @@ export default function SearchBox() {
 												</>
 											)}
 
-											{(hasCollections || hasFacets) && (
+											{hasFacets && (
 												<div className="px-4 pb-4 border-t border-gray-100">
-													{hasCollections && (
-														<>
-															<SectionLabel label={t.collections} />
-															<div className="flex flex-wrap gap-2 mt-1">
-																{results.collections.map(({ collection, count }) => (
-																	<CollectionChip key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
-																))}
-															</div>
-														</>
-													)}
-
-													{hasFacets && (
-														<>
-															<SectionLabel label={t.brands} />
-															<div className="flex flex-wrap gap-2 mt-1">
-																{brandFacets.map((fv) => (
-																	<FacetChip key={fv.facetValue.id} fv={fv} term={term} onSelect={() => selectFacet(fv.facetValue.facet.name, fv.facetValue.name)} />
-																))}
-															</div>
-														</>
-													)}
+													<SectionLabel label={t.brands} />
+													<div className="flex flex-wrap gap-2 mt-1">
+														{brandFacets.map((fv) => (
+															<FacetChip key={fv.facetValue.id} fv={fv} term={term} onSelect={() => selectFacet(fv.facetValue.facet.name, fv.facetValue.name)} />
+														))}
+													</div>
 												</div>
 											)}
 										</div>

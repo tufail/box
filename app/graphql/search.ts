@@ -15,7 +15,12 @@ export const SEARCH_SUGGESTIONS_QUERY = `
       }
       collections {
         count
-        collection { id name slug }
+        collection {
+          id
+          name
+          slug
+          breadcrumbs { id name slug }
+        }
       }
       facetValues {
         count
@@ -66,7 +71,9 @@ export interface SearchSuggestionItem {
 
 export interface SearchSuggestionCollection {
   count: number;
-  collection: { id: string; name: string; slug: string };
+  // breadcrumbs includes the synthetic root collection (name "__root_collection__")
+  // as its first entry -- callers should drop it before display.
+  collection: { id: string; name: string; slug: string; breadcrumbs: { id: string; name: string; slug: string }[] };
 }
 
 export interface SearchSuggestionFacetValue {
