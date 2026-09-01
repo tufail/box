@@ -6,6 +6,7 @@ import HomeTrendingBanners from "~/components/HomeTrendingBanners";
 import HomeShopByConcern from "~/components/HomeShopByConcern";
 import HomeTrending from "~/components/HomeTrending";
 import RecentlyViewed from "~/components/RecentlyViewed";
+import HomeWellnessBanner from "~/components/HomeWellnessBanner";
 import type { SearchProductItem } from "~/graphql/product";
 import type { BannerItem } from "~/graphql/banner";
 import type { HomeCollectionItem } from "~/graphql/collection";
@@ -125,6 +126,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />
 			<HomeTopSelling products={newProducts} vendureBase={vendureBase} title={t.newArrivals} viewAllHref="/collections?sort=default" layout="grid" />
+			<HomeWellnessBanner />
 			<RecentlyViewed vendureBase={vendureBase} />
 		</div>
 	);
