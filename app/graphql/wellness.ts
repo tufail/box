@@ -26,6 +26,18 @@ export interface WellnessPlanItem {
   dosingInstructions: string;
   sortOrder: number;
   tier: WellnessTier;
+  // Backfilled from the catalog at read time -- absent for a variant that's
+  // since been deleted/disabled (the item still renders, just without a
+  // product-card visual). Not present at all until the backend that populates
+  // these fields is deployed.
+  productId?: string | null;
+  productSlug?: string | null;
+  variantSlug?: string | null;
+  productAsset?: { id: string; preview: string } | null;
+  priceWithTax?: number | null;
+  currencyCode?: string | null;
+  inStock?: boolean | null;
+  stockQty?: number | null;
 }
 
 export interface WellnessPlan {
@@ -131,6 +143,14 @@ export const MY_WELLNESS_PROFILE_QUERY = `
         dosingInstructions
         sortOrder
         tier
+        productId
+        productSlug
+        variantSlug
+        productAsset { id preview }
+        priceWithTax
+        currencyCode
+        inStock
+        stockQty
       }
     }
   }
@@ -147,6 +167,15 @@ const WELLNESS_PLAN_FIELDS = `
     variantSku
     dosingInstructions
     sortOrder
+    tier
+    productId
+    productSlug
+    variantSlug
+    productAsset { id preview }
+    priceWithTax
+    currencyCode
+    inStock
+    stockQty
   }
 `;
 

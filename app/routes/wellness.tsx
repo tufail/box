@@ -17,12 +17,19 @@ import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 import { HeartPulse, Dumbbell, Scale, Utensils, Users, ShoppingCart, RefreshCw, X, Clock, Sparkles, Mail } from "lucide-react";
+import Link from "~/components/LocaleLink";
+import VendureImage from "~/components/VendureImage";
+import AddToCartButton from "~/components/AddToCartButton";
+import { formatPrice } from "~/lib/currency";
+import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
+import { getAddToCartErrorMessage } from "~/graphql/order";
 
 const ACTIVITY_LEVELS: ActivityLevel[] = ["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "ATHLETE"];
 const GENDERS: WellnessGender[] = ["NO_PREFERENCE", "MEN", "WOMEN"];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
+	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 	try {
 		const [optionsResult, profileResult] = await Promise.allSettled([
 			graphqlRequest<WellnessQuizOptionsData>(env, WELLNESS_QUIZ_OPTIONS_QUERY, undefined, { request }),
@@ -47,9 +54,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			}
 		}
 
-		return { customer, goals, suggestedDietaryRestrictions, suggestedTrainingStyles, profile, plan };
+		return { customer, goals, suggestedDietaryRestrictions, suggestedTrainingStyles, profile, plan, vendureBase };
 	} catch {
-		return { customer: null, goals: [], suggestedDietaryRestrictions: [], suggestedTrainingStyles: [], profile: null, plan: null };
+		return { customer: null, goals: [], suggestedDietaryRestrictions: [], suggestedTrainingStyles: [], profile: null, plan: null, vendureBase };
 	}
 }
 
@@ -244,19 +251,90 @@ function EmailCapture({ goalCode, name }: { goalCode: string; name: string }) {
 
 // ── Plan result ──────────────────────────────────────────────────────────────
 
-function ItemCard({ item, sku }: { item: WellnessPlanItem; sku: string }) {
+function ItemCard({ item, sku, vendureBase }: { item: WellnessPlanItem; sku: string; vendureBase: string }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const { openCart, setCartCount } = useCart();
+	const { notify } = useNotification();
+	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
+	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
+
+	useEffect(() => {
+		if (cartFetcher.state !== "idle" || !cartFetcher.data) return;
+		const result = cartFetcher.data.addItemToOrder;
+		if (!result) return;
+
+		if (result.__typename === "Order") {
+			setCartCount((result as AddToCartOrderResult).totalQuantity);
+			setCartFeedback("success");
+			openCart();
+			const timer = setTimeout(() => setCartFeedback("idle"), 2500);
+			return () => clearTimeout(timer);
+		}
+
+		if (result.__typename === "InsufficientStockError") {
+			const err = result as InsufficientStockError;
+			if (err.quantityAvailable > 0 && err.order) {
+				setCartCount(err.order.totalQuantity);
+				openCart();
+			}
+			notify(getAddToCartErrorMessage(result)!, "warning");
+		} else {
+			notify(getAddToCartErrorMessage(result)!, "error");
+		}
+		setCartFeedback("error");
+		const timer = setTimeout(() => setCartFeedback("idle"), 3000);
+		return () => clearTimeout(timer);
+	}, [cartFetcher.state, cartFetcher.data]);
+
+	function handleAddToCart() {
+		if (item.inStock === false) return;
+		cartFetcher.submit({ productVariantId: item.variantId, quantity: 1 }, { method: "POST", action: "/api/cart", encType: "application/json" });
+	}
+
+	const productHref = item.variantSlug ? `/products/${item.variantSlug}` : item.productSlug ? `/products/${item.productSlug}` : null;
+	const cartState = cartFetcher.state !== "idle" ? "loading" : cartFeedback;
+
 	return (
-		<div className="border border-gray-100 rounded-xl p-4">
-			<div className="flex items-center justify-between gap-2 flex-wrap">
-				<p className="text-sm font-semibold text-gray-900">{item.variantName}</p>
-				<span className="text-[10px] font-mono text-gray-400">{sku}: {item.variantSku}</span>
+		<div className="border border-gray-100 rounded-xl p-4 flex gap-3">
+			{productHref ? (
+				<Link to={productHref} className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-50">
+					{item.productAsset ? <VendureImage src={item.productAsset.preview} vendureBase={vendureBase} alt={item.variantName} width={64} height={64} objectFit="contain" /> : null}
+				</Link>
+			) : (
+				item.productAsset && (
+					<div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-50">
+						<VendureImage src={item.productAsset.preview} vendureBase={vendureBase} alt={item.variantName} width={64} height={64} objectFit="contain" />
+					</div>
+				)
+			)}
+
+			<div className="flex-1 min-w-0">
+				<div className="flex items-start justify-between gap-2 flex-wrap">
+					{productHref ? (
+						<Link to={productHref} className="text-sm font-semibold text-gray-900 hover:text-primary">{item.variantName}</Link>
+					) : (
+						<p className="text-sm font-semibold text-gray-900">{item.variantName}</p>
+					)}
+					<span className="text-[10px] font-mono text-gray-400">{sku}: {item.variantSku}</span>
+				</div>
+				<p className="text-sm text-gray-600 mt-1">{item.dosingInstructions}</p>
+
+				<div className="flex items-center justify-between gap-3 mt-2.5">
+					{typeof item.priceWithTax === "number" ? (
+						<span className="text-sm font-bold text-gray-900">{formatPrice(item.priceWithTax, item.currencyCode ?? "QAR", locale)}</span>
+					) : (
+						<span />
+					)}
+					<div className="w-32">
+						<AddToCartButton inStock={item.inStock !== false} state={cartState} onClick={handleAddToCart} />
+					</div>
+				</div>
 			</div>
-			<p className="text-sm text-gray-600 mt-1">{item.dosingInstructions}</p>
 		</div>
 	);
 }
 
-function PlanResult({ plan, customer, name, onRetake }: { plan: WellnessPlan; customer: CustomerProfile | null; name: string; onRetake: () => void }) {
+function PlanResult({ plan, customer, name, onRetake, vendureBase }: { plan: WellnessPlan; customer: CustomerProfile | null; name: string; onRetake: () => void; vendureBase: string }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 	const { openCart, refreshCart } = useCart();
@@ -321,7 +399,7 @@ function PlanResult({ plan, customer, name, onRetake }: { plan: WellnessPlan; cu
 								<h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{t.coreEssentials}</h3>
 								<div className="space-y-3">
 									{coreItems.map((item) => (
-										<ItemCard key={item.variantId} item={item} sku={t.sku} />
+										<ItemCard key={item.variantId} item={item} sku={t.sku} vendureBase={vendureBase} />
 									))}
 								</div>
 							</div>
@@ -331,7 +409,7 @@ function PlanResult({ plan, customer, name, onRetake }: { plan: WellnessPlan; cu
 								<h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{t.completeStack}</h3>
 								<div className="space-y-3">
 									{completeItems.map((item) => (
-										<ItemCard key={item.variantId} item={item} sku={t.sku} />
+										<ItemCard key={item.variantId} item={item} sku={t.sku} vendureBase={vendureBase} />
 									))}
 								</div>
 							</div>
@@ -656,7 +734,7 @@ function QuizForm({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WellnessQuizPage({ loaderData }: Route.ComponentProps) {
-	const { customer, goals, suggestedDietaryRestrictions, suggestedTrainingStyles, profile, plan: initialPlan } = loaderData;
+	const { customer, goals, suggestedDietaryRestrictions, suggestedTrainingStyles, profile, plan: initialPlan, vendureBase } = loaderData;
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 	const [plan, setPlan] = useState<WellnessPlan | null>(initialPlan);
@@ -671,7 +749,7 @@ export default function WellnessQuizPage({ loaderData }: Route.ComponentProps) {
 			</div>
 
 			{plan && !showQuiz ? (
-				<PlanResult plan={plan} customer={customer} name={name} onRetake={() => setShowQuiz(true)} />
+				<PlanResult plan={plan} customer={customer} name={name} onRetake={() => setShowQuiz(true)} vendureBase={vendureBase} />
 			) : (
 				<QuizForm
 					goals={goals}
