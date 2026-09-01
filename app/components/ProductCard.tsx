@@ -11,7 +11,6 @@ import { getLocaleFromPathname } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
-import { useIsDesktop } from "~/hooks/useIsDesktop";
 
 type Message = { text: string; icon: React.ReactNode };
 
@@ -89,12 +88,6 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 	const { notify } = useNotification();
 	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
 	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
-	// Desktop opens product detail pages in a new tab (keeps the grid/listing page
-	// intact to browse further); mobile stays same-tab, where a second tab is just
-	// friction. isDesktop starts false during SSR/hydration, so this can't cause a
-	// markup mismatch — it only ever adds target/rel after the client confirms it.
-	const isDesktop = useIsDesktop();
-	const newTabProps = isDesktop ? ({ target: "_blank", rel: "noopener noreferrer" } as const) : {};
 
 	const priceQAR = minPrice(product.price) / 100;
 	const discount = product.customProductVariantMappings?.discount ?? 0;
@@ -172,7 +165,7 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 	return (
 		<div className="group bg-white rounded-2xl p-3 sm:p-4 flex flex-col h-full border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
 			{/* Image */}
-			<Link to={productHref} className="block" {...newTabProps}>
+			<Link to={productHref} className="block">
 				<div className="relative aspect-square flex items-center justify-center px-2">
 					{/* Badges float over the image instead of reserving their own row */}
 					{!product.inStock ? (
@@ -207,7 +200,7 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 
 			{/* Info */}
 			<div className="flex flex-col items-center text-center flex-1 mt-1">
-				<Link to={productHref} {...newTabProps}>
+				<Link to={productHref}>
 					<p className="text-sm font-light text-gray-900 hover:text-primary hover:underline transition-colors">{displayName}</p>
 				</Link>
 
