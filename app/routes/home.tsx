@@ -116,14 +116,19 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       : [];
 
   const topSellers = topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers : [];
+  const inStockTopSellers = topSellers.filter((t) => t.inStock).slice(0, 12);
 
   // topSellers only returns the product-level image — batch-fetch each
   // variant's own photo in one follow-up request (by product id, not one
   // request per card) so "Best-Sellers Edition" shows the actual flavor/size
-  // being listed instead of always the product's default image.
+  // being listed instead of always the product's default image. Scoped to
+  // the already-filtered 12 cards, not the full over-fetch candidate set --
+  // the products list query silently caps at its default page size (100),
+  // so requesting it for all ~130+ candidates was dropping some products
+  // entirely and leaving their cards on the (sometimes wrong) generic asset.
   const variantAssetPreviewById = new Map<string, string>();
-  if (topSellers.length > 0) {
-    const productIds = [...new Set(topSellers.map((t) => t.productId))];
+  if (inStockTopSellers.length > 0) {
+    const productIds = [...new Set(inStockTopSellers.map((t) => t.productId))];
     const variantAssetsResult = await graphqlRequest<ProductVariantAssetsData, ProductVariantAssetsVariables>(
       env,
       GET_PRODUCT_VARIANT_ASSETS,
@@ -138,10 +143,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   return {
-    products: topSellers
-      .map((t) => mapTopSellerToSearchItem(t, variantAssetPreviewById.get(t.productVariantId) ?? null))
-      .filter((p) => p.inStock)
-      .slice(0, 12),
+    products: inStockTopSellers.map((t) => mapTopSellerToSearchItem(t, variantAssetPreviewById.get(t.productVariantId) ?? null)),
     newProducts: newArrivalsResult.status === "fulfilled" ? newArrivalsResult.value.data.search.items : [],
     vendureBase,
     carouselItems: bannerItems,
