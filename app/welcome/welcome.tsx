@@ -4,6 +4,8 @@ import HomeFeaturedCollections from "~/components/HomeFeaturedCollections";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import HomeTrendingBanners from "~/components/HomeTrendingBanners";
 import HomeShopByConcern from "~/components/HomeShopByConcern";
+import HomeTrending from "~/components/HomeTrending";
+import RecentlyViewed from "~/components/RecentlyViewed";
 import type { SearchProductItem } from "~/graphql/product";
 import type { BannerItem } from "~/graphql/banner";
 import type { HomeCollectionItem } from "~/graphql/collection";
@@ -118,6 +120,8 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 			</div>
 			<HomeFeaturedCollections collections={collections} vendureBase={vendureBase} />
 			<HomeTopSelling products={products} vendureBase={vendureBase} viewAllHref="/collections" />
+			<HomeTrending vendureBase={vendureBase} />
+			<RecentlyViewed vendureBase={vendureBase} />
 			<HomeShopByConcern vendureBase={vendureBase} />
 			<HomeTrendingBanners vendureBase={vendureBase} />
 			<HomeBanner slug="latest-items-banner" />

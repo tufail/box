@@ -286,6 +286,44 @@ export function relatedProductToSearchItem(p: RelatedProduct): SearchProductItem
   };
 }
 
+// Snapshot taken directly from the product detail page's own already-loaded
+// product/variant data, for the "Recently Viewed" localStorage strip (see
+// ~/lib/recentlyViewed) -- same rationale/shape as relatedProductToSearchItem.
+export function productDetailToSearchItem(p: ProductDetailItem, variant: ProductDetailVariant): SearchProductItem {
+  const rrp = variant.customFields?.rrp ?? null;
+  const discount = rrp && rrp > variant.priceWithTax ? rrp - variant.priceWithTax : 0;
+  return {
+    productId: p.id,
+    productVariantId: variant.id,
+    productName: p.name,
+    productVariantName: variant.name,
+    slug: p.slug,
+    description: "",
+    inStock: variant.stockLevel !== "OUT_OF_STOCK",
+    productAsset: p.featuredAsset ? { id: p.id, preview: p.featuredAsset.preview } : null,
+    productVariantAsset: variant.featuredAsset ? { id: variant.id, preview: variant.featuredAsset.preview } : null,
+    price: { __typename: "SinglePrice", value: variant.priceWithTax },
+    customProductVariantMappings: {
+      isOnSale: discount > 0,
+      stockQty: variant.stockQty,
+      discount,
+      rrp,
+      slug: variant.customFields?.slug ?? null,
+    },
+    customProductMappings: {
+      variantCount: p.variants.length,
+      salesCount: 0,
+      avgRating: null,
+      reviewCount: null,
+      isBundle: null,
+      soldCount30d: null,
+      bestSellerRank: null,
+      bestSellerCollection: null,
+      bestSellerCollectionSlug: null,
+    },
+  };
+}
+
 export interface SearchTopSellingVariables {
   input: {
     take?: number;
@@ -556,6 +594,89 @@ export function mapTopSellerToSearchItem(t: TopSellerResult, variantAssetPreview
     customProductMappings: {
       variantCount: 0,
       salesCount: t.salesCount,
+      avgRating: null,
+      reviewCount: null,
+      isBundle: null,
+      soldCount30d: null,
+      bestSellerRank: null,
+      bestSellerCollection: null,
+      bestSellerCollectionSlug: null,
+    },
+  };
+}
+
+// ─── Trending (real page-view tracking, distinct from topSellers' sales-based
+// ranking) ─────────────────────────────────────────────────────────────────
+
+export interface TrendingProductResult {
+  productId: string;
+  productVariantId: string;
+  productName: string;
+  productVariantName: string | null;
+  slug: string;
+  variantSlug: string | null;
+  productAsset: { id: string; preview: string } | null;
+  priceWithTax: { min: number; max: number };
+  currencyCode: string;
+  viewCount: number;
+  inStock: boolean;
+  stockQty: number;
+}
+
+export interface TrendingProductsData {
+  trendingProducts: TrendingProductResult[];
+}
+
+export interface TrendingProductsVariables {
+  limit: number;
+  days?: number;
+  inStock?: boolean;
+}
+
+export const TRENDING_PRODUCTS_QUERY = `
+  query TrendingProducts($limit: Int!, $days: Int, $inStock: Boolean) {
+    trendingProducts(limit: $limit, days: $days, inStock: $inStock) {
+      productId
+      productVariantId
+      productName
+      productVariantName
+      slug
+      variantSlug
+      productAsset { id preview }
+      priceWithTax { min max }
+      currencyCode
+      viewCount
+      inStock
+      stockQty
+    }
+  }
+`;
+
+export const RECORD_PRODUCT_VIEW_MUTATION = `
+  mutation RecordProductView($productId: ID!) {
+    recordProductView(productId: $productId)
+  }
+`;
+
+// Same rationale/shape as mapTopSellerToSearchItem — trendingProducts only
+// returns the product-level image, so a flavor/size variant's own photo still
+// needs the same GET_PRODUCT_VARIANT_ASSETS backfill merged in by the caller.
+export function mapTrendingToSearchItem(t: TrendingProductResult, variantAssetPreview: string | null = null): SearchProductItem {
+  return {
+    productId: t.productId,
+    productVariantId: t.productVariantId,
+    productName: t.productName,
+    productVariantName: t.productVariantName ?? undefined,
+    slug: t.slug,
+    description: "",
+    inStock: t.inStock,
+    productAsset: t.productAsset,
+    productVariantAsset: variantAssetPreview ? { id: t.productVariantId, preview: variantAssetPreview } : null,
+    price: { __typename: "PriceRange", min: t.priceWithTax.min, max: t.priceWithTax.max },
+    customProductVariantMappings: { isOnSale: false, stockQty: t.stockQty, discount: 0, rrp: null, slug: t.variantSlug },
+    customProductMappings: {
+      variantCount: 0,
+      salesCount: 0,
       avgRating: null,
       reviewCount: null,
       isBundle: null,

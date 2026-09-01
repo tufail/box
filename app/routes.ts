@@ -72,4 +72,6 @@ export default [
 	route("api/subscriptions", "routes/api.subscriptions.ts"),
 	route("api/questions", "routes/api.questions.ts"),
 	route("api/newsletter", "routes/api.newsletter.ts"),
+	route("api/trending", "routes/api.trending.ts"),
+	route("api/track-view", "routes/api.track-view.ts"),
 ] satisfies RouteConfig;

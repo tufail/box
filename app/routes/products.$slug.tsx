@@ -14,7 +14,9 @@ import SortDropdown from "~/components/SortDropdown";
 import ProductHighlights from "~/components/ProductHighlights";
 import ProductComparisonTable from "~/components/ProductComparisonTable";
 import ProductQA from "~/components/ProductQA";
-import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, relatedProductToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
+import RecentlyViewed from "~/components/RecentlyViewed";
+import { recordRecentlyViewed } from "~/lib/recentlyViewed";
+import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, relatedProductToSearchItem, productDetailToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -883,11 +885,34 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		setCartFeedback("idle");
 	}, [product.id, selectedVariantId]);
 
+	// Fire-and-forget, client-side only (deliberately not in the loader) -- a
+	// server-side loader call would also fire on prefetch (hovering a product
+	// card) and on bots that don't execute JS, inflating "Trending" with
+	// page views that never actually happened. Keyed on product.id (not
+	// selectedVariantId) since picking a different flavor of the SAME product
+	// isn't a new page view.
+	useEffect(() => {
+		fetch("/api/track-view", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ productId: product.id }),
+		}).catch(() => {/* non-critical */});
+	}, [product.id]);
+
 	const activeVariant = optionGroups.length > 0 ? findVariant(product.variants, selected) : (product.variants[0] ?? null);
 	// Driven by the raw sellable quantity, not stockLevel — stockLevel reports
 	// untracked-inventory variants as always IN_STOCK regardless of real stock,
 	// which would wrongly promise Express delivery on those.
 	const isExpressDelivery = (activeVariant?.stockQty ?? 0) > 0;
+
+	// "Recently Viewed" localStorage snapshot -- keyed on product.id only, same
+	// reasoning as the view-tracking effect above (a flavor/size switch isn't a
+	// new page view). Captures whichever variant is active on landing.
+	useEffect(() => {
+		if (!activeVariant) return;
+		recordRecentlyViewed(productDetailToSearchItem(product, activeVariant));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [product.id]);
 
 	// Rankings come from the dedicated variantRankings query (client-side, updates on variant switch)
 	const [variantRankings, setVariantRankings] = useState<VariantRanking[]>([]);
@@ -1480,6 +1505,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					}
 				/>
 			)}
+			<RecentlyViewed vendureBase={vendureBase} excludeProductId={product.id} />
 		</>
 	);
 }
