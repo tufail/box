@@ -1,6 +1,6 @@
 ﻿import { useState, useRef } from "react";
 import Link from "~/components/LocaleLink";
-import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, Ghost, ArrowUpRight } from "lucide-react";
+import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, ArrowUpRight } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
 import { useLocation, useFetcher } from "react-router";
 import { getLocaleFromPathname } from "~/lib/i18n";
@@ -31,17 +31,12 @@ function TikTokIcon() {
 	);
 }
 
-// Snapchat has no exact-mark asset available in our icon set (lucide-react has no
-// brand icons) — using a generic ghost silhouette as a stand-in until we add the
-// real trademarked SVG.
-function SnapchatIcon() {
-	return <Ghost className="w-6 h-6" strokeWidth={1.75} aria-hidden="true" />;
-}
-
-function GoogleIcon() {
+// The Google Business Profile mark (storefront icon), not the plain "G" logo —
+// this link points at our Business Profile listing, not generic Google.
+function GoogleBusinessIcon() {
 	return (
 		<svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" aria-hidden="true">
-			<path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
+			<path d="M3.273 1.636c-.736 0-1.363.492-1.568 1.16L0 9.272c0 1.664 1.336 3 3 3a3 3 0 003-3c0 1.664 1.336 3 3 3a3 3 0 003-3c0 1.65 1.35 3 3 3 1.664 0 3-1.336 3-3 0 1.664 1.336 3 3 3s3-1.336 3-3l-1.705-6.476a1.646 1.646 0 00-1.568-1.16zm8.729 9.326c-.604 1.063-1.703 1.81-3.002 1.81-1.304 0-2.398-.747-3-1.806-.604 1.06-1.702 1.806-3 1.806-.484 0-.944-.1-1.363-.277v8.232c0 .9.736 1.637 1.636 1.637h17.454c.9 0 1.636-.737 1.636-1.637v-8.232a3.48 3.48 0 01-1.363.277c-1.304 0-2.398-.746-3-1.804-.602 1.058-1.696 1.804-3 1.804-1.299 0-2.394-.75-2.998-1.81zm5.725 3.765c.808 0 1.488.298 2.007.782l-.859.859a1.623 1.623 0 00-1.148-.447c-.98 0-1.772.827-1.772 1.806 0 .98.792 1.807 1.772 1.807.882 0 1.485-.501 1.615-1.191h-1.615v-1.16h2.826c.035.196.054.4.054.613 0 1.714-1.147 2.931-2.88 2.931a3 3 0 010-6z" />
 		</svg>
 	);
 }
@@ -128,13 +123,11 @@ const SECTION_LABEL_OVERRIDES: Record<string, { en: string; ar: string }> = {
 	help: { en: "Help", ar: "المساعدة" },
 };
 
-// Snapchat href is a placeholder ("#") until that account is set up.
 const socialLinks = [
 	{ href: "https://www.facebook.com/nutribox.qa", label: "Facebook", Icon: FacebookIcon },
 	{ href: "https://www.instagram.com/nutribox.qa/", label: "Instagram", Icon: InstagramIcon },
 	{ href: "https://www.tiktok.com/@nutribox.qa", label: "TikTok", Icon: TikTokIcon },
-	{ href: "#", label: "Snapchat", Icon: SnapchatIcon },
-	{ href: "https://share.google/m4uyBRqwEYe654INv", label: "Google", Icon: GoogleIcon },
+	{ href: "https://share.google/m4uyBRqwEYe654INv", label: "Google", Icon: GoogleBusinessIcon },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
