@@ -11,13 +11,13 @@ const COPY = {
 		title: "Get Your Personalized Supplement Stack.",
 		subtitle: "Unlock your science-based recommendation by taking our 1-minute quiz.",
 		cta: "Find my Supplement Routine",
-		imageAlt: "A couple training together with their favorite supplements",
+		imageAlt: "Two customers holding their favorite supplement products",
 	},
 	ar: {
 		title: "احصل على باقة مكملاتك الشخصية.",
 		subtitle: "اكتشف توصيتك المبنية على أساس علمي من خلال اختبار سريع لا يستغرق سوى دقيقة واحدة.",
 		cta: "اعثر على روتين مكملاتي",
-		imageAlt: "زوجان يتدربان معًا مع مكملاتهما المفضلة",
+		imageAlt: "عميلان يحملان منتجاتهما المفضلة من المكملات الغذائية",
 	},
 } as const;
 
@@ -41,7 +41,7 @@ export default function HomeWellnessBanner() {
 				</div>
 			</div>
 			<div className="relative h-56 md:h-auto">
-				<img src="/images/tyre-couple.jpg" alt={t.imageAlt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+				<img src="/images/with-supplements-in-hand.jpg" alt={t.imageAlt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
 			</div>
 		</section>
 	);
