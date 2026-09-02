@@ -128,11 +128,11 @@ const SECTION_LABEL_OVERRIDES: Record<string, { en: string; ar: string }> = {
 	help: { en: "Help", ar: "المساعدة" },
 };
 
-// Snapchat/TikTok hrefs are placeholders ("#") until those accounts are set up.
+// Snapchat href is a placeholder ("#") until that account is set up.
 const socialLinks = [
 	{ href: "https://www.facebook.com/nutribox.qa", label: "Facebook", Icon: FacebookIcon },
 	{ href: "https://www.instagram.com/nutribox.qa/", label: "Instagram", Icon: InstagramIcon },
-	{ href: "#", label: "TikTok", Icon: TikTokIcon },
+	{ href: "https://www.tiktok.com/@nutribox.qa", label: "TikTok", Icon: TikTokIcon },
 	{ href: "#", label: "Snapchat", Icon: SnapchatIcon },
 	{ href: "https://share.google/m4uyBRqwEYe654INv", label: "Google", Icon: GoogleIcon },
 ];
