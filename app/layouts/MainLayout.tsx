@@ -3,6 +3,7 @@ import type { MegaMenuData } from "~/graphql/megamenu";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import type { PageSection } from "~/graphql/pages";
 import type { BannerItem } from "~/graphql/banner";
+import type { PopularSearchTerm } from "~/graphql/search";
 import MegaMenu from "../components/MegaMenu";
 import SearchBox from "../components/SearchBox";
 import CartSidePanel from "../components/CartSidePanel";
@@ -22,6 +23,7 @@ interface MainLayoutProps {
 	megaMenu: MegaMenuData["getMegaMenu"];
 	activeCustomer: ActiveCustomer | null;
 	pageSections: PageSection[];
+	popularSearchTerms: PopularSearchTerm[];
 }
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
@@ -522,7 +524,7 @@ function TopBarNewsPills() {
 	return null;
 }
 
-export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
+export default function MainLayout({ children, megaMenu, activeCustomer, pageSections, popularSearchTerms }: MainLayoutProps) {
 	const routerLocation = useLocation();
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
 	const { wishlistCount } = useWishlist();
@@ -703,7 +705,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 
 			<main id="main-content" tabIndex={-1}>{children}</main>
 
-			{stripLocalePrefix(routerLocation.pathname) === "/" && <SeoFooterContent megaMenu={megaMenu} />}
+			{stripLocalePrefix(routerLocation.pathname) === "/" && <SeoFooterContent megaMenu={megaMenu} popularSearchTerms={popularSearchTerms} />}
 
 			<Footer pageSections={pageSections} />
 

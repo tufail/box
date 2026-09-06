@@ -6,7 +6,7 @@ At NutriBox Trading W.L.L, we source authentic health and wellness products from
 
 ## Eligibility
 
-- Items must be returned within 14 days of delivery.
+- Items must be returned within 7 days of delivery.
 - Products must be unopened, unused, and in their original packaging.
 - For hygiene reasons, supplements and personal care items cannot be returned once opened.
 - Refunds are not available for products marked as final sale unless there is a manufacturing defect.
@@ -20,7 +20,6 @@ At NutriBox Trading W.L.L, we source authentic health and wellness products from
 ## Return Shipping
 
 - Customers are responsible for return shipping unless the return is due to our error or a defective product.
-- We recommend using a tracked shipping method so the package can be monitored during transit.
 
 ## Refund Process
 

@@ -23,14 +23,14 @@ const CARD_COPY = {
 		off: (percent: number) => `${percent}% OFF`,
 		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} in ${collection}`,
-		quickDelivery: "Quick Delivery",
+		quickDelivery: "Same day delivery",
 	},
 	ar: {
 		soldOut: "نفدت الكمية",
 		off: (percent: number) => `خصم ${percent}%`,
 		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
 		rankInCollection: (rank: number, collection: string) => `#${rank} في ${collection}`,
-		quickDelivery: "توصيل سريع",
+		quickDelivery: "توصيل في نفس اليوم",
 	},
 } as const;
 

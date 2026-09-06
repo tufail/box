@@ -2,6 +2,7 @@ import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import { ArrowUpRight } from "lucide-react";
 import type { MegaMenuData } from "~/graphql/megamenu";
+import type { PopularSearchTerm } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 
 // Static SEO content block, shown below the footer sitewide — mirrors the pattern used
@@ -11,16 +12,6 @@ import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
-
-const TOP_CATEGORIES: Record<Locale, string[]> = {
-	en: ["Whey Protein Qatar", "Protein Powder Qatar", "Creatine Qatar", "Sports Supplements Qatar", "Health Supplements Qatar", "Vitamins Qatar", "Omega-3 Capsules", "Collagen Supplement", "Multivitamins", "Protein Bars", "Healthy Snacks", "Plant Protein", "BCAA", "Pre-Workout", "Mass Gainer", "Weight Loss Supplements", "Biotin Supplements", "Fish Oil", "Electrolytes", "Wellness Products"],
-	ar: ["بروتين واي في قطر", "بودرة بروتين في قطر", "كرياتين في قطر", "مكملات رياضية في قطر", "مكملات صحية في قطر", "فيتامينات في قطر", "كبسولات أوميغا 3", "مكمل الكولاجين", "فيتامينات متعددة", "ألواح البروتين", "وجبات خفيفة صحية", "بروتين نباتي", "بي سي إيه إيه (BCAA)", "مكملات ما قبل التمرين", "مكمل زيادة الوزن", "مكملات إنقاص الوزن", "مكملات البيوتين", "زيت السمك", "إلكتروليتات", "منتجات العافية"],
-};
-
-// English category terms drive the mega-menu slug lookup below (see findCollectionSlug) —
-// kept alongside the Arabic display list so the matching logic doesn't need to guess
-// whether the backend's Arabic collection names line up with our own Arabic phrasing.
-const TOP_CATEGORIES_MATCH_TERMS = TOP_CATEGORIES.en;
 
 const COPY = {
 	en: {
@@ -116,13 +107,13 @@ function findCollectionUrl(term: string, entries: { label: string; url: string }
 
 interface SeoFooterContentProps {
 	megaMenu: MegaMenuData["getMegaMenu"];
+	popularSearchTerms: PopularSearchTerm[];
 }
 
-export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
+export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFooterContentProps) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 	const collectionEntries = flattenMegaMenu(megaMenu);
-	const categories = TOP_CATEGORIES[locale];
 
 	const faqs = FAQS[locale];
 
@@ -162,23 +153,25 @@ export default function SeoFooterContent({ megaMenu }: SeoFooterContentProps) {
 					)}
 				</div>
 
-				<div className="mt-10">
-					<h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">{t.popularSearches}</h3>
-					<p className="text-sm leading-relaxed">
-						{categories.map((cat, i) => {
-							const collectionUrl = findCollectionUrl(TOP_CATEGORIES_MATCH_TERMS[i], collectionEntries);
-							const href = collectionUrl ?? localizePath(`/search?q=${encodeURIComponent(cat)}`, locale);
-							return (
-								<span key={cat}>
-									<Link to={href} className="text-primary hover:underline">
-										{cat}
-									</Link>
-									{i < categories.length - 1 && <span className="text-gray-300 mx-2">|</span>}
-								</span>
-							);
-						})}
-					</p>
-				</div>
+				{popularSearchTerms.length > 0 && (
+					<div className="mt-10">
+						<h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">{t.popularSearches}</h3>
+						<p className="text-sm leading-relaxed">
+							{popularSearchTerms.map((entry, i) => {
+								const collectionUrl = findCollectionUrl(entry.term, collectionEntries);
+								const href = collectionUrl ?? localizePath(`/search?q=${encodeURIComponent(entry.term)}`, locale);
+								return (
+									<span key={entry.term}>
+										<Link to={href} className="text-primary hover:underline">
+											{entry.term}
+										</Link>
+										{i < popularSearchTerms.length - 1 && <span className="text-gray-300 mx-2">|</span>}
+									</span>
+								);
+							})}
+						</p>
+					</div>
+				)}
 
 				<div className="mt-8">
 					<h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">{t.topBrands}</h3>

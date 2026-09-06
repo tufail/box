@@ -1,18 +1,19 @@
-import { useEffect, useLayoutEffect } from "react";
-import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useLocation, useNavigationType } from "react-router";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation, useNavigationType } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import MainLayout from "./layouts/MainLayout";
 import NavigationProgress from "./components/NavigationProgress";
 import { CartProvider } from "./context/CartContext";
-import { NotificationProvider } from "./context/NotificationContext";
+import { NotificationProvider, useNotification } from "./context/NotificationContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
 import { CART_COUNT_QUERY } from "./graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
 import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
+import { POPULAR_SEARCH_TERMS_QUERY, type PopularSearchTerm } from "./graphql/search";
 import { SITE_NAME, SITE_URL } from "./lib/seo";
 import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
 
@@ -46,6 +47,78 @@ const ORGANIZATION_JSON_LD = {
 // in the browser, the standard fix for that warning.
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+const PENDING_REFERRAL_CODE_KEY = "pendingReferralCode";
+
+// Captures a "Share & Earn" link's `?ref=CODE` on any page (the referral email
+// points at the homepage, but this covers a friend landing anywhere), and applies
+// it via the existing Loyalty applyReferralCode mutation once the visitor has a
+// session. That's deliberately NOT at the registration form — a new signup isn't
+// authenticated until they verify their email (or sign up via Google/Facebook,
+// which authenticates immediately) — so this fires from a global effect keyed off
+// activeCustomer instead of any single auth entry point. Rendered inside
+// NotificationProvider (not in App() itself) purely so it can call useNotification.
+function ReferralCapture({ activeCustomer }: { activeCustomer: ActiveCustomer | null }) {
+	const location = useLocation();
+	const fetcher = useFetcher<{ error?: string; referral?: unknown }>();
+	const { notify } = useNotification();
+	const appliedThisSession = useRef(false);
+	const locale = getLocaleFromPathname(location.pathname);
+
+	useEffect(() => {
+		const ref = new URLSearchParams(location.search).get("ref");
+		if (!ref) return;
+		try {
+			localStorage.setItem(PENDING_REFERRAL_CODE_KEY, ref);
+		} catch {
+			// localStorage unavailable (private mode / blocked) — the referral simply
+			// isn't captured for this visit; nothing else to do about it.
+		}
+	}, [location.search]);
+
+	useEffect(() => {
+		if (!activeCustomer || appliedThisSession.current) return;
+		let pending: string | null = null;
+		try {
+			pending = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
+		} catch {
+			return;
+		}
+		if (!pending) return;
+		// Mark applied and clear storage *before* the request resolves — this is a
+		// one-shot, best-effort attempt. A rejection (self-referral, already applied,
+		// stale code) is terminal either way, so there's nothing to gain by retrying.
+		appliedThisSession.current = true;
+		try {
+			localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
+		} catch {
+			// best-effort cleanup
+		}
+		fetcher.submit(
+			{ _intent: "applyReferralCode", code: pending },
+			{ method: "post", encType: "application/json", action: "/api/loyalty" },
+		);
+		// fetcher intentionally omitted — its identity changes every render, and the
+		// pending-code check above already makes this effect run at most once.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [activeCustomer]);
+
+	useEffect(() => {
+		if (fetcher.state !== "idle" || !fetcher.data) return;
+		// Silent on failure (stale/self/already-applied code) — a background referral
+		// attempt should never interrupt the page the customer actually came for.
+		if (fetcher.data.referral) {
+			notify(
+				locale === "ar"
+					? "تم تطبيق رمز الإحالة! ستحصلان أنتما وصديقك على مكافآت بعد تأكيد أول طلب له."
+					: "Referral code applied! You and your friend will both earn rewards once their first order is confirmed.",
+				"success",
+			);
+		}
+	}, [fetcher.state, fetcher.data, notify, locale]);
+
+	return null;
+}
+
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 	{ rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -72,13 +145,17 @@ export const links: Route.LinksFunction = () => [
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const locale = getLocaleFromPathname(new URL(request.url).pathname);
-	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult] = await Promise.allSettled([
+	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult, popularSearchTermsResult] = await Promise.allSettled([
 		graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
 		graphqlRequest<{ activeOrder: { totalQuantity: number } | null }>(env, CART_COUNT_QUERY, undefined, { request }),
 		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
 		// Locale is baked into the cache key via the request URL (/ar/* vs /*), so caching
 		// per-locale response bodies here is still safe.
 		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, { languageCode: locale }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
+		// Real search terms are language-agnostic (whatever customers actually typed), so
+		// this isn't cached per-locale differently -- same top-20 list feeds the "Popular
+		// Searches" SEO block regardless of /ar/ vs default locale.
+		graphqlRequest<{ popularSearchTerms: PopularSearchTerm[] }>(env, POPULAR_SEARCH_TERMS_QUERY, { prefix: "", limit: 20 }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
 
 	const rawSections = pageSectionsResult.status === "fulfilled"
@@ -100,6 +177,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		cartCount: cartCountResult.status === "fulfilled" ? (cartCountResult.value.data.activeOrder?.totalQuantity ?? 0) : 0,
 		activeCustomer: customerResult.status === "fulfilled" ? (customerResult.value.data.activeCustomer ?? null) : null,
 		pageSections,
+		popularSearchTerms: popularSearchTermsResult.status === "fulfilled" ? popularSearchTermsResult.value.data.popularSearchTerms : [],
 	};
 }
 
@@ -143,7 +221,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
+	const { megaMenu, cartCount, activeCustomer, pageSections, popularSearchTerms } = useLoaderData<typeof loader>();
 	const location = useLocation();
 	const navigationType = useNavigationType();
 	// stripLocalePrefix first — otherwise this never matches on Arabic pages,
@@ -171,13 +249,14 @@ export default function App() {
 		<>
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }} />
 			<NotificationProvider>
+				<ReferralCapture activeCustomer={activeCustomer} />
 				<WishlistProvider>
 					<CartProvider initialCount={cartCount}>
 						<NavigationProgress />
 						{isCheckoutRoute ? (
 							<Outlet />
 						) : (
-							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
+							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections} popularSearchTerms={popularSearchTerms}>
 								<Outlet />
 							</MainLayout>
 						)}
