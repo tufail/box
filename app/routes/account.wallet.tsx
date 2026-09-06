@@ -35,10 +35,10 @@ const COPY = {
 		} as Record<string, string>,
 		redeemedNote: (points: number) => `You've redeemed ${points} points for`,
 		walletBalanceOf: "of wallet balance.",
-		newWalletBalance: (amount: string) => `New wallet balance: ${amount} — use it as a payment method at checkout.`,
+		newWalletBalance: (amount: string) => `New wallet balance: ${amount} - use it as a payment method at checkout.`,
 		redeemMorePoints: "Redeem more points",
 		redeemPoints: "Redeem Points",
-		convertPointsNote: "Convert points into spendable wallet balance — use it as a payment method at checkout.",
+		convertPointsNote: "Convert points into spendable wallet balance - use it as a payment method at checkout.",
 		redeeming: "Redeeming…",
 		redeem: "Redeem",
 		available: (n: string) => `Available: ${n} points`,
@@ -55,7 +55,7 @@ const COPY = {
 		pointsBalance: "Points Balance",
 		lifetimePoints: "Lifetime Points",
 		pendingPoints: "Pending Points",
-		awaitingApproval: "Awaiting approval — not yet redeemable",
+		awaitingApproval: "Awaiting approval - not yet redeemable",
 		yourReferralCode: "Your referral code",
 		shareReferralNote: "Share it with friends to earn points when they shop.",
 		transactionHistory: "Transaction History",
@@ -72,10 +72,10 @@ const COPY = {
 		} as Record<string, string>,
 		redeemedNote: (points: number) => `لقد استبدلت ${points} نقطة مقابل`,
 		walletBalanceOf: "من رصيد المحفظة.",
-		newWalletBalance: (amount: string) => `رصيد المحفظة الجديد: ${amount} — استخدمه كوسيلة دفع عند الدفع.`,
+		newWalletBalance: (amount: string) => `رصيد المحفظة الجديد: ${amount} - استخدمه كوسيلة دفع عند الدفع.`,
 		redeemMorePoints: "استبدال المزيد من النقاط",
 		redeemPoints: "استبدال النقاط",
-		convertPointsNote: "حوّل النقاط إلى رصيد محفظة قابل للإنفاق — استخدمه كوسيلة دفع عند الدفع.",
+		convertPointsNote: "حوّل النقاط إلى رصيد محفظة قابل للإنفاق - استخدمه كوسيلة دفع عند الدفع.",
 		redeeming: "جارٍ الاستبدال…",
 		redeem: "استبدال",
 		available: (n: string) => `المتاح: ${n} نقطة`,
@@ -92,7 +92,7 @@ const COPY = {
 		pointsBalance: "رصيد النقاط",
 		lifetimePoints: "إجمالي النقاط",
 		pendingPoints: "النقاط المعلّقة",
-		awaitingApproval: "بانتظار الموافقة — غير قابلة للاستبدال بعد",
+		awaitingApproval: "بانتظار الموافقة - غير قابلة للاستبدال بعد",
 		yourReferralCode: "رمز الإحالة الخاص بك",
 		shareReferralNote: "شاركه مع أصدقائك لكسب نقاط عند تسوقهم.",
 		transactionHistory: "سجل المعاملات",
@@ -126,7 +126,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-	return [{ title: "My Wallet — NutriBox" }, { name: "robots", content: "noindex" }];
+	return [{ title: "My Wallet - NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
 function formatDate(iso: string, locale: Locale) {

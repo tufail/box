@@ -55,7 +55,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-	return [{ title: "My Subscriptions — NutriBox" }, { name: "robots", content: "noindex" }];
+	return [{ title: "My Subscriptions - NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
@@ -163,7 +163,7 @@ function intervalLabel(plan: SubscriptionPlan, locale: Locale) {
 }
 
 function formatDate(iso: string | null, locale: Locale) {
-	if (!iso) return "—";
+	if (!iso) return "-";
 	return new Date(iso).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-QA", { day: "numeric", month: "short", year: "numeric" });
 }
 

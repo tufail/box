@@ -10,7 +10,7 @@ import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from
 // considered final customer-facing copy.
 const COPY = {
   en: {
-    title: "About NutriBox Qatar — Premium Health & Quality",
+    title: "About NutriBox Qatar - Premium Health & Quality",
     description: "Learn about NutriBox Qatar's mission to deliver 100% authentic health and sports nutrition products across Qatar.",
     breadcrumbHome: "Home",
     breadcrumbAbout: "About",
@@ -21,7 +21,7 @@ const COPY = {
     contactLine: "Customer Care: +974 7015 7900",
   },
   ar: {
-    title: "عن NutriBox قطر — الصحة والجودة أولاً",
+    title: "عن NutriBox قطر - الصحة والجودة أولاً",
     description: "تعرّف على مهمة NutriBox قطر في توفير منتجات صحية ورياضية أصلية 100% في جميع أنحاء قطر.",
     breadcrumbHome: "الرئيسية",
     breadcrumbAbout: "من نحن",

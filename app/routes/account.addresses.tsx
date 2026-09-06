@@ -22,7 +22,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-	return [{ title: "My Addresses — NutriBox" }, { name: "robots", content: "noindex" }];
+	return [{ title: "My Addresses - NutriBox" }, { name: "robots", content: "noindex" }];
 }
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a

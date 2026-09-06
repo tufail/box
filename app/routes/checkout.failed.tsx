@@ -6,7 +6,7 @@ import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta() {
   return [
-    { title: "Payment Failed — NutriBox" },
+    { title: "Payment Failed - NutriBox" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }

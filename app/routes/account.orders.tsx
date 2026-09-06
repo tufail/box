@@ -142,7 +142,7 @@ function orderState(state: string, t: (typeof COPY)[Locale]) {
 }
 
 function formatDate(iso: string | null, locale: Locale) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-QA", {
     day: "numeric",
     month: "short",

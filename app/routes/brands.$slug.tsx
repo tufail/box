@@ -75,11 +75,11 @@ function groupFacets(facetValues: BrandPageFacetValue[]): FacetGroup[] {
 export function meta({ loaderData }: Route.MetaArgs) {
 	const brandName = loaderData?.brandName ?? "Brand";
 	const locale = loaderData?.locale ?? "en";
-	const title = `${brandName} — ${SITE_NAME}`;
+	const title = `${brandName} - ${SITE_NAME}`;
 	const description =
 		locale === "ar"
-			? `تسوق منتجات ${brandName} الأصلية من ${SITE_NAME} — توصيل سريع في قطر.`
-			: `Shop authentic ${brandName} products at ${SITE_NAME} — fast delivery in Qatar.`;
+			? `تسوق منتجات ${brandName} الأصلية من ${SITE_NAME} - توصيل سريع في قطر.`
+			: `Shop authentic ${brandName} products at ${SITE_NAME} - fast delivery in Qatar.`;
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 

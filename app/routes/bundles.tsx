@@ -13,24 +13,24 @@ const PAGE_SIZE = 24;
 // considered final customer-facing copy.
 const COPY = {
 	en: {
-		title: "Bundle Deals — NutriBox Qatar",
+		title: "Bundle Deals - NutriBox Qatar",
 		description: "Save more with curated product bundles and combo deals at NutriBox Qatar.",
 		breadcrumbHome: "Home",
 		breadcrumbBundles: "Bundle Deals",
 		h1: "Bundle Deals",
 		subtitle: "Save more when you buy these together",
-		empty: "No active bundle deals right now — check back soon.",
+		empty: "No active bundle deals right now - check back soon.",
 		itemsIncluded: (n: number) => `${n} item${n !== 1 ? "s" : ""} included`,
 		viewBundle: "View Bundle",
 	},
 	ar: {
-		title: "عروض الباقات — NutriBox قطر",
+		title: "عروض الباقات - NutriBox قطر",
 		description: "وفّر أكثر مع باقات المنتجات المختارة وعروض الكومبو في NutriBox قطر.",
 		breadcrumbHome: "الرئيسية",
 		breadcrumbBundles: "عروض الباقات",
 		h1: "عروض الباقات",
 		subtitle: "وفّر أكثر عند شراء هذه المنتجات معًا",
-		empty: "لا توجد عروض باقات نشطة حاليًا — تحقق مرة أخرى قريبًا.",
+		empty: "لا توجد عروض باقات نشطة حاليًا - تحقق مرة أخرى قريبًا.",
 		itemsIncluded: (n: number) => `${n} عنصر مضمّن`,
 		viewBundle: "عرض الباقة",
 	},

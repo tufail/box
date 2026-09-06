@@ -24,7 +24,7 @@ const PAGE_SIZE = 24;
 // considered final customer-facing copy.
 const COPY = {
   en: {
-    title: "All Products — NutriBox Qatar",
+    title: "All Products - NutriBox Qatar",
     description: "Browse our full catalogue of authentic health, fitness, and nutrition products. Fast delivery across Qatar.",
     breadcrumbHome: "Home",
     breadcrumbAll: "All Products",
@@ -32,7 +32,7 @@ const COPY = {
     subtitle: "Browse our full catalogue",
   },
   ar: {
-    title: "جميع المنتجات — NutriBox قطر",
+    title: "جميع المنتجات - NutriBox قطر",
     description: "تصفح كامل تشكيلتنا من منتجات الصحة واللياقة والتغذية الأصلية. توصيل سريع لجميع أنحاء قطر.",
     breadcrumbHome: "الرئيسية",
     breadcrumbAll: "جميع المنتجات",

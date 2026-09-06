@@ -68,20 +68,20 @@ const PDP_COPY = {
 		shippingInfo: "Shipping Info",
 		shippingInfoPrefix: "Free shipping on orders over",
 		shippingInfoSuffixExpress: ". Quick delivery within 2 hours.",
-		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2–6 business days.",
+		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2-6 business days.",
 		decrease: "Decrease",
 		increase: "Increase",
 		outOfStockBtn: "Out of Stock",
 		adding: "Adding...",
 		addedToCart: "Added to Cart ✓",
-		failedTryAgain: "Failed — try again",
+		failedTryAgain: "Failed - try again",
 		addToCart: "Add to Cart",
 		quickDelivery: "Same day delivery",
 		percentOff: (n: number) => `${n}% Off`,
 		perServing: (price: string) => `${price}/serving`,
 		by: "by",
 		whatsappEnquiry: "WhatsApp Enquiry",
-		trustBadges: (express: boolean) => [express ? "Quick delivery within 2 hours" : "Standard delivery within Qatar in 2–6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
+		trustBadges: (express: boolean) => [express ? "Quick delivery within 2 hours" : "Standard delivery within Qatar in 2-6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
 		productVideo: "Product Video",
 		youMay: "You May",
 		alsoLike: "also like",
@@ -152,7 +152,7 @@ const PDP_COPY = {
 		outOfStockBtn: "غير متوفر",
 		adding: "جارٍ الإضافة...",
 		addedToCart: "تمت الإضافة إلى السلة ✓",
-		failedTryAgain: "فشلت العملية — حاول مرة أخرى",
+		failedTryAgain: "فشلت العملية - حاول مرة أخرى",
 		addToCart: "أضف إلى السلة",
 		quickDelivery: "توصيل في نفس اليوم",
 		percentOff: (n: number) => `خصم ${n}%`,
@@ -386,10 +386,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const vendureBase = loaderData?.vendureBase ?? "";
 	const variantName = loaderData?.activeVariantName ?? null;
 
-	if (!product) return [{ title: "Product — NutriBox Qatar" }];
+	if (!product) return [{ title: "Product - NutriBox Qatar" }];
 
 	const baseTitle = variantName ?? product.customFields?.metaTitle ?? product.name;
-	const title = `${baseTitle} — NutriBox Qatar`;
+	const title = `${baseTitle} - NutriBox Qatar`;
 	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
 	const description = rawDescription.slice(0, 160);
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
@@ -1256,7 +1256,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 															{thumbSrc && <img src={vendureImageUrl(thumbSrc, vendureBase, { preset: "tiny", format: "webp" })} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-100 bg-white" />}
 															<span className={thumbSrc ? "flex flex-col leading-tight" : "block"}>
 																<span className="block">{val}</span>
-																{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "—"}</span>}
+																{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "-"}</span>}
 															</span>
 															{!available && (
 																<>
@@ -1306,7 +1306,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									    already shows its own (crossed-out / discounted) price breakdown */}
 									{subscriptionPlans.length === 0 && (
 										<div>
-											<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</div>
+											<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "-"}</div>
 											{pricePerServing !== null && <div className="text-xs text-gray-400 mt-0.5">{t.perServing(formatCurrency(pricePerServing, activeVariant?.currencyCode ?? "QAR", locale))}</div>}
 											{hasDiscount && rrp !== null && (
 												<div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -1363,7 +1363,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																<div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 bg-white">{purchaseType === "once" && <div className="w-3 h-3 rounded-full bg-lime-500" />}</div>
 																<span className="font-bold text-gray-900 text-sm">{t.oneTimePurchase}</span>
 															</div>
-															<span className="font-extrabold text-gray-900 text-base">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "—"}</span>
+															<span className="font-extrabold text-gray-900 text-base">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "-"}</span>
 														</div>
 													</div>
 												</div>

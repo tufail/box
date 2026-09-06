@@ -12,7 +12,7 @@ export const SHOP_COPY = {
 	en: {
 		sortLatest: "Latest",
 		sortBestSellers: "Best Sellers",
-		sortNameAsc: "Name A–Z",
+		sortNameAsc: "Name A-Z",
 		sortPriceAsc: "Price: Low to High",
 		sortPriceDesc: "Price: High to Low",
 		filters: "Filters",
@@ -27,7 +27,7 @@ export const SHOP_COPY = {
 	ar: {
 		sortLatest: "الأحدث",
 		sortBestSellers: "الأكثر مبيعًا",
-		sortNameAsc: "الاسم: أ–ي",
+		sortNameAsc: "الاسم: أ-ي",
 		sortPriceAsc: "السعر: من الأقل للأعلى",
 		sortPriceDesc: "السعر: من الأعلى للأقل",
 		filters: "الفلاتر",

@@ -12,8 +12,8 @@ import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from
 // considered final customer-facing copy.
 const COPY = {
 	en: {
-		title: `Shop by Brand — ${SITE_NAME}`,
-		description: `Browse all brands available at ${SITE_NAME} — authentic health and sports nutrition products with fast delivery in Qatar.`,
+		title: `Shop by Brand - ${SITE_NAME}`,
+		description: `Browse all brands available at ${SITE_NAME} - authentic health and sports nutrition products with fast delivery in Qatar.`,
 		breadcrumbHome: "Home",
 		breadcrumbBrands: "Brands",
 		h1: "Shop by Brand",
@@ -21,8 +21,8 @@ const COPY = {
 		noneFound: "No brands found",
 	},
 	ar: {
-		title: `تسوق حسب الماركة — ${SITE_NAME}`,
-		description: `تصفح جميع الماركات المتوفرة في ${SITE_NAME} — منتجات صحية ورياضية أصلية مع توصيل سريع في قطر.`,
+		title: `تسوق حسب الماركة - ${SITE_NAME}`,
+		description: `تصفح جميع الماركات المتوفرة في ${SITE_NAME} - منتجات صحية ورياضية أصلية مع توصيل سريع في قطر.`,
 		breadcrumbHome: "الرئيسية",
 		breadcrumbBrands: "الماركات",
 		h1: "تسوق حسب الماركة",

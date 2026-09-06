@@ -157,14 +157,14 @@ export function getAddToCartErrorMessage(result: AddToCartResultUnion): string |
       return null;
     case "InsufficientStockError":
       return result.quantityAvailable > 0
-        ? `Only ${result.quantityAvailable} item${result.quantityAvailable === 1 ? "" : "s"} available — added what we could`
+        ? `Only ${result.quantityAvailable} item${result.quantityAvailable === 1 ? "" : "s"} available - added what we could`
         : "This item is currently out of stock";
     case "OrderLimitError":
       return `Order limit reached (max ${result.maxItems} items per order)`;
     case "NegativeQuantityError":
       return "Quantity must be at least 1";
     case "OrderModificationError":
-      return "Cannot modify this order — please refresh and try again";
+      return "Cannot modify this order - please refresh and try again";
     default:
       return "Could not add item to cart";
   }

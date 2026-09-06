@@ -19,7 +19,7 @@ const PAGE_SIZE = 24;
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "sales_desc", label: "Best Sellers" },
   { value: "rating_desc", label: "Highest Rated" },
-  { value: "name_asc", label: "Name A–Z" },
+  { value: "name_asc", label: "Name A-Z" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
 ];
@@ -55,7 +55,7 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 export function meta({ data }: Route.MetaArgs) {
   const q = (data as { q?: string } | undefined)?.q ?? "";
   return [
-    { title: q ? `Search: ${q} — NutriBox` : "Search — NutriBox" },
+    { title: q ? `Search: ${q} - NutriBox` : "Search - NutriBox" },
     // Search-result URLs are unbounded (any query string) and mostly thin/duplicate
     // content — kept crawlable (not blocked in robots.txt) so this tag is actually
     // seen, but excluded from the index; "follow" still passes link equity through

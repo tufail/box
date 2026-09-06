@@ -44,15 +44,15 @@ export function meta({ data, location }: Route.MetaArgs) {
 		? translation.metaDescription.trim()
 		: translation.description
 			? translation.description.replace(/<[^>]+>/g, "").slice(0, 160).trim()
-			: `${translation.title} — ${SITE_NAME}`;
+			: `${translation.title} - ${SITE_NAME}`;
 	const canonicalUrl = `${SITE_URL}${localizePath(`/pages/${slug}`, locale)}`;
 
 	return [
-		{ title: `${translation.title} — ${SITE_NAME}` },
+		{ title: `${translation.title} - ${SITE_NAME}` },
 		{ name: "description", content: plainText },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
 		...hreflangTags(SITE_URL, `/pages/${slug}`),
-		{ property: "og:title", content: `${translation.title} — ${SITE_NAME}` },
+		{ property: "og:title", content: `${translation.title} - ${SITE_NAME}` },
 		{ property: "og:description", content: plainText },
 		{ property: "og:url", content: canonicalUrl },
 		...(page.assetPreview ? [{ property: "og:image", content: page.assetPreview }] : []),

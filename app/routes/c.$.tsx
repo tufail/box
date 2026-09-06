@@ -167,12 +167,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const collection = loaderData?.collection;
   const locale = loaderData?.locale ?? "en";
   const name = collection?.name ?? (locale === "ar" ? "قسم" : "Collection");
-  const title = `${name} — ${SITE_NAME}`;
+  const title = `${name} - ${SITE_NAME}`;
   const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
   const fallbackDescription =
     locale === "ar"
-      ? `تسوق منتجات ${name} الأصلية من ${SITE_NAME} — أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.`
-      : `Shop authentic ${name} products at ${SITE_NAME} — 100% genuine, fast delivery across Qatar.`;
+      ? `تسوق منتجات ${name} الأصلية من ${SITE_NAME} - أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.`
+      : `Shop authentic ${name} products at ${SITE_NAME} - 100% genuine, fast delivery across Qatar.`;
   const description = rawDescription ? rawDescription.slice(0, 160) : fallbackDescription;
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";

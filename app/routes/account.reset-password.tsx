@@ -59,7 +59,7 @@ const COPY = {
     updatePassword: "Update Password",
     passwordTips: "Password Tips",
     tips: [
-      "Use at least 8 characters — longer is stronger",
+      "Use at least 8 characters - longer is stronger",
       "Mix uppercase, lowercase, numbers, and symbols",
       "Avoid using personal info like your name or birthday",
       "Don't reuse passwords from other sites",
@@ -92,7 +92,7 @@ const COPY = {
     updatePassword: "تحديث كلمة المرور",
     passwordTips: "نصائح لكلمة المرور",
     tips: [
-      "استخدم 8 أحرف على الأقل — كلما طالت كانت أقوى",
+      "استخدم 8 أحرف على الأقل - كلما طالت كانت أقوى",
       "امزج بين الأحرف الكبيرة والصغيرة والأرقام والرموز",
       "تجنّب استخدام معلومات شخصية مثل اسمك أو تاريخ ميلادك",
       "لا تعد استخدام كلمات مرور من مواقع أخرى",

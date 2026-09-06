@@ -86,7 +86,7 @@ function resolveBundleImage(preview: string, vendureBase: string): string {
 const BUNDLE_COPY = {
 	en: {
 		bundleAdded: (name: string) => `${name} added to cart ✓`,
-		couldNotAddBundle: "Could not add bundle to cart — please try again",
+		couldNotAddBundle: "Could not add bundle to cart - please try again",
 		qty: "Qty",
 		remove: "- Remove",
 		add: "+ Add",
@@ -102,7 +102,7 @@ const BUNDLE_COPY = {
 	},
 	ar: {
 		bundleAdded: (name: string) => `تمت إضافة ${name} إلى السلة ✓`,
-		couldNotAddBundle: "تعذّرت إضافة الباقة إلى السلة — يرجى المحاولة مرة أخرى",
+		couldNotAddBundle: "تعذّرت إضافة الباقة إلى السلة - يرجى المحاولة مرة أخرى",
 		qty: "الكمية",
 		remove: "- إزالة",
 		add: "+ إضافة",

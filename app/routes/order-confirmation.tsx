@@ -11,7 +11,7 @@ import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta() {
   return [
-    { title: "Order Confirmed — NutriBox" },
+    { title: "Order Confirmed - NutriBox" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }

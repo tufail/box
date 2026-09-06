@@ -208,7 +208,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta() {
-	return [{ title: "Checkout — NutriBox" }, { name: "robots", content: "noindex, nofollow" }];
+	return [{ title: "Checkout - NutriBox" }, { name: "robots", content: "noindex, nofollow" }];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -730,7 +730,7 @@ function ShippingStep({
 			if (r.__typename === "Order") {
 				const method = methods.find((m) => m.id === selectedMethod)!;
 				const totals: UpdatedOrderTotals = { shippingWithTax: r.shippingWithTax as number, totalWithTax: r.totalWithTax as number, subTotalWithTax: r.subTotalWithTax as number };
-				const methodLabel = `${method.name} — ${method.priceWithTax === 0 ? t.free : fmt(method.priceWithTax, currency, locale)}`;
+				const methodLabel = `${method.name} - ${method.priceWithTax === 0 ? t.free : fmt(method.priceWithTax, currency, locale)}`;
 				onComplete(`${addressSummaryRef.current} · ${methodLabel}`, method, totals);
 			} else {
 				setError((r.message as string) || t.couldNotSetShippingMethod);
@@ -1140,7 +1140,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 				<div className="lg:hidden px-5 py-3 border-b border-gray-200 space-y-1.5">
 					<div className="flex justify-between text-sm text-gray-600">
 						<span>{t.shipping}</span>
-						<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "—"}</span>
+						<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
 					</div>
 					<div className="flex justify-between font-bold text-gray-900 text-base">
 						<span>{t.total}</span>
@@ -1214,7 +1214,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 
 				<div className="flex justify-between text-sm text-gray-600">
 					<span>{t.shipping}</span>
-					<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "—"}</span>
+					<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
 				</div>
 				<div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-200">
 					<span>{t.total}</span>

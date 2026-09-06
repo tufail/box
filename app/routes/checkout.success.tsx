@@ -14,7 +14,7 @@ import { formatPrice } from "~/lib/currency";
 
 export function meta() {
   return [
-    { title: "Order Confirmed — NutriBox" },
+    { title: "Order Confirmed - NutriBox" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }
@@ -38,7 +38,7 @@ const COPY = {
     beingConfirmed: "is being confirmed. This usually takes a few seconds.",
     continueShopping: "Continue Shopping",
     takingLonger: "Still Processing",
-    takingLongerBody: "This is taking longer than expected. If you completed payment, it will be confirmed shortly — otherwise, you can try again.",
+    takingLongerBody: "This is taking longer than expected. If you completed payment, it will be confirmed shortly - otherwise, you can try again.",
     checkAgain: "Check Again",
     tryAgain: "Try Payment Again",
   },
@@ -57,7 +57,7 @@ const COPY = {
     beingConfirmed: "قيد التأكيد. عادةً ما يستغرق ذلك بضع ثوانٍ.",
     continueShopping: "متابعة التسوق",
     takingLonger: "لا تزال المعالجة جارية",
-    takingLongerBody: "يستغرق هذا وقتًا أطول من المعتاد. إذا أتممت الدفع، فسيتم تأكيده قريبًا — وإلا يمكنك المحاولة مرة أخرى.",
+    takingLongerBody: "يستغرق هذا وقتًا أطول من المعتاد. إذا أتممت الدفع، فسيتم تأكيده قريبًا - وإلا يمكنك المحاولة مرة أخرى.",
     checkAgain: "تحقق مرة أخرى",
     tryAgain: "إعادة محاولة الدفع",
   },

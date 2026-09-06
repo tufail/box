@@ -305,7 +305,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
 					{/* Badge */}
 					<span className="inline-flex items-center gap-1.5 bg-[#f38a00]/10 text-[#f38a00] text-xs font-bold px-3.5 py-1.5 rounded-full mb-5 tracking-wide uppercase">
-						404 — Page Not Found
+						404 - Page Not Found
 					</span>
 
 					<h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 leading-tight">

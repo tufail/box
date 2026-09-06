@@ -33,7 +33,7 @@ interface ProductRowProps {
 function formatPrice(price: SearchSuggestionItem["price"], locale: Locale) {
 	const fmt = (cents: number) => formatCurrency(cents, "QAR", locale);
 	if ("value" in price) return fmt(price.value);
-	return price.min === price.max ? fmt(price.min) : `${fmt(price.min)} – ${fmt(price.max)}`;
+	return price.min === price.max ? fmt(price.min) : `${fmt(price.min)} - ${fmt(price.max)}`;
 }
 
 function ProductRow({ item, term, onSelect, locale, inStockLabel, soldOutLabel, vendureBase }: ProductRowProps) {

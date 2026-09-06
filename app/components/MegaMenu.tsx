@@ -24,16 +24,16 @@ function sectionHref(section: Pick<MegaMenuSection, "url">): string | null {
 const TOP_BRANDS = [
 	{ name: "Optimum Nutrition", code: "optimum-nutrition" },
 	{ name: "MuscleTech", code: "muscletech" },
-	{ name: "BSN", code: "bsn" },
+	{ name: "Applied Nutrition", code: "applied-nutrition" },
 	{ name: "Dymatize", code: "dymatize" },
-	{ name: "GNC", code: "gnc" },
-	{ name: "Cellucor", code: "cellucor" },
-	{ name: "MusclePharm", code: "musclepharm" },
-	{ name: "Redcon1", code: "redcon1" },
-	{ name: "Ghost", code: "ghost" },
-	{ name: "Isopure", code: "isopure" },
-	{ name: "Xtend", code: "xtend" },
+	{ name: "EVLution Nutrition", code: "evlution-nutrition" },
+	{ name: "Rule One Proteins", code: "rule-one-proteins" },
 	{ name: "NOW Foods", code: "now-foods" },
+	{ name: "Ghost", code: "ghost" },
+	{ name: "Bloom", code: "bloom" },
+	{ name: "Maryruth's Organics", code: "maryruths-organics" },
+	{ name: "Life Extension", code: "life-extension" },
+	{ name: "California Gold Nutrition", code: "california-gold-nutrition" },
 ];
 
 // Styled to match the other top-nav items (same trigger button, same hover-dropdown positioning).
@@ -84,9 +84,7 @@ function BrandsDropdown() {
 	const allBrands = fetcher.data?.brands ?? [];
 	const loading = fetcher.state !== "idle" && !fetcher.data;
 
-	const filtered = search.trim()
-		? allBrands.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
-		: allBrands;
+	const filtered = search.trim() ? allBrands.filter((b) => b.name.toLowerCase().includes(search.toLowerCase())) : allBrands;
 
 	const grouped = filtered.reduce<Record<string, BrandValue[]>>((acc, brand) => {
 		const key = /^[0-9]/.test(brand.name) ? "#" : brand.name[0].toUpperCase();
@@ -95,7 +93,10 @@ function BrandsDropdown() {
 		return acc;
 	}, {});
 
-	const close = () => { setOpen(false); setSearch(""); };
+	const close = () => {
+		setOpen(false);
+		setSearch("");
+	};
 
 	return (
 		<div
@@ -122,47 +123,32 @@ function BrandsDropdown() {
 			</button>
 
 			{open && (
-				<div
-					onMouseEnter={cancelClose}
-					onMouseLeave={scheduleClose}
-					className="absolute start-0 top-full mt-[1px] bg-white border border-gray-200 shadow-xl z-50 flex w-[580px] overflow-hidden">
+				<div onMouseEnter={cancelClose} onMouseLeave={scheduleClose} className="absolute start-0 top-full mt-[1px] bg-white border border-gray-200 shadow-xl z-50 flex w-[580px] overflow-hidden">
 					{/* Left — searchable alphabetical list */}
 					<div className="w-[240px] flex-shrink-0 border-e border-gray-100 flex flex-col">
 						<div className="p-3 border-b border-gray-100">
 							<div className="flex items-center gap-2 border border-gray-300 rounded px-3 py-1.5 bg-white">
 								<Search size={14} strokeWidth={1.5} className="text-gray-400 flex-shrink-0" />
-								<input
-									type="text"
-									placeholder={locale === "ar" ? "ابحث عن العلامات التجارية" : "Search for brands"}
-									value={search}
-									onChange={(e) => setSearch(e.target.value)}
-									className="text-sm flex-1 outline-none bg-transparent placeholder-gray-400"
-									autoComplete="off"
-								/>
+								<input type="text" placeholder={locale === "ar" ? "ابحث عن العلامات التجارية" : "Search for brands"} value={search} onChange={(e) => setSearch(e.target.value)} className="text-sm flex-1 outline-none bg-transparent placeholder-gray-400" autoComplete="off" />
 							</div>
 						</div>
 						<div className="overflow-y-auto max-h-[340px]">
 							{loading && <p className="px-4 py-6 text-sm text-gray-400 text-center">{locale === "ar" ? "جارٍ تحميل العلامات التجارية…" : "Loading brands…"}</p>}
 							{!loading &&
-								Object.keys(grouped).sort().map((letter) => (
-									<div key={letter}>
-										<div className="px-4 py-1 text-xs font-bold text-gray-400 bg-gray-50">{letter}</div>
-										{grouped[letter].map((brand) => (
-											<Link
-												key={brand.code}
-												to={`/brands/${brand.code}`}
-												className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:text-black hover:bg-stone-50 transition-colors"
-												onClick={close}
-											>
-												{brand.name}
-												<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 rtl:rotate-90 text-gray-300" />
-											</Link>
-										))}
-									</div>
-								))}
-							{!loading && filtered.length === 0 && (
-								<p className="px-4 py-6 text-sm text-gray-400 text-center">{locale === "ar" ? "لم يتم العثور على علامات تجارية" : "No brands found"}</p>
-							)}
+								Object.keys(grouped)
+									.sort()
+									.map((letter) => (
+										<div key={letter}>
+											<div className="px-4 py-1 text-xs font-bold text-gray-400 bg-gray-50">{letter}</div>
+											{grouped[letter].map((brand) => (
+												<Link key={brand.code} to={`/brands/${brand.code}`} className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:text-black hover:bg-stone-50 transition-colors" onClick={close}>
+													{brand.name}
+													<ChevronDown size={13} strokeWidth={1.5} className="-rotate-90 rtl:rotate-90 text-gray-300" />
+												</Link>
+											))}
+										</div>
+									))}
+							{!loading && filtered.length === 0 && <p className="px-4 py-6 text-sm text-gray-400 text-center">{locale === "ar" ? "لم يتم العثور على علامات تجارية" : "No brands found"}</p>}
 						</div>
 					</div>
 
@@ -171,12 +157,7 @@ function BrandsDropdown() {
 						<p className="text-sm font-bold text-gray-800 mb-3">{locale === "ar" ? "أشهر العلامات التجارية" : "Top Brands"}</p>
 						<div className="grid grid-cols-3 gap-3">
 							{TOP_BRANDS.map((brand) => (
-								<Link
-									key={brand.code}
-									to={`/brands/${brand.code}`}
-									className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group"
-									onClick={close}
-								>
+								<Link key={brand.code} to={`/brands/${brand.code}`} className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group" onClick={close}>
 									<div className="w-full h-14 rounded relative overflow-hidden bg-gray-50">
 										<img
 											src={`/images/brands/${brand.code}.jpg`}
@@ -262,67 +243,50 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 
 	const mobilePanel = (
 		<div className="md:hidden">
-				{/* Backdrop */}
-				<div
-					className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-					onClick={onMobileClose}
-				/>
-				{/* Panel */}
-				<div className={`fixed top-0 start-0 h-full w-72 bg-white z-50 shadow-xl transition-transform duration-300 flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"}`}>
-					<div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
-						<span className="font-semibold text-base text-gray-900">{locale === "ar" ? "القائمة" : "Menu"}</span>
-						<button onClick={onMobileClose} className="text-gray-500 hover:text-gray-700 transition-colors" aria-label={locale === "ar" ? "إغلاق القائمة" : "Close menu"}>
-							<X size={20} strokeWidth={1.5} />
-						</button>
-					</div>
-					<ul className="overflow-y-auto flex-1">
-						{sidebarItems.map((item, index) => {
-							const links = [...item.columns]
-								.sort((a, b) => a.position - b.position)
-								.flatMap((col) => col.sections.flatMap((sec) => sec.links));
-							const hasLinks = links.length > 0;
-							const isExpanded = mobileExpandedItem === index;
-							return (
-								<li key={index} className="border-b border-gray-100 last:border-b-0">
-									<div className="flex items-center">
-										<Link
-											to={itemHref(item)}
-											className="flex-1 px-4 py-3 text-sm font-medium text-gray-800 hover:text-black transition-colors"
-											onClick={onMobileClose}
-										>
-											{item.label}
-										</Link>
-										{hasLinks && (
-											<button
-												className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors"
-												onClick={() => setMobileExpandedItem(isExpanded ? null : index)}
-												aria-label={isExpanded ? (locale === "ar" ? "طي" : "Collapse") : (locale === "ar" ? "توسيع" : "Expand")}
-											>
-												<ChevronDown size={16} strokeWidth={1.5} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-											</button>
-										)}
-									</div>
-									{hasLinks && isExpanded && (
-										<ul className="bg-gray-50 border-t border-gray-100 px-4 py-1">
-											{links.map((link, li) => (
-												<li key={li} className="border-b border-gray-100 last:border-b-0">
-													<Link
-														to={linkHref(link)}
-														className="block text-sm text-gray-600 hover:text-black transition-colors py-2"
-														onClick={onMobileClose}
-													>
-														{link.label}
-													</Link>
-												</li>
-											))}
-										</ul>
-									)}
-								</li>
-							);
-						})}
-					</ul>
+			{/* Backdrop */}
+			<div className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} onClick={onMobileClose} />
+			{/* Panel */}
+			<div className={`fixed top-0 start-0 h-full w-72 bg-white z-50 shadow-xl transition-transform duration-300 flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"}`}>
+				<div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
+					<span className="font-semibold text-base text-gray-900">{locale === "ar" ? "القائمة" : "Menu"}</span>
+					<button onClick={onMobileClose} className="text-gray-500 hover:text-gray-700 transition-colors" aria-label={locale === "ar" ? "إغلاق القائمة" : "Close menu"}>
+						<X size={20} strokeWidth={1.5} />
+					</button>
 				</div>
+				<ul className="overflow-y-auto flex-1">
+					{sidebarItems.map((item, index) => {
+						const links = [...item.columns].sort((a, b) => a.position - b.position).flatMap((col) => col.sections.flatMap((sec) => sec.links));
+						const hasLinks = links.length > 0;
+						const isExpanded = mobileExpandedItem === index;
+						return (
+							<li key={index} className="border-b border-gray-100 last:border-b-0">
+								<div className="flex items-center">
+									<Link to={itemHref(item)} className="flex-1 px-4 py-3 text-sm font-medium text-gray-800 hover:text-black transition-colors" onClick={onMobileClose}>
+										{item.label}
+									</Link>
+									{hasLinks && (
+										<button className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors" onClick={() => setMobileExpandedItem(isExpanded ? null : index)} aria-label={isExpanded ? (locale === "ar" ? "طي" : "Collapse") : locale === "ar" ? "توسيع" : "Expand"}>
+											<ChevronDown size={16} strokeWidth={1.5} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+										</button>
+									)}
+								</div>
+								{hasLinks && isExpanded && (
+									<ul className="bg-gray-50 border-t border-gray-100 px-4 py-1">
+										{links.map((link, li) => (
+											<li key={li} className="border-b border-gray-100 last:border-b-0">
+												<Link to={linkHref(link)} className="block text-sm text-gray-600 hover:text-black transition-colors py-2" onClick={onMobileClose}>
+													{link.label}
+												</Link>
+											</li>
+										))}
+									</ul>
+								)}
+							</li>
+						);
+					})}
+				</ul>
 			</div>
+		</div>
 	);
 
 	return (
@@ -352,12 +316,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 							}}
 						>
 							<div className="font-medium flex items-center gap-1 py-2 group">
-								<Link
-									to={itemHref(item)}
-									className="text-black text-sm transition-colors"
-									aria-expanded={hasDropdown ? desktopOpen === index : undefined}
-									aria-haspopup={hasDropdown ? "true" : undefined}
-								>
+								<Link to={itemHref(item)} className="text-black text-sm transition-colors" aria-expanded={hasDropdown ? desktopOpen === index : undefined} aria-haspopup={hasDropdown ? "true" : undefined}>
 									{item.label}
 								</Link>
 								{hasDropdown && (
@@ -368,10 +327,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 							</div>
 
 							{hasDropdown && (
-								<div
-									onMouseEnter={cancelCloseDesktop}
-									onMouseLeave={scheduleCloseDesktop}
-									className={`absolute start-0 top-full bg-white/85 backdrop-blur-xl border border-white/40 shadow-xl rounded-b-2xl overflow-hidden transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
+								<div onMouseEnter={cancelCloseDesktop} onMouseLeave={scheduleCloseDesktop} className={`absolute start-0 top-full bg-white/85 backdrop-blur-xl border border-white/40 shadow-xl rounded-b-2xl overflow-hidden transition-all duration-300 z-50 w-full ${desktopOpen === index ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
 									<div className="grid grid-cols-4 gap-6 p-6 divide-x divide-gray-100">
 										{[...item.columns]
 											.sort((a, b) => a.position - b.position)
@@ -384,13 +340,9 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 																const headerHref = sectionHref(section);
 																return (
 																	<div key={si}>
-																		{section.title && (
-																			headerHref ? (
-																				<Link
-																					to={headerHref}
-																					className="block text-sm font-bold text-primary hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors mb-2"
-																					onClick={() => setDesktopOpen(null)}
-																				>
+																		{section.title &&
+																			(headerHref ? (
+																				<Link to={headerHref} className="block text-sm font-bold text-primary hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors mb-2" onClick={() => setDesktopOpen(null)}>
 																					{section.title}
 																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
 																				</Link>
@@ -399,8 +351,7 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 																					{section.title}
 																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
 																				</p>
-																			)
-																		)}
+																			))}
 																		<ul className="space-y-1">
 																			{section.links.map((link, li) => (
 																				<li key={li}>

@@ -41,7 +41,7 @@ function formatCell(type: ComparisonHighlightType, value: { booleanValue: boolea
 	if (type.valueType === "BOOLEAN") {
 		return value.booleanValue ? <CheckCircle size={20} className="text-green-500 mx-auto" /> : <XCircle size={20} className="text-gray-300 mx-auto" />;
 	}
-	if (!value.textValue) return <span className="text-gray-300">—</span>;
+	if (!value.textValue) return <span className="text-gray-300">-</span>;
 	return <span>{type.unit ? `${value.textValue}${type.unit}` : value.textValue}</span>;
 }
 
