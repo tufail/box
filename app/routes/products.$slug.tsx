@@ -61,7 +61,6 @@ const PDP_COPY = {
 		outOfStock: "Out of stock",
 		sku: "SKU",
 		soldLast30Days: (n: string) => `${n}+ sold in last 30 days`,
-		soldOutBadge: "Sold Out",
 		productHighlights: "Product Highlights",
 		productRankings: "Product rankings:",
 		rankIn: (rank: number) => `#${rank} in`,
@@ -139,7 +138,6 @@ const PDP_COPY = {
 		outOfStock: "غير متوفر",
 		sku: "رمز المنتج",
 		soldLast30Days: (n: string) => `تم بيع ${n}+ خلال آخر 30 يومًا`,
-		soldOutBadge: "نفدت الكمية",
 		productHighlights: "أبرز مميزات المنتج",
 		productRankings: "تصنيفات المنتج:",
 		rankIn: (rank: number) => `#${rank} في`,
@@ -1259,12 +1257,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "-"}</span>}
 															</span>
 															{!available && (
-																<>
-																	<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-																		<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
-																	</span>
-																	<span className="absolute -top-1.5 end-1 bg-gray-700 text-white text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shadow-sm leading-none">{t.soldOutBadge}</span>
-																</>
+																<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+																	<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
+																</span>
 															)}
 														</Link>
 													);
