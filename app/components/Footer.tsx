@@ -59,7 +59,7 @@ const FOOTER_COPY = {
 		trustBadges: [
 			{ icon: Headphones, title: "24/7 Support", desc: "Dedicated Support" },
 			{ icon: RotateCcw, title: "Easy returns and refunds", desc: "Hassle-free returns" },
-			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours" },
+			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours to same day" },
 			{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
 		],
 		getDirections: "Get directions on Google Maps",
@@ -86,7 +86,7 @@ const FOOTER_COPY = {
 		trustBadges: [
 			{ icon: Headphones, title: "دعم على مدار الساعة", desc: "دعم مخصص" },
 			{ icon: RotateCcw, title: "إرجاع واسترداد سهل", desc: "إرجاع بدون تعقيد" },
-			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع خلال ساعتين" },
+			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع من ساعتين إلى نفس اليوم" },
 			{ icon: ShieldCheck, title: "منتجات أصلية 100%", desc: "نتعامل فقط مع المنتجات الأصلية" },
 		],
 		getDirections: "الحصول على الاتجاهات عبر خرائط جوجل",
