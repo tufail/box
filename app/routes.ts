@@ -23,6 +23,8 @@ const CONTENT_ROUTES: [path: string, file: string][] = [
 	["products/:slug/reviews", "routes/products.$slug.reviews.tsx"],
 	["wishlist", "routes/wishlist.tsx"],
 	["wellness", "routes/wellness.tsx"],
+	["blog", "routes/blog.tsx"],
+	["blog/:slug", "routes/blog.$slug.tsx"],
 	["pages/:slug", "routes/pages.$slug.tsx"],
 	["checkout", "routes/checkout.tsx"],
 	["checkout/success", "routes/checkout.success.tsx"],
@@ -74,5 +76,6 @@ export default [
 	route("api/newsletter", "routes/api.newsletter.ts"),
 	route("api/trending", "routes/api.trending.ts"),
 	route("api/track-view", "routes/api.track-view.ts"),
+	route("api/track-blog-view", "routes/api.track-blog-view.ts"),
 	route("api/track-search", "routes/api.track-search.ts"),
 ] satisfies RouteConfig;
