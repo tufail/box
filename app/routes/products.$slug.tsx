@@ -1313,9 +1313,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{/* Desktop/tablet only here — on mobile this section moves below the Add to
 								    Cart box instead (see the collapsible copy just after the inner 2-col). */}
 								<div className="hidden md:block">
-									{/* Hidden until highlight data is updated across the whole catalog — re-enable by
-									    uncommenting once every item has been reviewed. */}
-									{/* <ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} /> */}
+									<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} />
 								</div>
 								{/* Product-level additional info */}
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
@@ -1483,9 +1481,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 						{/* Mobile only — after the Add to Cart box, collapsed by default */}
 						<div className="md:hidden">
-							{/* Hidden until highlight data is updated across the whole catalog — see the
-							    matching desktop instance above for why. */}
-							{/* <ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} collapsible /> */}
+							<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} collapsible />
 						</div>
 					</div>
 					{/* end detail column */}
