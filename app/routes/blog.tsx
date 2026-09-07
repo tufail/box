@@ -170,7 +170,7 @@ export default function BlogIndex({ loaderData }: Route.ComponentProps) {
 			{featured && (
 				<Link to={`/blog/${featured.slug}`} className="group relative block rounded-3xl overflow-hidden mb-10 h-72 md:h-[26rem]">
 					{featured.assetPreview ? (
-						<VendureImage src={featured.assetPreview} vendureBase={vendureBase} alt={featured.title} width={1200} height={520} eager imgClassName="group-hover:scale-105 transition-transform duration-500" />
+						<VendureImage src={featured.assetPreview} vendureBase={vendureBase} alt={featured.title} width={1200} height={520} eager objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-500" />
 					) : (
 						<div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[#16332f]" />
 					)}

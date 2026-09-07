@@ -183,7 +183,7 @@ export default function BlogPostDetail({ loaderData }: Route.ComponentProps) {
 			<div className="container mx-auto px-4 mt-6 max-w-4xl">
 				<div className="relative rounded-2xl overflow-hidden h-64 md:h-96">
 					{post.assetPreview ? (
-						<VendureImage src={post.assetPreview} vendureBase={vendureBase} alt={post.title} width={900} height={400} eager />
+						<VendureImage src={post.assetPreview} vendureBase={vendureBase} alt={post.title} width={900} height={400} eager objectFit="contain" />
 					) : (
 						<div className="w-full h-full bg-gradient-to-br from-primary/25 to-primary/5" />
 					)}
