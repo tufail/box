@@ -457,7 +457,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// for the bare-product case would make the page declare a *different* URL as
 		// canonical (whichever variant happens to be first in the array), turning this
 		// page into a non-canonical alias instead of its own indexable entry.
-		const canonicalUrl = activeVariantId && activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
+		// pageSlug also feeds every other self-referencing link rendered on this page
+		// (reviews, "see customer reviews", rating filters) — those must stay on this
+		// same URL too, never fall back to the bare product URL (reviews themselves
+		// are still a shared, product-level pool — only the URL/page they're linked
+		// from stays variant-specific).
+		const pageSlug = activeVariantId && activeVariant?.customFields?.slug ? activeVariant.customFields.slug : product.slug;
+		const canonicalUrl = `${url.origin}${localizePath(`/products/${pageSlug}`, locale)}`;
 
 		// Real co-purchase recommendations ("customers who bought this also bought").
 		// Empty until orders with 2+ products have been paid (cold start for a young
@@ -498,7 +504,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const comparisonGroupId = product.customFields?.comparisonGroupId ?? null;
 		const comparisonFlavorOption = activeVariant?.options.find((o) => /flavor/i.test(o.group.code) || /flavor/i.test(o.group.name))?.name ?? null;
 
-		return { product, vendureBase, similarProducts, similarCollectionSlug: collectionSlug, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale };
+		return { product, vendureBase, similarProducts, similarCollectionSlug: collectionSlug, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, pageSlug, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -855,7 +861,7 @@ function ProductInfoTabs({ description, warnings, productId, productSlug }: { de
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts: initialSimilarProducts, similarCollectionSlug, selectedVariantId, canonicalUrl, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale } = loaderData;
+	const { product, vendureBase, similarProducts: initialSimilarProducts, similarCollectionSlug, selectedVariantId, canonicalUrl, pageSlug, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale } = loaderData;
 	const t = PDP_COPY[locale];
 
 	const optionGroups = getOptionGroups(product.variants);
@@ -1186,7 +1192,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							)}
 							{ratingSummary && ratingSummary.totalReviews > 0 && (
 								<div className="mt-1.5">
-									<RatingSummaryBadge summary={ratingSummary} productSlug={product.slug} />
+									<RatingSummaryBadge summary={ratingSummary} pageSlug={pageSlug} />
 								</div>
 							)}
 						</div>
@@ -1496,7 +1502,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				</div>
 			)}
 			{/* ── Ratings & Reviews ── */}
-			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} /> : <NoReviews productSlug={product.slug} />}</div>
+			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} pageSlug={pageSlug} /> : <NoReviews pageSlug={pageSlug} />}</div>
 
 			{similarProducts.length > 0 && (
 				<HomeTopSelling
@@ -1596,7 +1602,7 @@ function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: R
 
 // ── Rating Summary Badge (hover dropdown) ────────────────────────────────────
 
-function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSummary; productSlug: string }) {
+function RatingSummaryBadge({ summary, pageSlug }: { summary: ProductRatingSummary; pageSlug: string }) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
@@ -1652,7 +1658,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 							})}
 						</div>
 
-						<Link to={`/products/${productSlug}/reviews`} onClick={() => setOpen(false)} className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
+						<Link to={`/products/${pageSlug}/reviews`} onClick={() => setOpen(false)} className="block w-full text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
 							{t.seeCustomerReviews}
 						</Link>
 					</div>
@@ -1664,7 +1670,7 @@ function RatingSummaryBadge({ summary, productSlug }: { summary: ProductRatingSu
 
 // ── No Reviews ───────────────────────────────────────────────────────────────
 
-function NoReviews({ productSlug }: { productSlug: string }) {
+function NoReviews({ pageSlug }: { pageSlug: string }) {
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	return (
 		<section aria-label={t.customerReviewsAria}>
@@ -1676,7 +1682,7 @@ function NoReviews({ productSlug }: { productSlug: string }) {
 					))}
 				</div>
 				<p className="text-gray-500 text-sm">{t.noOneReviewedYet}</p>
-				<Link to={`/products/${productSlug}/reviews#write`} className="bg-black hover:bg-gray-800 text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
+				<Link to={`/products/${pageSlug}/reviews#write`} className="bg-black hover:bg-gray-800 text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
 					{t.writeAReview}
 				</Link>
 			</div>
@@ -1696,7 +1702,12 @@ function getSortOptions(t: (typeof PDP_COPY)[keyof typeof PDP_COPY]): { value: R
 	];
 }
 
-function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; productSlug: string }) {
+// productSlug (always the base product slug) feeds the data fetch — reviews
+// are a shared, product-level pool, so the aggregate query has to stay on the
+// same slug regardless of variant. pageSlug (this page's own URL, variant or
+// bare) feeds every link on the page instead, so "Write a Review" etc. never
+// send the visitor to a different URL than the one they're already on.
+function RatingPanel({ summary, productSlug, pageSlug }: { summary: ProductRatingSummary; productSlug: string; pageSlug: string }) {
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	const SORT_OPTIONS = getSortOptions(t);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
@@ -1748,7 +1759,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 			{/* Header */}
 			<div className="flex items-center justify-between gap-4 mb-6">
 				<h2 className="font-heading text-xl font-extrabold text-black">{t.customerReviews}</h2>
-				<Link to={`/products/${productSlug}/reviews#write`} className="shrink-0 bg-black hover:bg-gray-800 text-white font-semibold text-sm px-5 py-2 rounded-full transition-colors">
+				<Link to={`/products/${pageSlug}/reviews#write`} className="shrink-0 bg-black hover:bg-gray-800 text-white font-semibold text-sm px-5 py-2 rounded-full transition-colors">
 					{t.writeAReview}
 				</Link>
 			</div>
@@ -1769,7 +1780,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 							const count = summary.distribution.find((d) => d.rating === star)?.count ?? 0;
 							const pct = Math.round((count / maxCount) * 100);
 							return (
-								<Link key={star} to={`/products/${productSlug}/reviews?rating=${star}`} className="flex items-center gap-2 group rounded-lg px-1 py-0.5 hover:bg-gray-50 transition-colors">
+								<Link key={star} to={`/products/${pageSlug}/reviews?rating=${star}`} className="flex items-center gap-2 group rounded-lg px-1 py-0.5 hover:bg-gray-50 transition-colors">
 									<span className="text-xs text-gray-500 w-4 text-end shrink-0">{star}</span>
 									<Star size={10} className="text-amber-400 shrink-0" fill="currentColor" />
 									<div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -1784,11 +1795,11 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 					<div>
 						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.filter}</p>
 						<div className="space-y-1">
-							<Link to={`/products/${productSlug}/reviews?verified=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+							<Link to={`/products/${pageSlug}/reviews?verified=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
 								<BadgeCheck size={13} />
 								{t.verifiedOnly}
 							</Link>
-							<Link to={`/products/${productSlug}/reviews?images=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+							<Link to={`/products/${pageSlug}/reviews?images=true`} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
 								<ImagePlus size={13} />
 								{t.withPhotos}
 							</Link>
@@ -1823,7 +1834,7 @@ function RatingPanel({ summary, productSlug }: { summary: ProductRatingSummary; 
 
 					{totalReviews > 5 && (
 						<div className="pt-2">
-							<Link to={`/products/${productSlug}/reviews`} className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors">
+							<Link to={`/products/${pageSlug}/reviews`} className="w-full block text-center bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold text-sm py-3 rounded-full transition-colors">
 								{t.moreReviews(totalReviews.toLocaleString())}
 							</Link>
 						</div>

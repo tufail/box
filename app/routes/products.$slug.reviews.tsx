@@ -7,8 +7,8 @@ import type { ActiveCustomer } from "~/graphql/checkout";
 import { ChevronLeft, Star, BadgeCheck, ThumbsUp, ThumbsDown, X, ImagePlus, ChevronRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
-	PRODUCT_DETAIL_QUERY, PRODUCT_RATING_SUMMARY_QUERY, PRODUCT_REVIEWS_QUERY,
-	type ProductDetailData, type ProductRatingSummaryData, type ProductRatingSummary,
+	PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, PRODUCT_RATING_SUMMARY_QUERY, PRODUCT_REVIEWS_QUERY,
+	type ProductDetailData, type ProductDetailByVariantSlugData, type ProductRatingSummaryData, type ProductRatingSummary,
 	type ProductReviewsData, type ReviewItem, type ReviewSortOrder,
 } from "~/graphql/product";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
@@ -133,7 +133,7 @@ const REVIEWS_COPY = {
 // ── Loader ────────────────────────────────────────────────────────────────────
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-	const slug = params.slug!;
+	const slugParam = params.slug!;
 	const url = new URL(request.url);
 	const env = context.cloudflare.env;
 
@@ -145,22 +145,37 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
 	const skip = (page - 1) * TAKE;
 
-	const [productResult, summaryResult, reviewsResult] = await Promise.allSettled([
-		graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
-		graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug }, { request }),
+	// $slug is either a product's own slug or a specific variant's slug (same
+	// product-vs-variant lookup as products.$slug.tsx) — reviews pages are only
+	// ever linked to from a variant's own PDP URL now, so this has to resolve
+	// that URL too, not just the bare product slug it used to require.
+	const productLookup = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: slugParam }, { request, cf: { cacheTtl: 300, cacheEverything: true } }).catch(() => null);
+	let product = productLookup?.data.product ?? null;
+	if (!product) {
+		const variantLookup = await graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: slugParam }, { request }).catch(() => null);
+		product = variantLookup?.data.productVariantBySlug?.product ?? null;
+	}
+	if (!product) throw data(null, { status: 404 });
+
+	// Reviews are a product-level resource (one shared pool across every
+	// variant, not per-flavor) — so the aggregate queries always key off the
+	// resolved product's own slug, regardless of which variant's URL got us
+	// here.
+	const [summaryResult, reviewsResult] = await Promise.allSettled([
+		graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 		graphqlRequest<ProductReviewsData>(env, PRODUCT_REVIEWS_QUERY, {
-			slug, take: TAKE, skip, sort, ratingFilter, languageCode, verifiedOnly, withImagesOnly,
+			slug: product.slug, take: TAKE, skip, sort, ratingFilter, languageCode, verifiedOnly, withImagesOnly,
 		}, { request }),
 	]);
-
-	const product = productResult.status === "fulfilled" ? productResult.value.data.product : null;
-	if (!product) throw data(null, { status: 404 });
 
 	const summary = summaryResult.status === "fulfilled" ? summaryResult.value.data.productRatingSummaryBySlug : null;
 	const reviewsData = reviewsResult.status === "fulfilled" ? reviewsResult.value.data.productReviewsBySlug : null;
 
 	return {
-		slug,
+		// The URL's own slug (variant or bare product), not product.slug — every
+		// link rendered on this page must stay on the URL that got us here, not
+		// jump to the bare product URL.
+		slug: slugParam,
 		productId: product.id,
 		productName: product.name,
 		summary,
