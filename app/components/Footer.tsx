@@ -179,9 +179,11 @@ export default function Footer({ pageSections }: FooterProps) {
 							    same composition as the reference — needs the ancestors to allow
 							    overflow, which they do (no overflow-hidden above this). */}
 							<img
-								src="/images/healthy-smile.png"
+								src="/images/healthy-smile.webp"
 								alt=""
 								aria-hidden="true"
+								width={420}
+								height={436}
 								className="hidden md:block absolute bottom-0 start-4 lg:start-10 w-40 lg:w-52 h-auto object-contain pointer-events-none select-none"
 							/>
 							<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">

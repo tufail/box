@@ -46,7 +46,7 @@ function StackBanner({ locale }: { locale: Locale }) {
 	return (
 		<Link to="/wellness" aria-label={locale === "ar" ? "خذ اختبار العافية للحصول على باقة مخصصة" : "Take the wellness quiz for a personalized stack"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-md shadow-black/10">
 			<div className="flex-shrink-0 w-14 flex items-center justify-center">
-				<img src="/images/stack.png" alt={t.personalizedStackAlt} className="w-full h-full object-contain animate-float" />
+				<img src="/images/stack.webp" alt={t.personalizedStackAlt} width={224} height={224} className="w-full h-full object-contain animate-float" />
 			</div>
 			<div className="flex-1 min-w-0 flex flex-col justify-center">
 				<p className="text-primary font-extrabold text-base leading-snug">{t.buildYourStack}</p>
@@ -99,7 +99,7 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 						{/* NutriQuick delivery banner */}
 						<Link to="/collections" aria-label={locale === "ar" ? "استكشف المنتجات السريعة والتوصيل" : "Explore fast delivery products"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-[#8A1538]/10 via-[#8A1538]/5 to-white flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-md shadow-black/10">
 							<div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
-								<img src="/images/clock-3d.png" alt={t.fastDeliveryAlt} className="w-full h-full object-contain animate-vibrate" />
+								<img src="/images/clock-3d.webp" alt={t.fastDeliveryAlt} width={224} height={224} className="w-full h-full object-contain animate-vibrate" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<div className="flex items-center gap-1 mb-0.5">
