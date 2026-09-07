@@ -15,7 +15,8 @@ import {
 } from "~/graphql/wellness";
 import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
-import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
+import { getLocaleFromPathname, localizePath, hreflangTags, type Locale } from "~/lib/i18n";
+import { SITE_URL } from "~/lib/seo";
 import { HeartPulse, Dumbbell, Scale, Utensils, Users, ShoppingCart, RefreshCw, X, Clock, Sparkles, Mail } from "lucide-react";
 import Link from "~/components/LocaleLink";
 import VendureImage from "~/components/VendureImage";
@@ -60,10 +61,29 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	}
 }
 
-export function meta() {
+// AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
+// starting point, but worth a marketing/native review pass before this is
+// considered final customer-facing copy.
+const META_COPY = {
+	en: {
+		title: "Find My Supplement Routine - NutriBox",
+		description: "Answer a few quick questions and get a personalized supplement stack recommendation - no account needed.",
+	},
+	ar: {
+		title: "اعثر على روتين مكملاتي - نوتري بوكس",
+		description: "أجب عن بعض الأسئلة السريعة واحصل على توصية مخصصة لمجموعة مكملات غذائية تناسبك - دون الحاجة لحساب.",
+	},
+} as const;
+
+export function meta({ location }: Route.MetaArgs) {
+	const locale = getLocaleFromPathname(location.pathname);
+	const { title, description } = META_COPY[locale];
+	const canonicalUrl = `${SITE_URL}${localizePath("/wellness", locale)}`;
 	return [
-		{ title: "Find My Supplement Routine - NutriBox" },
-		{ name: "description", content: "Answer a few quick questions and get a personalized supplement stack recommendation - no account needed." },
+		{ title },
+		{ name: "description", content: description },
+		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		...hreflangTags(SITE_URL, "/wellness"),
 	];
 }
 

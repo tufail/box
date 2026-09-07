@@ -117,8 +117,19 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 
 	const faqs = FAQS[locale];
 
+	const faqJsonLd = {
+		"@context": "https://schema.org",
+		"@type": "FAQPage",
+		mainEntity: faqs.map((item) => ({
+			"@type": "Question",
+			name: item.q,
+			acceptedAnswer: { "@type": "Answer", text: item.a },
+		})),
+	};
+
 	return (
 		<div className="bg-white border-t border-stone-200">
+			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 			<div className="container mx-auto px-4 py-10">
 				{/* fr units, not percentages — percentage columns plus `gap` push the total
 			    past 100% of the container, overflowing the right column off-screen. */}

@@ -85,6 +85,7 @@ const PDP_COPY = {
 		youMay: "You May",
 		alsoLike: "also like",
 		verified: "Verified",
+		customerPhotoAlt: "Customer photo",
 		helpfulQuestion: "Helpful?",
 		helpfulSuffix: "helpful",
 		seeCustomerReviews: "See customer reviews",
@@ -162,6 +163,7 @@ const PDP_COPY = {
 		youMay: "قد",
 		alsoLike: "يعجبك أيضًا",
 		verified: "موثّق",
+		customerPhotoAlt: "صورة من العميل",
 		helpfulQuestion: "مفيد؟",
 		helpfulSuffix: "مفيد",
 		seeCustomerReviews: "عرض تقييمات العملاء",
@@ -1502,7 +1504,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				</div>
 			)}
 			{/* ── Ratings & Reviews ── */}
-			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} pageSlug={pageSlug} /> : <NoReviews pageSlug={pageSlug} />}</div>
+			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} pageSlug={pageSlug} productName={product.name} /> : <NoReviews pageSlug={pageSlug} />}</div>
 
 			{similarProducts.length > 0 && (
 				<HomeTopSelling
@@ -1547,7 +1549,7 @@ function formatDate(iso: string, locale: "en" | "ar" = "en") {
 	return new Date(iso).toLocaleDateString(locale === "ar" ? "ar-QA" : "en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: ReviewItem; compact?: boolean; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void; isLoggedIn?: boolean }) {
+function ReviewCard({ review, productName, compact = false, onVote, isLoggedIn }: { review: ReviewItem; productName: string; compact?: boolean; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void; isLoggedIn?: boolean }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = PDP_COPY[locale];
 	return (
@@ -1568,7 +1570,7 @@ function ReviewCard({ review, compact = false, onVote, isLoggedIn }: { review: R
 			{review.images.length > 0 && (
 				<div className="flex gap-2 mt-3 flex-wrap">
 					{review.images.slice(0, 4).map((img, i) => (
-						<img key={i} src={img.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100" loading="lazy" />
+						<img key={i} src={img.url} alt={`${t.customerPhotoAlt} - ${productName}`} className="w-16 h-16 object-cover rounded-lg border border-gray-100" loading="lazy" />
 					))}
 				</div>
 			)}
@@ -1707,7 +1709,7 @@ function getSortOptions(t: (typeof PDP_COPY)[keyof typeof PDP_COPY]): { value: R
 // same slug regardless of variant. pageSlug (this page's own URL, variant or
 // bare) feeds every link on the page instead, so "Write a Review" etc. never
 // send the visitor to a different URL than the one they're already on.
-function RatingPanel({ summary, productSlug, pageSlug }: { summary: ProductRatingSummary; productSlug: string; pageSlug: string }) {
+function RatingPanel({ summary, productSlug, pageSlug, productName }: { summary: ProductRatingSummary; productSlug: string; pageSlug: string; productName: string }) {
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	const SORT_OPTIONS = getSortOptions(t);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
@@ -1827,7 +1829,7 @@ function RatingPanel({ summary, productSlug, pageSlug }: { summary: ProductRatin
 							))}
 						</div>
 					) : displayReviews.length > 0 ? (
-						displayReviews.map((r) => <ReviewCard key={r.id} review={r} onVote={handleVote} isLoggedIn={isLoggedIn} />)
+						displayReviews.map((r) => <ReviewCard key={r.id} review={r} productName={productName} onVote={handleVote} isLoggedIn={isLoggedIn} />)
 					) : (
 						<p className="text-sm text-gray-400 py-4">{t.noReviewsYet}</p>
 					)}

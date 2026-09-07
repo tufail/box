@@ -23,6 +23,7 @@ const REVIEWS_COPY = {
 	en: {
 		starsOutOf5: (n: number) => `${n} out of 5 stars`,
 		verifiedPurchase: "Verified Purchase",
+		customerPhotoAlt: "Customer photo",
 		helpfulQuestion: "Helpful?",
 		star: (s: number) => `${s} star${s > 1 ? "s" : ""}`,
 		close: "Close",
@@ -77,6 +78,7 @@ const REVIEWS_COPY = {
 	ar: {
 		starsOutOf5: (n: number) => `${n} من 5 نجوم`,
 		verifiedPurchase: "عملية شراء موثّقة",
+		customerPhotoAlt: "صورة من العميل",
 		helpfulQuestion: "مفيد؟",
 		star: (s: number) => (s === 1 ? "نجمة واحدة" : s === 2 ? "نجمتان" : `${s} نجوم`),
 		close: "إغلاق",
@@ -225,7 +227,7 @@ function Stars({ value, size = 14 }: { value: number; size?: number }) {
 
 // ── Review card ───────────────────────────────────────────────────────────────
 
-function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void }) {
+function ReviewCard({ review, productName, onVote }: { review: ReviewItem; productName: string; onVote?: (id: string, vote: "HELPFUL" | "NOT_HELPFUL") => void }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = REVIEWS_COPY[locale];
 	return (
@@ -248,7 +250,7 @@ function ReviewCard({ review, onVote }: { review: ReviewItem; onVote?: (id: stri
 			{review.images.length > 0 && (
 				<div className="flex gap-2 mt-3 flex-wrap">
 					{review.images.map((img, i) => (
-						<img key={i} src={img.url} alt="" className="w-20 h-20 object-cover rounded-lg border border-gray-100" loading="lazy" />
+						<img key={i} src={img.url} alt={`${t.customerPhotoAlt} - ${productName}`} className="w-20 h-20 object-cover rounded-lg border border-gray-100" loading="lazy" />
 					))}
 				</div>
 			)}
@@ -706,7 +708,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 							</div>
 						) : (
 							<>
-								{reviews.map((r) => <ReviewCard key={r.id} review={r} onVote={handleVote} />)}
+								{reviews.map((r) => <ReviewCard key={r.id} review={r} productName={productName} onVote={handleVote} />)}
 
 								{/* Pagination */}
 								{totalPages > 1 && (

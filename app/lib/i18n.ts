@@ -56,8 +56,8 @@ export function toggleLocalePath(pathname: string, search: string, targetLocale:
 // `siteUrl` should be the origin only (no trailing slash), e.g. "https://nutribox.qa".
 export function hreflangTags(siteUrl: string, canonicalPath: string) {
 	return [
-		{ tagName: "link" as const, rel: "alternate", hrefLang: "en", href: `${siteUrl}${localizePath(canonicalPath, "en")}` },
-		{ tagName: "link" as const, rel: "alternate", hrefLang: "ar", href: `${siteUrl}${localizePath(canonicalPath, "ar")}` },
+		{ tagName: "link" as const, rel: "alternate", hrefLang: "en-QA", href: `${siteUrl}${localizePath(canonicalPath, "en")}` },
+		{ tagName: "link" as const, rel: "alternate", hrefLang: "ar-QA", href: `${siteUrl}${localizePath(canonicalPath, "ar")}` },
 		{ tagName: "link" as const, rel: "alternate", hrefLang: "x-default", href: `${siteUrl}${localizePath(canonicalPath, "en")}` },
 	];
 }

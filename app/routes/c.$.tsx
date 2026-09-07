@@ -122,7 +122,7 @@ function SubCollectionNav({ children, vendureBase, locale }: { children: { id: s
             className="flex-shrink-0 flex items-center gap-2 ps-1.5 pe-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
           >
             {child.featuredAsset ? (
-              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { preset: "thumb", format: "webp" })} alt="" className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
+              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { preset: "thumb", format: "webp" })} alt={child.name} className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
             ) : (
               <span className="w-7 h-7 rounded-full bg-stone-100 flex-shrink-0" />
             )}
