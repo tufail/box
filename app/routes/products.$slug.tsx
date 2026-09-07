@@ -450,9 +450,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		if (!product) throw new Response("Not Found", { status: 404 });
 
 		const activeVariant = activeVariantId ? (product.variants.find((v) => v.id === activeVariantId) ?? product.variants[0]) : product.variants[0];
-		// A raw variant id isn't a resolvable path on its own — fall back to the bare
-		// product URL if this variant's slug hasn't been backfilled/indexed yet.
-		const canonicalUrl = activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
+		// Self-referencing by design (iHerb-style): a URL that resolved via the
+		// variant-slug lookup canonicalizes to that same variant slug, and a URL that
+		// resolved via the bare product slug canonicalizes to that same product slug —
+		// never to some other variant's URL. Using `product.variants[0]`'s slug here
+		// for the bare-product case would make the page declare a *different* URL as
+		// canonical (whichever variant happens to be first in the array), turning this
+		// page into a non-canonical alias instead of its own indexable entry.
+		const canonicalUrl = activeVariantId && activeVariant?.customFields?.slug ? `${url.origin}${localizePath(`/products/${activeVariant.customFields.slug}`, locale)}` : `${url.origin}${localizePath(`/products/${product.slug}`, locale)}`;
 
 		// Real co-purchase recommendations ("customers who bought this also bought").
 		// Empty until orders with 2+ products have been paid (cold start for a young
