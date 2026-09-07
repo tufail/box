@@ -4,7 +4,9 @@ import Link from "~/components/LocaleLink";
 import Breadcrumb from "~/components/Breadcrumb";
 import BlogPostCard from "~/components/BlogPostCard";
 import VendureImage from "~/components/VendureImage";
-import { Clock } from "lucide-react";
+import { Clock, LayoutGrid } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
 	GET_BLOG_POSTS, GET_SHOP_BLOG_CATEGORIES,
@@ -14,6 +16,13 @@ import { SITE_URL, SITE_NAME } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 
 const PAGE_SIZE = 9;
+
+function CategoryIcon({ name, size = 20 }: { name: string | null; size?: number }) {
+	if (!name) return null;
+	const Cmp = (LucideIcons as unknown as Record<string, LucideIcon>)[name];
+	if (!Cmp) return null;
+	return <Cmp size={size} strokeWidth={1.8} />;
+}
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
@@ -186,55 +195,63 @@ export default function BlogIndex({ loaderData }: Route.ComponentProps) {
 				</Link>
 			)}
 
-			<div className="flex items-center gap-2 flex-wrap mb-8">
-				<button
-					onClick={() => selectCategory(null)}
-					className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${!category ? "bg-primary border-primary text-white" : "bg-white border-gray-200 text-gray-600 hover:border-primary hover:text-primary"}`}
-				>
-					{t.allCategories}
-				</button>
-				{categories.map((c) => (
-					<button
-						key={c.id}
-						onClick={() => selectCategory(c.slug)}
-						className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${category === c.slug ? "bg-primary border-primary text-white" : "bg-white border-gray-200 text-gray-600 hover:border-primary hover:text-primary"}`}
-					>
-						{c.name}
-					</button>
-				))}
+			<div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+				<aside>
+					<nav aria-label={t.allCategories} className="flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+						<button
+							onClick={() => selectCategory(null)}
+							className={`flex flex-none lg:flex-1 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-left transition-colors ${!category ? "bg-primary/10 text-primary" : "text-gray-700 hover:bg-gray-50"}`}
+						>
+							<LayoutGrid size={20} strokeWidth={1.8} />
+							{t.allCategories}
+						</button>
+						{categories.map((c) => (
+							<button
+								key={c.id}
+								onClick={() => selectCategory(c.slug)}
+								className={`flex flex-none lg:flex-1 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-left transition-colors ${category === c.slug ? "bg-primary/10 text-primary" : "text-gray-700 hover:bg-gray-50"}`}
+							>
+								<CategoryIcon name={c.icon} />
+								{c.name}
+							</button>
+						))}
+					</nav>
+				</aside>
+
+				<div>
+					{items.length === 0 ? (
+						<div className="text-center py-24 text-gray-400">
+							<p className="text-base">{t.empty}</p>
+						</div>
+					) : (
+						<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+							{items.map((post, i) => (
+								<BlogPostCard key={post.id} post={post} vendureBase={vendureBase} locale={locale as Locale} eager={i < 3} />
+							))}
+						</div>
+					)}
+
+					{totalPages > 1 && (
+						<div className="flex justify-center items-center gap-3 mt-10">
+							<button
+								disabled={page === 1}
+								onClick={() => updateParam("page", String(page - 1))}
+								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								{t.prev}
+							</button>
+							<span className="text-sm text-gray-600">{t.pageOf(page, totalPages)}</span>
+							<button
+								disabled={page === totalPages}
+								onClick={() => updateParam("page", String(page + 1))}
+								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+							>
+								{t.next}
+							</button>
+						</div>
+					)}
+				</div>
 			</div>
-
-			{items.length === 0 ? (
-				<div className="text-center py-24 text-gray-400">
-					<p className="text-base">{t.empty}</p>
-				</div>
-			) : (
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-					{items.map((post, i) => (
-						<BlogPostCard key={post.id} post={post} vendureBase={vendureBase} locale={locale as Locale} eager={i < 3} />
-					))}
-				</div>
-			)}
-
-			{totalPages > 1 && (
-				<div className="flex justify-center items-center gap-3 mt-10">
-					<button
-						disabled={page === 1}
-						onClick={() => updateParam("page", String(page - 1))}
-						className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-					>
-						{t.prev}
-					</button>
-					<span className="text-sm text-gray-600">{t.pageOf(page, totalPages)}</span>
-					<button
-						disabled={page === totalPages}
-						onClick={() => updateParam("page", String(page + 1))}
-						className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-					>
-						{t.next}
-					</button>
-				</div>
-			)}
 		</div>
 	);
 }

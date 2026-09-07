@@ -6,6 +6,7 @@ export interface BlogCategoryLite {
   id: string;
   name: string;
   slug: string;
+  icon: string | null;
 }
 
 export interface BlogTagLite {
@@ -43,7 +44,7 @@ const BLOG_POST_LIST_FIELDS = `
   excerpt
   slug
   assetPreview
-  category { id name slug }
+  category { id name slug icon }
   tags { id name slug }
   authorName
   authorAvatarPreview
@@ -113,7 +114,7 @@ export interface ShopBlogCategoriesData {
 
 export const GET_SHOP_BLOG_CATEGORIES = `
   query GetShopBlogCategories {
-    shopBlogCategories { id name slug description }
+    shopBlogCategories { id name slug description icon }
   }
 `;
 
