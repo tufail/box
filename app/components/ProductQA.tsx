@@ -174,24 +174,28 @@ function AskQuestionForm({ productId, isLoggedIn, productSlug, onSubmitted, t }:
 	);
 }
 
-export default function ProductQA({ productId, productSlug, embedded = false }: { productId: string; productSlug: string; embedded?: boolean }) {
+export default function ProductQA({ productId, productSlug, initialQuestions, initialTotalItems, embedded = false }: { productId: string; productSlug: string; initialQuestions: ProductQuestionItem[]; initialTotalItems: number; embedded?: boolean }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = QA_COPY[locale];
 	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
 	const isLoggedIn = !!rootData?.activeCustomer;
 
-	const [take, setTake] = useState(10);
 	const [showForm, setShowForm] = useState(false);
 	const fetcher = useFetcher<{ questions: ProductQuestionItem[]; totalItems: number }>();
 
-	useEffect(() => {
-		fetcher.load(`/api/questions?slug=${productSlug}&take=${take}`);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [take]);
-
-	const questions = fetcher.data?.questions ?? [];
-	const totalItems = fetcher.data?.totalItems ?? 0;
+	const questions = fetcher.data?.questions ?? initialQuestions;
+	const totalItems = fetcher.data?.totalItems ?? initialTotalItems;
 	const hasMore = questions.length < totalItems;
+
+	// No mount-time fetch — the loader already fetched the first page of
+	// questions server-side (initialQuestions), so this content is present in
+	// the initial HTML rather than only appearing after a client fetch (this
+	// panel used to only mount once its tab was clicked, so it was previously
+	// invisible to a crawler that doesn't simulate that click). This fetcher is
+	// only used for "load more" from here on.
+	function handleLoadMore() {
+		fetcher.load(`/api/questions?slug=${productSlug}&take=${questions.length + 10}`);
+	}
 
 	return (
 		<div className={embedded ? "" : "bg-white rounded-2xl border border-gray-200 p-6"}>
@@ -232,7 +236,7 @@ export default function ProductQA({ productId, productSlug, embedded = false }: 
 			)}
 
 			{hasMore && (
-				<button onClick={() => setTake((n) => n + 10)} disabled={fetcher.state !== "idle"} className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-primary transition-colors mt-3 disabled:opacity-50">
+				<button onClick={handleLoadMore} disabled={fetcher.state !== "idle"} className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-primary transition-colors mt-3 disabled:opacity-50">
 					{t.loadMore} <ChevronDown size={14} />
 				</button>
 			)}

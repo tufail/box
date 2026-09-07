@@ -16,7 +16,8 @@ import ProductComparisonTable from "~/components/ProductComparisonTable";
 import ProductQA from "~/components/ProductQA";
 import RecentlyViewed from "~/components/RecentlyViewed";
 import { recordRecentlyViewed } from "~/lib/recentlyViewed";
-import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, relatedProductToSearchItem, productDetailToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
+import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, PRODUCT_REVIEWS_QUERY, relatedProductToSearchItem, productDetailToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ProductReviewsData, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
+import { PRODUCT_QUESTIONS_QUERY, type ProductQuestionsData, type ProductQuestionItem } from "~/graphql/question";
 import VendureImage, { vendureImageUrl } from "~/components/VendureImage";
 import type { AddToCartResult, AddToCartOrderResult, InsufficientStockError } from "~/graphql/order";
 import { getAddToCartErrorMessage } from "~/graphql/order";
@@ -477,10 +478,16 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			.slice(0, 8);
 		const collectionSlug = product.collections[0]?.slug ?? null;
 
-		const [summaryResult, currentProductResult] = await Promise.allSettled([
+		const [summaryResult, currentProductResult, reviewsResult, questionsResult] = await Promise.allSettled([
 			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
 			// Dedicated search for current product to get sold count + best seller data
 			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, { request }),
+			// First page of reviews/Q&A, SSR'd so this content (and the Review schema
+			// below) is in the initial HTML instead of only appearing after a client-side
+			// fetch on mount — RatingPanel/ProductQA still own re-fetching for sort
+			// changes and "load more", this just seeds their first render.
+			graphqlRequest<ProductReviewsData>(env, PRODUCT_REVIEWS_QUERY, { slug: product.slug, take: 5, skip: 0, sort: "MOST_RELEVANT" }, { request }),
+			graphqlRequest<ProductQuestionsData>(env, PRODUCT_QUESTIONS_QUERY, { slug: product.slug, options: { take: 10 } }, { request }),
 		]);
 
 		// Find current product in the dedicated search result (term: product.name)
@@ -493,6 +500,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const bestSellerCollectionSlug: string | null = currentInSearch?.customProductMappings?.bestSellerCollectionSlug ?? null;
 
 		const ratingSummary: ProductRatingSummary | null = summaryResult.status === "fulfilled" ? (summaryResult.value.data.productRatingSummaryBySlug ?? null) : null;
+		const initialReviews: ReviewItem[] = reviewsResult.status === "fulfilled" ? (reviewsResult.value.data.productReviewsBySlug?.items ?? []) : [];
+		const initialQuestions: ProductQuestionItem[] = questionsResult.status === "fulfilled" ? (questionsResult.value.data.productQuestionsBySlug?.items ?? []) : [];
+		const initialQuestionsTotal: number = questionsResult.status === "fulfilled" ? (questionsResult.value.data.productQuestionsBySlug?.totalItems ?? 0) : 0;
 
 		const activeVariantName = variantDisplayTitle(activeVariant);
 
@@ -506,7 +516,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const comparisonGroupId = product.customFields?.comparisonGroupId ?? null;
 		const comparisonFlavorOption = activeVariant?.options.find((o) => /flavor/i.test(o.group.code) || /flavor/i.test(o.group.name))?.name ?? null;
 
-		return { product, vendureBase, similarProducts, similarCollectionSlug: collectionSlug, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, pageSlug, activeVariantName, ratingSummary, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale };
+		return { product, vendureBase, similarProducts, similarCollectionSlug: collectionSlug, selectedVariantId: activeVariant?.id ?? null, canonicalUrl, pageSlug, activeVariantName, ratingSummary, initialReviews, initialQuestions, initialQuestionsTotal, soldCount30d, bestSellerRank, bestSellerCollection, bestSellerCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
 		throw new Response("Not Found", { status: 404 });
@@ -822,7 +832,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 
 // ── Product info tabs (Description / Full Specs / Warnings) ────────────────
 
-function ProductInfoTabs({ description, warnings, productId, productSlug }: { description: string; warnings: string; productId: string; productSlug: string }) {
+function ProductInfoTabs({ description, warnings, productId, productSlug, initialQuestions, initialQuestionsTotal }: { description: string; warnings: string; productId: string; productSlug: string; initialQuestions: ProductQuestionItem[]; initialQuestionsTotal: number }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = PDP_COPY[locale];
 	const TABS = [
@@ -832,7 +842,6 @@ function ProductInfoTabs({ description, warnings, productId, productSlug }: { de
 	] as const;
 	const [active, setActive] = useState<(typeof TABS)[number]["key"]>("description");
 	const activeIndex = TABS.findIndex((t) => t.key === active);
-	const activeTab = TABS[activeIndex];
 	// Fixed pixel width (not percentage) so the pill always lines up exactly with its
 	// button, regardless of how much the label text varies in length between tabs.
 	const TAB_WIDTH = 128;
@@ -849,13 +858,22 @@ function ProductInfoTabs({ description, warnings, productId, productSlug }: { de
 				))}
 			</div>
 
-			{active === "qa" ? (
-				<div className="w-full max-w-2xl mx-auto text-start">
-					<ProductQA productId={productId} productSlug={productSlug} embedded />
+			{/* All three panels stay mounted (visibility toggled via `hidden`, not
+			    conditional unmount) — the Q&A panel used to only render once its tab
+			    was clicked, which meant a crawler that doesn't simulate that click
+			    (Googlebot renders JS but doesn't click UI, most other bots don't
+			    render at all) never saw any Q&A content, ever. */}
+			{TABS.map((tab) => (
+				<div key={tab.key} hidden={tab.key !== active} className={tab.key === "qa" ? "w-full max-w-2xl mx-auto text-start" : "prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1"}>
+					{tab.key === "qa" ? (
+						<ProductQA productId={productId} productSlug={productSlug} initialQuestions={initialQuestions} initialTotalItems={initialQuestionsTotal} embedded />
+					) : tab.content ? (
+						<div dangerouslySetInnerHTML={{ __html: tab.content }} />
+					) : (
+						<p className="text-gray-400 italic text-center">{tab.emptyText}</p>
+					)}
 				</div>
-			) : (
-				<div className="prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1">{activeTab.content ? <div dangerouslySetInnerHTML={{ __html: activeTab.content }} /> : <p className="text-gray-400 italic text-center">{activeTab.emptyText}</p>}</div>
-			)}
+			))}
 		</div>
 	);
 }
@@ -863,7 +881,7 @@ function ProductInfoTabs({ description, warnings, productId, productSlug }: { de
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ loaderData }: Route.ComponentProps) {
-	const { product, vendureBase, similarProducts: initialSimilarProducts, similarCollectionSlug, selectedVariantId, canonicalUrl, pageSlug, ratingSummary, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale } = loaderData;
+	const { product, vendureBase, similarProducts: initialSimilarProducts, similarCollectionSlug, selectedVariantId, canonicalUrl, pageSlug, ratingSummary, initialReviews, initialQuestions, initialQuestionsTotal, soldCount30d: initialSold, bestSellerRank: initialRank, bestSellerCollection: initialCollection, bestSellerCollectionSlug: initialCollectionSlug, comparisonGroupId, comparisonFlavorOption, locale } = loaderData;
 	const t = PDP_COPY[locale];
 
 	const optionGroups = getOptionGroups(product.variants);
@@ -1131,6 +1149,16 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				bestRating: String(ar.bestRating),
 				worstRating: String(ar.worstRating),
 			},
+		}),
+		...(initialReviews.length > 0 && {
+			review: initialReviews.slice(0, 5).map((r) => ({
+				"@type": "Review",
+				reviewRating: { "@type": "Rating", ratingValue: String(r.rating), bestRating: "5", worstRating: "1" },
+				author: { "@type": "Person", name: r.authorName },
+				...(r.title && { name: r.title }),
+				reviewBody: r.body,
+				datePublished: r.createdAt,
+			})),
 		}),
 		offers: isVariantPage && activeVariant ? offerFor(activeVariant) : product.variants.map(offerFor),
 	};
@@ -1474,7 +1502,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					return (
 						<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
 							<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} />
+								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} initialQuestions={initialQuestions} initialQuestionsTotal={initialQuestionsTotal} />
 							</div>
 
 							{/* Nutrition Facts */}
@@ -1504,7 +1532,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				</div>
 			)}
 			{/* ── Ratings & Reviews ── */}
-			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} pageSlug={pageSlug} productName={product.name} /> : <NoReviews pageSlug={pageSlug} />}</div>
+			<div className="container mx-auto px-4 mt-12 mb-10">{ratingSummary && ratingSummary.totalReviews > 0 ? <RatingPanel summary={ratingSummary} productSlug={product.slug} pageSlug={pageSlug} productName={product.name} initialReviews={initialReviews} /> : <NoReviews pageSlug={pageSlug} />}</div>
 
 			{similarProducts.length > 0 && (
 				<HomeTopSelling
@@ -1709,7 +1737,7 @@ function getSortOptions(t: (typeof PDP_COPY)[keyof typeof PDP_COPY]): { value: R
 // same slug regardless of variant. pageSlug (this page's own URL, variant or
 // bare) feeds every link on the page instead, so "Write a Review" etc. never
 // send the visitor to a different URL than the one they're already on.
-function RatingPanel({ summary, productSlug, pageSlug, productName }: { summary: ProductRatingSummary; productSlug: string; pageSlug: string; productName: string }) {
+function RatingPanel({ summary, productSlug, pageSlug, productName, initialReviews }: { summary: ProductRatingSummary; productSlug: string; pageSlug: string; productName: string; initialReviews: ReviewItem[] }) {
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
 	const SORT_OPTIONS = getSortOptions(t);
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
@@ -1721,17 +1749,16 @@ function RatingPanel({ summary, productSlug, pageSlug, productName }: { summary:
 	const [sort, setSort] = useState<ReviewSortOrder>("MOST_RELEVANT");
 	const reviewsFetcher = useFetcher<{ reviews: ReviewItem[]; totalItems: number }>();
 
-	// Load reviews on mount
-	useEffect(() => {
-		reviewsFetcher.load(`/api/product-reviews?slug=${productSlug}&sort=MOST_RELEVANT&take=5`);
-	}, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+	// No mount-time fetch — the loader already fetched the first (MOST_RELEVANT)
+	// page of reviews server-side (initialReviews), so this content is present in
+	// the initial HTML instead of appearing only after a client fetch. This
+	// fetcher is only used for an actual sort change from here on.
 	function handleSortChange(newSort: ReviewSortOrder) {
 		setSort(newSort);
 		reviewsFetcher.load(`/api/product-reviews?slug=${productSlug}&sort=${newSort}&take=5`);
 	}
 
-	const reviews: ReviewItem[] = reviewsFetcher.data?.reviews ?? [];
+	const reviews: ReviewItem[] = reviewsFetcher.data?.reviews ?? initialReviews;
 	const totalReviews = reviewsFetcher.data?.totalItems ?? summary.totalReviews;
 	const loading = reviewsFetcher.state !== "idle";
 
