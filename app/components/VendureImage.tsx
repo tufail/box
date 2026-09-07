@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 
-// The asset server only accepts named presets (?preset=) — crop-vs-resize is
-// baked into the preset name itself, so "cover" (crop-to-fill) and "contain"
-// (resize, keep the whole image) each need their own size ladder rather than
-// a single list + a separate mode param.
-export type ImagePreset =
-  | "tiny" | "thumb" | "small" | "medium" | "large" | "xlarge"
-  | "crop-300" | "crop-500" | "crop-800" | "crop-1400";
+// The asset server only accepts named presets (?preset=) that are actually
+// registered in its AssetServerOptions.presets config. Verified directly
+// against the live asset server (checking real Content-Length/Content-Type,
+// not just status code): tiny/thumb/small/medium/large/xlarge all return a
+// genuine, distinctly-sized webp — there is no crop-* family at all (every
+// crop-N variant 400s). Since there's a single preset family, crop-to-fill
+// vs resize-to-contain is purely a client-side CSS distinction (the `fit`
+// class below) rather than a preset choice, so cover and contain now share
+// one ladder.
+export type ImagePreset = "tiny" | "thumb" | "small" | "medium" | "large" | "xlarge";
 
 // "blur" is a separate, dedicated preset for blur-up placeholders (20×20 crop)
-// — distinct from "tiny" (50×50) — so it's not part of either size ladder.
+// — distinct from "tiny" (50×50) — so it's not part of the size ladder.
 type AnyPreset = ImagePreset | "blur";
 
 interface Rung {
@@ -17,27 +20,14 @@ interface Rung {
   preset: ImagePreset;
 }
 
-// objectFit="cover" ladder (crop-to-fill).
-const CROP_LADDER: Rung[] = [
+const SIZE_LADDER: Rung[] = [
   { max: 50, preset: "tiny" },
   { max: 150, preset: "thumb" },
-  { max: 300, preset: "crop-300" },
-  { max: 500, preset: "crop-500" },
-  { max: 800, preset: "crop-800" },
-  { max: Infinity, preset: "crop-1400" },
-];
-
-// objectFit="contain" ladder (resize, whole image preserved).
-const RESIZE_LADDER: Rung[] = [
   { max: 300, preset: "small" },
   { max: 500, preset: "medium" },
   { max: 800, preset: "large" },
   { max: Infinity, preset: "xlarge" },
 ];
-
-function ladderFor(objectFit: "cover" | "contain"): Rung[] {
-  return objectFit === "contain" ? RESIZE_LADDER : CROP_LADDER;
-}
 
 // Some asset preview paths come back without a leading slash (and occasionally
 // with backslashes — a Windows path.join artifact from the backend), which
@@ -57,17 +47,15 @@ function normalizeAssetPath(src: string): string {
   return path;
 }
 
-// Picks the smallest preset on the relevant ladder whose ceiling covers the
-// requested pixel size, capping at that ladder's largest preset.
-export function presetForSize(px: number, objectFit: "cover" | "contain" = "cover"): ImagePreset {
-  const ladder = ladderFor(objectFit);
-  return (ladder.find((rung) => px <= rung.max) ?? ladder[ladder.length - 1]).preset;
+// Picks the smallest preset on the ladder whose ceiling covers the requested
+// pixel size, capping at the ladder's largest preset.
+export function presetForSize(px: number): ImagePreset {
+  return (SIZE_LADDER.find((rung) => px <= rung.max) ?? SIZE_LADDER[SIZE_LADDER.length - 1]).preset;
 }
 
-function stepUp(preset: ImagePreset, objectFit: "cover" | "contain"): ImagePreset {
-  const ladder = ladderFor(objectFit);
-  const idx = ladder.findIndex((rung) => rung.preset === preset);
-  return idx === -1 || idx === ladder.length - 1 ? preset : ladder[idx + 1].preset;
+function stepUp(preset: ImagePreset): ImagePreset {
+  const idx = SIZE_LADDER.findIndex((rung) => rung.preset === preset);
+  return idx === -1 || idx === SIZE_LADDER.length - 1 ? preset : SIZE_LADDER[idx + 1].preset;
 }
 
 export function vendureImageUrl(
@@ -130,8 +118,8 @@ export default function VendureImage({
   const isVendure = base.length > 0 && resolved.startsWith(base);
   const fit = objectFit === "cover" ? "object-cover" : "object-contain";
 
-  const preset = presetForSize(Math.max(width, height), objectFit);
-  const preset2x = stepUp(preset, objectFit);
+  const preset = presetForSize(Math.max(width, height));
+  const preset2x = stepUp(preset);
 
   const optimizedSrc = isVendure
     ? vendureImageUrl(src, vendureBase, { preset, format: "webp" })
