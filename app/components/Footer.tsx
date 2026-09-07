@@ -62,7 +62,6 @@ const FOOTER_COPY = {
 			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours to same day" },
 			{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
 		],
-		getDirections: "Get directions on Google Maps",
 		hours: "Sat-Thu 10am to 8pm",
 		followUs: "Follow Us",
 		tagline: "Your trusted destination for authentic sports nutrition, health supplements, and wellness products across Qatar.",
@@ -89,7 +88,6 @@ const FOOTER_COPY = {
 			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع من ساعتين إلى نفس اليوم" },
 			{ icon: ShieldCheck, title: "منتجات أصلية 100%", desc: "نتعامل فقط مع المنتجات الأصلية" },
 		],
-		getDirections: "الحصول على الاتجاهات عبر خرائط جوجل",
 		hours: "السبت-الخميس من 10 صباحًا حتى 8 مساءً",
 		followUs: "تابعنا",
 		tagline: "وجهتك الموثوقة للمكملات الرياضية الأصلية والمكملات الصحية ومنتجات العافية في جميع أنحاء قطر.",
@@ -292,15 +290,13 @@ export default function Footer({ pageSections }: FooterProps) {
 								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.contactUs}</h3>
 								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
 								<div className="space-y-3 text-xs">
-									<div className="flex items-start gap-2">
-										<MapPin size={14} className="mt-0.5 shrink-0 text-gray-400" aria-hidden="true" />
-										<span className="leading-relaxed text-gray-600">
+									<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" className="group flex items-start gap-2">
+										<MapPin size={14} className="mt-0.5 shrink-0 text-gray-400 group-hover:text-primary transition-colors" aria-hidden="true" />
+										<span className="leading-relaxed text-gray-600 group-hover:text-primary transition-colors">
 											AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
-											<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" aria-label={t.getDirections} className="inline-flex align-text-top text-gray-400 hover:text-primary transition-colors">
-												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
-											</a>
+											<ArrowUpRight size={13} strokeWidth={2} className="inline align-text-top" aria-hidden="true" />
 										</span>
-									</div>
+									</a>
 									<div className="flex items-start gap-2">
 										<Phone size={14} className="shrink-0 text-gray-400 mt-0.5" aria-hidden="true" />
 										<div>
