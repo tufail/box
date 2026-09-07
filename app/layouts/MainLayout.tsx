@@ -12,7 +12,7 @@ import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher, useLocation, useNavigate } from "react-router";
 import LocaleLink from "../components/LocaleLink";
-import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check } from "lucide-react";
+import { CircleUser, ChevronDown, ChevronRight, Globe, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import { useWishlist } from "../context/WishlistContext";
 import { getLocaleFromPathname, stripLocalePrefix, toggleLocalePath } from "~/lib/i18n";
@@ -76,6 +76,11 @@ const LAYOUT_COPY = {
 		createAccountAgreement: "By creating an account you agree to our",
 		termsAndConditions: "Terms & Conditions",
 		and: "and",
+		regionLanguage: "Region & Language",
+		shippingTo: "Shipping to",
+		qatar: "Qatar",
+		onlyMarketNote: "Currently the only market we deliver to.",
+		language: "Language",
 	},
 	ar: {
 		freeDelivery: "توصيل مجاني للطلبات فوق 99 ريال قطري",
@@ -123,6 +128,11 @@ const LAYOUT_COPY = {
 		createAccountAgreement: "بإنشاء حساب، فإنك توافق على",
 		termsAndConditions: "الشروط والأحكام",
 		and: "و",
+		regionLanguage: "المنطقة واللغة",
+		shippingTo: "الشحن إلى",
+		qatar: "قطر",
+		onlyMarketNote: "قطر هو السوق الوحيد الذي نوصل إليه حاليًا.",
+		language: "اللغة",
 	},
 } as const;
 
@@ -446,6 +456,73 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 	);
 }
 
+// ── Region & Language Modal ─────────────────────────────────────────────────
+// Single source for both "where do we ship" and "which language" — Qatar is
+// the only market today, so that half is a fixed, non-interactive row (not a
+// dead dropdown promising countries that don't exist yet). Language switching
+// re-navigates to the equivalent page in the other locale, same as the old
+// top-bar toggle did.
+
+function RegionLanguageModal({ currentLang, onClose }: { currentLang: "en" | "ar"; onClose: () => void }) {
+	const t = LAYOUT_COPY[currentLang];
+	const dialogRef = useRef<HTMLDivElement>(null);
+	const routerLocation = useLocation();
+	const navigate = useNavigate();
+	useFocusTrap(dialogRef, true, onClose);
+
+	function selectLanguage(lang: "en" | "ar") {
+		if (lang !== currentLang) {
+			navigate(toggleLocalePath(routerLocation.pathname, routerLocation.search, lang));
+		}
+		onClose();
+	}
+
+	return (
+		<div className="fixed inset-0 z-50 overflow-y-auto">
+			<div className="fixed inset-0 bg-black/50 animate-fade-in" onClick={onClose} />
+			<div className="flex min-h-full items-center justify-center p-4">
+				<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="region-language-title" tabIndex={-1} className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 z-10 animate-drop-in">
+					<button onClick={onClose} className="absolute top-4 end-4 text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.close}>
+						<X size={20} />
+					</button>
+
+					<h2 id="region-language-title" className="text-lg font-bold text-gray-900 mb-5">{t.regionLanguage}</h2>
+
+					<div className="mb-5">
+						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.shippingTo}</p>
+						<div className="flex items-center gap-2.5 border border-gray-200 bg-gray-50 rounded-xl px-3.5 py-2.5">
+							<span className="text-xl leading-none" aria-hidden="true">🇶🇦</span>
+							<span className="text-sm font-medium text-gray-900 flex-1">{t.qatar}</span>
+							<Check size={16} strokeWidth={2.5} className="text-primary flex-shrink-0" />
+						</div>
+						<p className="text-xs text-gray-400 mt-1.5">{t.onlyMarketNote}</p>
+					</div>
+
+					<div>
+						<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.language}</p>
+						<div className="grid grid-cols-2 gap-2">
+							{(["en", "ar"] as const).map((lang) => (
+								<button
+									key={lang}
+									type="button"
+									onClick={() => selectLanguage(lang)}
+									translate="no"
+									className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer ${currentLang === lang ? "border-primary bg-primary/5 text-primary" : "border-gray-200 text-gray-700 hover:border-gray-300"}`}
+								>
+									<span lang={lang} className={lang === "ar" ? "font-arabic" : ""}>
+										{lang === "en" ? "English" : "العربية"}
+									</span>
+									{currentLang === lang && <Check size={14} strokeWidth={2.5} className="flex-shrink-0" />}
+								</button>
+							))}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 // ── Top bar news pills ──────────────────────────────────────────────────────
 // Fetched client-side (not in the root loader) so it doesn't add a blocking
 // GraphQL round-trip to every single page's SSR — mirrors HomeBanner.tsx's
@@ -530,11 +607,11 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 	const { wishlistCount } = useWishlist();
 	const [accountOpen, setAccountOpen] = useState(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
+	const [regionModalOpen, setRegionModalOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [profilePromptDismissed, setProfilePromptDismissed] = useState(false);
 	const [headerVisible, setHeaderVisible] = useState(true);
 	const lastScrollY = useRef(0);
-	const navigate = useNavigate();
 	// Derived straight from the URL (/ar/* prefix), not client state — this is
 	// what actually determines which translated content the current page shows,
 	// so it can never drift out of sync the way a separate cookie/state could.
@@ -580,14 +657,6 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
-	// Real navigation to the equivalent page in the other locale (not a machine
-	// translation overlay) — Vendure serves genuinely translated content for
-	// whichever language the URL resolves to, via /ar/* (see app/lib/i18n.ts).
-	function toggleLanguage() {
-		const nextLang = currentLang === "en" ? "ar" : "en";
-		navigate(toggleLocalePath(routerLocation.pathname, routerLocation.search, nextLang));
-	}
-
 	return (
 		<div className="min-h-screen flex flex-col">
 			<a
@@ -597,20 +666,8 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 				{t.skipToContent}
 			</a>
 			<div className="py-2" style={{ backgroundColor: "#214d54" }}>
-				<div className="container mx-auto px-4 flex items-center gap-4">
-					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-						<TopBarNewsPills />
-					</div>
-					<button onClick={toggleLanguage} translate="no" className="border rounded-xl px-2 flex-shrink-0 flex items-center gap-1.5 text-white hover:text-black hover:bg-white cursor-pointer transition-colors text-sm">
-						<Languages size={16} strokeWidth={1.5} />
-						{currentLang === "en" ? (
-							<span lang="ar" className="font-arabic">
-								العربية
-							</span>
-						) : (
-							<span>English</span>
-						)}
-					</button>
+				<div className="container mx-auto px-4 overflow-x-auto scrollbar-hide">
+					<TopBarNewsPills />
 				</div>
 			</div>
 			<header className={`bg-white/95 border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
@@ -637,6 +694,9 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 						<div className="hidden md:block w-56 lg:w-72">
 							<SearchBox />
 						</div>
+						<button onClick={() => setRegionModalOpen(true)} className="text-gray-600 hover:text-primary hover:scale-110 transition-all duration-200 cursor-pointer" aria-label={t.regionLanguage}>
+							<Globe size={22} strokeWidth={1.5} />
+						</button>
 						<LocaleLink to="/wishlist" className="text-gray-600 relative hover:text-primary hover:scale-110 transition-all duration-200 inline-block" aria-label={t.wishlist}>
 							<Heart size={24} strokeWidth={1.5} />
 							{wishlistCount > 0 && <span className="absolute bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center -top-1.5 -end-1.5 pointer-events-none">{wishlistCount > 99 ? "99+" : wishlistCount}</span>}
@@ -712,6 +772,8 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 			<CartSidePanel isOpen={isCartOpen} onClose={closeCart} />
 
 			{authModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
+
+			{regionModalOpen && <RegionLanguageModal currentLang={currentLang} onClose={() => setRegionModalOpen(false)} />}
 
 			{needsProfileCompletion && <CompleteProfileModal onClose={() => setProfilePromptDismissed(true)} />}
 		</div>
