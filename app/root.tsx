@@ -28,7 +28,7 @@ const ORGANIZATION_JSON_LD = {
 	logo: `${SITE_URL}/images/logo.png`,
 	address: {
 		"@type": "PostalAddress",
-		streetAddress: "AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St",
+		streetAddress: "AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St",
 		addressLocality: "Doha",
 		addressCountry: "QA",
 	},

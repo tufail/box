@@ -32,7 +32,7 @@ const STORE_PICKUP_METHOD_CODE = "store-pickup";
 // reserved for the store itself — confirm against Vendure eligibility rules if a
 // pickup order ever comes back ineligible.
 const STORE_PICKUP_ADDRESS = {
-	streetLine1: "AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St",
+	streetLine1: "AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St",
 	city: "Doha",
 	postalCode: "1",
 	countryCode: "QA",

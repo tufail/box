@@ -295,7 +295,7 @@ export default function Footer({ pageSections }: FooterProps) {
 									<div className="flex items-start gap-2">
 										<MapPin size={14} className="mt-0.5 shrink-0 text-gray-400" aria-hidden="true" />
 										<span className="leading-relaxed text-gray-600">
-											AK Group Building Office no 2, 2nd Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
+											AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St, Doha, Qatar{" "}
 											<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" aria-label={t.getDirections} className="inline-flex align-text-top text-gray-400 hover:text-primary transition-colors">
 												<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
 											</a>
