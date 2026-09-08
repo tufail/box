@@ -1096,6 +1096,21 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 	const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
 	const seller = { "@type": "Organization", name: SITE_NAME };
+	// Same for every offer sitewide (one market, one policy) — Qatar-only
+	// delivery and the 7-day window from the actual Refund & Return Policy
+	// page (/pages/refund-and-return-policy), not the PDP trust badge's
+	// "48 Hours" copy, which is a separate, inconsistent piece of marketing
+	// text — this schema has to match the real, binding policy.
+	const shippingDetails = {
+		"@type": "OfferShippingDetails",
+		shippingDestination: { "@type": "DefinedRegion", addressCountry: "QA" },
+	};
+	const hasMerchantReturnPolicy = {
+		"@type": "MerchantReturnPolicy",
+		applicableCountry: "QA",
+		returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+		merchantReturnDays: 7,
+	};
 
 	function offerFor(v: ProductDetailVariant) {
 		return {
@@ -1107,6 +1122,8 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
 			itemCondition: "https://schema.org/NewCondition",
 			seller,
+			shippingDetails,
+			hasMerchantReturnPolicy,
 		};
 	}
 
