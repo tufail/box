@@ -286,6 +286,55 @@ export function relatedProductToSearchItem(p: RelatedProduct): SearchProductItem
   };
 }
 
+// Adapts one queried ProductVariant (with its parent product) into the
+// search-index item shape ProductCard renders. Unlike relatedProductToSearchItem
+// above, there's no "pick the first variant" guess here — the blog admin chose
+// this exact variant, so it's used as-is.
+export function blogRelatedVariantToSearchItem(v: {
+  id: string;
+  name: string;
+  priceWithTax: number;
+  currencyCode: string;
+  stockLevel: string;
+  stockQty: number;
+  featuredAsset: { id: string; preview: string } | null;
+  customFields: { rrp: number | null; slug: string | null } | null;
+  product: { id: string; name: string; slug: string; featuredAsset: { id: string; preview: string } | null };
+}): SearchProductItem {
+  const rrp = v.customFields?.rrp ?? null;
+  const discount = rrp && rrp > v.priceWithTax ? rrp - v.priceWithTax : 0;
+  return {
+    productId: v.product.id,
+    productVariantId: v.id,
+    productName: v.product.name,
+    productVariantName: v.name,
+    slug: v.product.slug,
+    description: "",
+    inStock: v.stockLevel !== "OUT_OF_STOCK",
+    productAsset: v.product.featuredAsset,
+    productVariantAsset: v.featuredAsset,
+    price: { __typename: "SinglePrice", value: v.priceWithTax },
+    customProductVariantMappings: {
+      isOnSale: discount > 0,
+      stockQty: v.stockQty,
+      discount,
+      rrp,
+      slug: v.customFields?.slug ?? null,
+    },
+    customProductMappings: {
+      variantCount: 1,
+      salesCount: 0,
+      avgRating: null,
+      reviewCount: null,
+      isBundle: null,
+      soldCount30d: null,
+      bestSellerRank: null,
+      bestSellerCollection: null,
+      bestSellerCollectionSlug: null,
+    },
+  };
+}
+
 // Snapshot taken directly from the product detail page's own already-loaded
 // product/variant data, for the "Recently Viewed" localStorage strip (see
 // ~/lib/recentlyViewed) -- same rationale/shape as relatedProductToSearchItem.

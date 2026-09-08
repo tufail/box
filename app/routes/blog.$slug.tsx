@@ -9,10 +9,10 @@ import VendureImage from "~/components/VendureImage";
 import { Clock, Eye } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import {
-	GET_BLOG_POST_BY_SLUG, GET_RELATED_BLOG_POSTS, GET_BLOG_RELATED_PRODUCTS,
-	type BlogPostBySlugData, type RelatedBlogPostsData, type BlogRelatedProductsData,
+	GET_BLOG_POST_BY_SLUG, GET_RELATED_BLOG_POSTS, GET_BLOG_RELATED_VARIANTS,
+	type BlogPostBySlugData, type RelatedBlogPostsData, type BlogRelatedVariantsData,
 } from "~/graphql/blog";
-import { relatedProductToSearchItem, type SearchProductItem } from "~/graphql/product";
+import { blogRelatedVariantToSearchItem, type SearchProductItem } from "~/graphql/product";
 import { SITE_URL, SITE_NAME } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 
@@ -46,20 +46,18 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const post = result.data.blogPostBySlug;
 	if (!post) throw data(null, { status: 404 });
 
-	const [relatedPostsResult, relatedProductsResult] = await Promise.allSettled([
+	const [relatedPostsResult, relatedVariantsResult] = await Promise.allSettled([
 		graphqlRequest<RelatedBlogPostsData>(env, GET_RELATED_BLOG_POSTS, { id: post.id, limit: 3, languageCode: locale }, { request }),
-		post.relatedProductIds.length > 0
-			? graphqlRequest<BlogRelatedProductsData>(env, GET_BLOG_RELATED_PRODUCTS, { ids: post.relatedProductIds }, { request })
+		post.relatedVariantIds.length > 0
+			? graphqlRequest<BlogRelatedVariantsData>(env, GET_BLOG_RELATED_VARIANTS, { ids: post.relatedVariantIds }, { request })
 			: Promise.resolve(null),
 	]);
 
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
 	const relatedProducts: SearchProductItem[] =
-		relatedProductsResult.status === "fulfilled" && relatedProductsResult.value
-			? relatedProductsResult.value.data.products.items
-					.map(relatedProductToSearchItem)
-					.filter((p): p is SearchProductItem => p !== null)
+		relatedVariantsResult.status === "fulfilled" && relatedVariantsResult.value
+			? relatedVariantsResult.value.data.blogRelatedVariants.map(blogRelatedVariantToSearchItem)
 			: [];
 
 	return {

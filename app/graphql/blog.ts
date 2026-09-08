@@ -35,7 +35,7 @@ export interface BlogPostDetail extends BlogPostListItem {
   content: string;
   metaTitle: string | null;
   metaDescription: string | null;
-  relatedProductIds: string[];
+  relatedVariantIds: string[];
 }
 
 const BLOG_POST_LIST_FIELDS = `
@@ -87,7 +87,7 @@ export const GET_BLOG_POST_BY_SLUG = `
       content
       metaTitle
       metaDescription
-      relatedProductIds
+      relatedVariantIds
     }
   }
 `;
@@ -125,52 +125,53 @@ export const INCREMENT_BLOG_POST_VIEW_COUNT = `
 `;
 
 // ── "Shop the products in this article" ─────────────────────────────────────
-// relatedProductIds are plain core Product IDs (see the blog plugin's
-// BlogRelatedProduct entity) — fetched via the standard `products` query and
-// adapted with relatedProductToSearchItem (~/graphql/product) so ProductCard
-// can render them exactly like any other product tile.
+// relatedVariantIds are plain core ProductVariant IDs (see the blog plugin's
+// BlogRelatedVariant entity) — an article usually discusses one exact flavor/
+// size, not the whole product, so the admin picks a variant directly rather
+// than a product (which would force an arbitrary "first variant" guess).
+// Fetched via the standard `productVariants` query and adapted with
+// blogRelatedVariantToSearchItem (~/graphql/product) so ProductCard can render
+// them exactly like any other product tile.
 
-export interface BlogRelatedProductsData {
-  products: {
-    items: Array<{
+export interface BlogRelatedVariantsData {
+  blogRelatedVariants: Array<{
+    id: string;
+    name: string;
+    priceWithTax: number;
+    currencyCode: string;
+    stockLevel: string;
+    stockQty: number;
+    featuredAsset: { id: string; preview: string } | null;
+    customFields: { rrp: number | null; slug: string | null } | null;
+    product: {
       id: string;
       name: string;
       slug: string;
       featuredAsset: { id: string; preview: string } | null;
-      variants: Array<{
-        id: string;
-        name: string;
-        priceWithTax: number;
-        currencyCode: string;
-        stockLevel: string;
-        stockQty: number;
-        featuredAsset: { id: string; preview: string } | null;
-        customFields: { rrp: number | null; slug: string | null } | null;
-      }>;
-    }>;
-  };
+    };
+  }>;
 }
 
-// Vendure's IDOperators.in filter is typed [String!], not [ID!] — passing [ID!]
-// here fails GraphQL validation even though every ID involved is numeric.
-export const GET_BLOG_RELATED_PRODUCTS = `
-  query GetBlogRelatedProducts($ids: [String!]!) {
-    products(options: { filter: { id: { in: $ids } } }) {
-      items {
+// The Shop API has no top-level productVariants query of its own (that's
+// admin-only) — blogRelatedVariants is the blog plugin's own entry point,
+// which resolves to core ProductVariant entities and gets Vendure's normal
+// field resolvers (priceWithTax, stockLevel, etc.) applied automatically.
+export const GET_BLOG_RELATED_VARIANTS = `
+  query GetBlogRelatedVariants($ids: [ID!]!) {
+    blogRelatedVariants(ids: $ids) {
+      id
+      name
+      priceWithTax
+      currencyCode
+      stockLevel
+      stockQty
+      featuredAsset { id preview }
+      customFields { rrp slug }
+      product {
         id
         name
         slug
         featuredAsset { id preview }
-        variants {
-          id
-          name
-          priceWithTax
-          currencyCode
-          stockLevel
-          stockQty
-          featuredAsset { id preview }
-          customFields { rrp slug }
-        }
       }
     }
   }
