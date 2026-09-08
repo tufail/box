@@ -215,9 +215,14 @@ export default function BlogPostDetail({ loaderData }: Route.ComponentProps) {
 					<div className="container mx-auto px-4 py-12">
 						<h2 className="font-heading text-xl font-extrabold text-gray-900">{t.shopTitle}</h2>
 						<p className="text-sm text-gray-500 mt-1 mb-6">{t.shopSubtitle}</p>
-						<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+						{/* flex + justify-center (not grid) so a partial last row — the common
+						    case here, since posts rarely link exactly 5/10/15 products —
+						    centers instead of hugging the start edge with empty trailing cells. */}
+						<div className="flex flex-wrap justify-center gap-4">
 							{relatedProducts.map((product) => (
-								<ProductCard key={product.productVariantId} product={product} vendureBase={vendureBase} />
+								<div key={product.productVariantId} className="w-[calc(50%-0.5rem)] md:w-[calc(20%-0.8rem)]">
+									<ProductCard product={product} vendureBase={vendureBase} />
+								</div>
 							))}
 						</div>
 					</div>
