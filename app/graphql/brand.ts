@@ -94,3 +94,40 @@ export const BRAND_PRODUCTS_QUERY = `
 		}
 	}
 `;
+
+// Editorial content (SEO copy, banner, FAQ) an admin can attach per brand —
+// not every brand has this filled in yet, so callers must treat a null
+// response (or empty metaTitle/metaDescription) as "nothing set" and fall
+// back to the generic brand-page copy, not as an error.
+export interface BrandPageContentFaq {
+	question: string;
+	answer: string;
+}
+
+export interface BrandPageContent {
+	id: string;
+	title: string;
+	description: string;
+	assetPreview: string | null;
+	metaTitle: string;
+	metaDescription: string;
+	faq: BrandPageContentFaq[];
+}
+
+export interface BrandPageContentData {
+	brandPageContent: BrandPageContent | null;
+}
+
+export const GET_BRAND_PAGE_CONTENT_QUERY = `
+	query GetBrandPageContent($facetValueCode: String!, $languageCode: LanguageCode) {
+		brandPageContent(facetValueCode: $facetValueCode, languageCode: $languageCode) {
+			id
+			title
+			description
+			assetPreview
+			metaTitle
+			metaDescription
+			faq { question answer }
+		}
+	}
+`;

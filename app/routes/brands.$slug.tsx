@@ -1,7 +1,7 @@
 import type { Route } from "./+types/brands.$slug";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
-import { SlidersHorizontal, X, Check, Tag, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, X, Check, Tag, ChevronDown, ArrowUpRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb from "~/components/Breadcrumb";
@@ -9,10 +9,13 @@ import SortDropdown from "~/components/SortDropdown";
 import {
 	GET_BRAND_FACET_QUERY,
 	BRAND_PRODUCTS_QUERY,
+	GET_BRAND_PAGE_CONTENT_QUERY,
 	type BrandFacetData,
 	type BrandPageData,
 	type BrandPageVariables,
 	type BrandPageFacetValue,
+	type BrandPageContentData,
+	type BrandPageContent,
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
@@ -26,8 +29,8 @@ const PAGE_SIZE = 24;
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const COPY = {
-	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands" },
-	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات" },
+	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands", aboutBrand: (brand: string) => `About ${brand}`, faqs: "Frequently Asked Questions" },
+	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات", aboutBrand: (brand: string) => `عن ${brand}`, faqs: "الأسئلة الشائعة" },
 } as const;
 
 function getSortOptions(locale: Locale): { value: SortKey; label: string }[] {
@@ -75,11 +78,16 @@ function groupFacets(facetValues: BrandPageFacetValue[]): FacetGroup[] {
 export function meta({ loaderData }: Route.MetaArgs) {
 	const brandName = loaderData?.brandName ?? "Brand";
 	const locale = loaderData?.locale ?? "en";
-	const title = `${brandName} - ${SITE_NAME}`;
+	const brandContent = loaderData?.brandContent ?? null;
+	// Editorial metaTitle/metaDescription (admin-authored, per brand) win when
+	// set; the generic template is the fallback for the many brands that don't
+	// have this content filled in yet, not an error case.
+	const title = brandContent?.metaTitle || brandContent?.title || `${brandName} - ${SITE_NAME}`;
 	const description =
-		locale === "ar"
+		brandContent?.metaDescription ||
+		(locale === "ar"
 			? `تسوق منتجات ${brandName} الأصلية من ${SITE_NAME} - توصيل سريع في قطر.`
-			: `Shop authentic ${brandName} products at ${SITE_NAME} - fast delivery in Qatar.`;
+			: `Shop authentic ${brandName} products at ${SITE_NAME} - fast delivery in Qatar.`);
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 
@@ -140,19 +148,24 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// collapses as filters are picked.
 		const facetsInput = { facetValueIds: [brand.id], groupByProduct: true, take: 0 };
 
-		const [mainResult, facetsResult] = await Promise.allSettled([
+		const [mainResult, facetsResult, contentResult] = await Promise.allSettled([
 			graphqlRequest<BrandPageData, BrandPageVariables>(env, BRAND_PRODUCTS_QUERY, { input }, { request }),
 			graphqlRequest<CollectionFacetsData>(env, COLLECTION_FACETS_QUERY, { input: facetsInput }, { request }),
+			// Editorial content is optional per brand (most don't have it set up
+			// yet) — a rejected/empty result just means "nothing to show", not a
+			// page-load failure, so it's never awaited via mainResult's throw path.
+			graphqlRequest<BrandPageContentData>(env, GET_BRAND_PAGE_CONTENT_QUERY, { facetValueCode: slug, languageCode: locale }, { request }),
 		]);
 
 		if (mainResult.status === "rejected") throw mainResult.reason;
 		const { data } = mainResult.value;
 		const allFacetValues = facetsResult.status === "fulfilled" ? facetsResult.value.data.search.facetValues : [];
+		const brandContent: BrandPageContent | null = contentResult.status === "fulfilled" ? contentResult.value.data.brandPageContent : null;
 
-		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, locale };
+		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
-		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], canonicalUrl, locale };
+		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, canonicalUrl, locale };
 	}
 }
 
@@ -246,7 +259,7 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BrandPage({ loaderData }: Route.ComponentProps) {
-	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, locale } = loaderData;
+	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale } = loaderData;
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -273,7 +286,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 	}
 
 	const t = SHOP_COPY[locale];
-	const { breadcrumbHome, breadcrumbBrands } = COPY[locale];
+	const { breadcrumbHome, breadcrumbBrands, aboutBrand, faqs } = COPY[locale];
 	const breadcrumbs = [
 		{ label: breadcrumbHome, href: "/" },
 		{ label: breadcrumbBrands, href: "/brands" },
@@ -307,6 +320,19 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				})),
 			},
 		},
+		...(brandContent && brandContent.faq.length > 0
+			? [
+					{
+						"@context": "https://schema.org",
+						"@type": "FAQPage",
+						mainEntity: brandContent.faq.map((item) => ({
+							"@type": "Question",
+							name: item.question,
+							acceptedAnswer: { "@type": "Answer", text: item.answer },
+						})),
+					},
+				]
+			: []),
 	];
 
 	return (
@@ -398,6 +424,45 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 					)}
 				</div>
 			</div>
+
+			{/* Editorial brand content — optional per brand (most don't have this
+			    filled in yet), so the whole block just doesn't render rather than
+			    showing an empty heading/section. */}
+			{brandContent && (brandContent.description || brandContent.faq.length > 0) && (
+				<div className="mt-12 pt-8 border-t border-gray-100">
+					{brandContent.description && (
+						<div className="max-w-3xl mb-10">
+							{brandContent.assetPreview && (
+								<img src={brandContent.assetPreview} alt={brandContent.title} className="w-full h-auto rounded-2xl object-cover mb-6" loading="lazy" />
+							)}
+							<h2 className="font-heading text-xl font-extrabold text-gray-900 mb-4">{aboutBrand(brandName)}</h2>
+							<div
+								className="prose prose-sm max-w-none text-gray-600 prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900"
+								dangerouslySetInnerHTML={{ __html: brandContent.description }}
+							/>
+						</div>
+					)}
+
+					{brandContent.faq.length > 0 && (
+						<div className="max-w-3xl">
+							<h2 className="font-heading text-xl font-extrabold text-gray-900 mb-4">{faqs}</h2>
+							<div className="space-y-3">
+								{brandContent.faq.map((item, i) => (
+									<details key={i} className="group bg-white open:bg-gray-50 rounded-2xl shadow-sm open:shadow-md border border-gray-100 px-4 py-4 transition-all">
+										<summary className="flex items-center justify-between gap-4 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+											<span className="text-sm md:text-base font-semibold text-gray-900">{item.question}</span>
+											<span className="flex-shrink-0 w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center transition-colors group-open:bg-gray-900 group-open:border-gray-900">
+												<ArrowUpRight size={16} strokeWidth={2} className="text-gray-500 rotate-180 rtl:scale-x-[-1] transition-transform duration-200 group-open:rotate-0 group-open:text-white" />
+											</span>
+										</summary>
+										<p className="text-sm text-gray-500 leading-relaxed mt-3 pe-12">{item.answer}</p>
+									</details>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
+			)}
 
 			{/* Mobile filter drawer */}
 			{mobileFiltersOpen && (
