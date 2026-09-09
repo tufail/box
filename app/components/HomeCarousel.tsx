@@ -30,7 +30,7 @@ const TRANSITION_MS = 700;
 // Position (x), vertical inset, and opacity are the only moving parts — no scale — so
 // entering and leaving a position is always a plain mirror-image slide + fade of the
 // same path. Peek cards all share the same modest 10px-shorter height (not compounding
-// per depth) and step 5px further right each level back.
+// per depth) and step 5px further right each level back. Desktop-only — see render.
 const DEPTH_STYLES = [
 	{ x: 0, inset: 0, opacity: 1, z: 30 },
 	{ x: 5, inset: 5, opacity: 0.85, z: 20 },
@@ -59,6 +59,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const prevSlideLabel = locale === "ar" ? "الشريحة السابقة" : "Previous slide";
 	const nextSlideLabel = locale === "ar" ? "الشريحة التالية" : "Next slide";
+	const shopNowLabel = locale === "ar" ? "تسوق الآن" : "Shop Now";
 	const getSlideAriaLabel = (slide: CarouselSlide) => (slide.href ? (locale === "ar" ? `انتقل إلى ${slide.label}` : `Go to ${slide.label}`) : slide.label);
 
 	useEffect(() => {
@@ -94,9 +95,57 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 		touchStartX.current = null;
 	}
 
+	function renderTitleOverlay(slide: CarouselSlide, resolvedHref: string | undefined) {
+		if (slide.hideTitle) return null;
+		const position = slide.titlePosition ?? "bottom-left";
+		const isTop = position.startsWith("top");
+		const isRightAlign = position.endsWith("right");
+		// Darken from whichever corner the title sits in, fading toward the opposite corner.
+		const gradientDirection = isTop ? (isRightAlign ? "bg-gradient-to-bl" : "bg-gradient-to-br") : isRightAlign ? "bg-gradient-to-tl" : "bg-gradient-to-tr";
+		return (
+			<>
+				<div className={`absolute inset-0 pointer-events-none ${gradientDirection} from-black/60 via-black/15 via-40% to-transparent`} />
+				<div
+					className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"} ${total > 1 ? (isRightAlign ? "pe-10 sm:pe-10" : "ps-10 sm:ps-10") : ""}`}
+				>
+					<h2 className="font-heading2 text-white font-black text-2xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
+					{slide.description && <p className="text-white/90 text-xs sm:text-sm leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.description}</p>}
+					{resolvedHref && <span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">{shopNowLabel}</span>}
+				</div>
+			</>
+		);
+	}
+
+	const currentSlide = items[selectedIndex];
+	const currentHref = normalizeDestination(currentSlide?.href);
+
 	return (
-		<div className="relative group">
-			<div className={`relative h-[220px] sm:h-[240px] lg:h-auto lg:aspect-[1440/420] ${total > 1 ? "pr-3" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+		<div className="relative group" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+			{/* Mobile/tablet: single in-flow image, no stacking — the frame's height is
+			    just the image's own natural height, so it stays correct for whatever
+			    crop the CMS banner actually has instead of guessing a fixed ratio. */}
+			<a
+				key={currentSlide.id}
+				href={currentHref}
+				aria-label={getSlideAriaLabel(currentSlide)}
+				className="lg:hidden relative block rounded-xl overflow-hidden shadow-md shadow-black/25 animate-fade-in"
+			>
+				<picture className="block w-full">
+					{currentSlide.mobileImage && <source media="(max-width: 767px)" srcSet={vendureImageUrl(currentSlide.mobileImage, vendureBase, { preset: "large", format: "webp" })} />}
+					<img
+						src={vendureImageUrl(currentSlide.image, vendureBase, { preset: "xlarge", format: "webp" })}
+						alt={currentSlide.description || currentSlide.label}
+						className="w-full h-auto object-cover block"
+						draggable={false}
+						loading="eager"
+						fetchPriority="high"
+					/>
+				</picture>
+				{renderTitleOverlay(currentSlide, currentHref)}
+			</a>
+
+			{/* Desktop: stacked peek carousel with the depth/offset effect. */}
+			<div className={`hidden lg:block relative lg:aspect-[1440/420] ${total > 1 ? "pr-3" : ""}`}>
 				{items.map((slide, index) => {
 					const depth = depthOf(index, selectedIndex, total);
 					const style = DEPTH_STYLES[depth];
@@ -129,33 +178,19 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 							}}
 						>
 							<picture className="block w-full h-full">
-								{slide.mobileImage && <source media="(max-width: 767px)" srcSet={vendureImageUrl(slide.mobileImage, vendureBase, { preset: "large", format: "webp" })} />}
-								<img src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })} alt={slide.description || slide.label} className="w-full h-full object-cover block" draggable={false} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} />
+								<img
+									src={vendureImageUrl(slide.image, vendureBase, { preset: "xlarge", format: "webp" })}
+									alt={slide.description || slide.label}
+									className="w-full h-full object-cover block"
+									draggable={false}
+									loading={index === 0 ? "eager" : "lazy"}
+									fetchPriority={index === 0 ? "high" : "auto"}
+								/>
 							</picture>
 
 							{!isFront && <div className="absolute inset-0 bg-black/25" />}
 
-							{isFront &&
-								!slide.hideTitle &&
-								(() => {
-									const position = slide.titlePosition ?? "bottom-left";
-									const isTop = position.startsWith("top");
-									const isRightAlign = position.endsWith("right");
-									// Darken from whichever corner the title sits in, fading toward the opposite corner.
-									const gradientDirection = isTop ? (isRightAlign ? "bg-gradient-to-bl" : "bg-gradient-to-br") : isRightAlign ? "bg-gradient-to-tl" : "bg-gradient-to-tr";
-									return (
-										<>
-											<div className={`absolute inset-0 pointer-events-none ${gradientDirection} from-black/60 via-black/15 via-40% to-transparent`} />
-											<div
-												className={`absolute p-4 sm:p-6 flex flex-col gap-2 ${isTop ? "top-0" : "bottom-0"} ${isRightAlign ? "right-0 items-end text-right" : "left-0 items-start"} ${total > 1 ? (isRightAlign ? "pe-10 sm:pe-10" : "ps-10 sm:ps-10") : ""}`}
-											>
-												<h2 className="font-heading2 text-white font-black text-2xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.label}</h2>
-												{slide.description && <p className="text-white/90 text-xs sm:text-sm leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] max-w-[220px] sm:max-w-xs">{slide.description}</p>}
-												{resolvedHref && <span className="inline-flex items-center rounded-full bg-white text-primary font-extrabold text-sm sm:text-base px-4 py-2 shadow-lg hover:bg-gray-100 transition-colors">{locale === "ar" ? "تسوق الآن" : "Shop Now"}</span>}
-											</div>
-										</>
-									);
-								})()}
+							{isFront && renderTitleOverlay(slide, resolvedHref)}
 						</a>
 					);
 				})}

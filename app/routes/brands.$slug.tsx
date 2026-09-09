@@ -91,6 +91,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 			: `Shop authentic ${brandName} products at ${SITE_NAME} - fast delivery in Qatar.`);
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
+	const image = loaderData?.brandImage ?? "";
 
 	return [
 		{ title },
@@ -102,9 +103,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:description", content: description },
 		{ property: "og:url", content: canonicalUrl },
 		{ property: "og:site_name", content: SITE_NAME },
-		{ name: "twitter:card", content: "summary" },
+		...(image ? [{ property: "og:image", content: image }] : []),
+		{ name: "twitter:card", content: image ? "summary_large_image" : "summary" },
 		{ name: "twitter:title", content: title },
 		{ name: "twitter:description", content: description },
+		...(image ? [{ name: "twitter:image", content: image }] : []),
 	];
 }
 
@@ -162,11 +165,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const { data } = mainResult.value;
 		const allFacetValues = facetsResult.status === "fulfilled" ? facetsResult.value.data.search.facetValues : [];
 		const brandContent: BrandPageContent | null = contentResult.status === "fulfilled" ? contentResult.value.data.brandPageContent : null;
+		// Social-preview image always uses the desktop banner (link previews aren't
+		// viewport-driven like the on-page mobile source is) — jpg, not webp, since
+		// some crawlers (historically Facebook/Twitter) don't render webp previews.
+		const brandImage = brandContent?.assetPreview
+			? vendureImageUrl(brandContent.assetPreview, vendureBase, { preset: "xlarge", format: "jpg" })
+			: null;
 
-		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale };
+		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, brandImage, canonicalUrl, locale };
 	} catch (e) {
 		if (e instanceof Response) throw e;
-		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, canonicalUrl, locale };
+		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, brandImage: null, canonicalUrl, locale };
 	}
 }
 
@@ -408,18 +417,30 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				{/* Product grid */}
 				<div className="flex-1 min-w-0">
 					{hasBanner && (
-						<div className="relative rounded-2xl overflow-hidden mb-6">
-							<img
-								src={vendureImageUrl(brandContent!.assetPreview!, vendureBase, { preset: "xlarge", format: "webp" })}
-								alt={brandContent!.title || brandName}
-								className="w-full h-auto min-h-[220px] md:min-h-0 object-cover"
-								loading="eager"
-								fetchPriority="high"
-							/>
+						<div className="relative mb-6">
+							{/* Rounding lives on the image/gradient themselves (not this
+							    container) so it stays clipped to the banner while the
+							    sort dropdown, overlaid below, isn't cut off by an
+							    overflow-hidden ancestor. */}
+							<picture>
+								{brandContent!.mobileAssetPreview && (
+									<source
+										media="(max-width: 767px)"
+										srcSet={vendureImageUrl(brandContent!.mobileAssetPreview, vendureBase, { preset: "xlarge", format: "webp" })}
+									/>
+								)}
+								<img
+									src={vendureImageUrl(brandContent!.assetPreview!, vendureBase, { preset: "xlarge", format: "webp" })}
+									alt={brandContent!.title || brandName}
+									className="w-full h-auto min-h-[220px] md:min-h-0 object-cover rounded-2xl"
+									loading="eager"
+									fetchPriority="high"
+								/>
+							</picture>
 							{/* Gradient so the overlaid title/sort stay legible regardless of
 							    what's underneath — same recipe as the blog's featured-post
 							    hero overlay, for visual consistency. */}
-							<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+							<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none rounded-2xl" />
 							<div className="absolute inset-x-0 bottom-0 p-4 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-3">
 								<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-white text-balance">{brandName}</h1>
 								{sortDropdown}

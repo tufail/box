@@ -109,6 +109,10 @@ export interface BrandPageContent {
 	title: string;
 	description: string;
 	assetPreview: string | null;
+	// Shown in place of assetPreview below the `md` breakpoint; falls back to
+	// assetPreview when unset, so most brands (which only have the one image)
+	// need no special-casing at the call site.
+	mobileAssetPreview: string | null;
 	metaTitle: string;
 	metaDescription: string;
 	faq: BrandPageContentFaq[];
@@ -125,6 +129,7 @@ export const GET_BRAND_PAGE_CONTENT_QUERY = `
 			title
 			description
 			assetPreview
+			mobileAssetPreview
 			metaTitle
 			metaDescription
 			faq { question answer }
