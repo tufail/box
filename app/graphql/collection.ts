@@ -70,7 +70,7 @@ export interface CollectionDetail {
   description: string;
   breadcrumbs: CollectionBreadcrumb[];
   featuredAsset: { preview: string } | null;
-  customFields: { banner: { source: string } | null } | null;
+  customFields: { banner: { source: string } | null; metaTitle: string | null; metaDescription: string | null } | null;
   children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[];
 }
 
@@ -156,7 +156,7 @@ export const COLLECTION_PAGE_QUERY = `
       description
       breadcrumbs { id name slug }
       featuredAsset { preview }
-      customFields { banner { source } }
+      customFields { banner { source } metaTitle metaDescription }
       children {
         id
         name

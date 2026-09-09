@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SlidersHorizontal, X, Check, Tag, ChevronDown, ArrowUpRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
+import { vendureImageUrl } from "~/components/VendureImage";
 import Breadcrumb from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
 import {
@@ -29,8 +30,8 @@ const PAGE_SIZE = 24;
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const COPY = {
-	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands", aboutBrand: (brand: string) => `About ${brand}`, faqs: "Frequently Asked Questions" },
-	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات", aboutBrand: (brand: string) => `عن ${brand}`, faqs: "الأسئلة الشائعة" },
+	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands", faqs: "Frequently Asked Questions" },
+	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات", faqs: "الأسئلة الشائعة" },
 } as const;
 
 function getSortOptions(locale: Locale): { value: SortKey; label: string }[] {
@@ -286,7 +287,37 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 	}
 
 	const t = SHOP_COPY[locale];
-	const { breadcrumbHome, breadcrumbBrands, aboutBrand, faqs } = COPY[locale];
+	const { breadcrumbHome, breadcrumbBrands, faqs } = COPY[locale];
+	// When there's a banner, the brand name and sort control move onto it
+	// (bottom-left/bottom-right overlay) instead of sitting in a plain row
+	// above the page — sort's the only thing that actually moves onto the
+	// image itself; the count + mobile-filters button just relocate to sit
+	// right after the banner instead of before it.
+	const hasBanner = !!brandContent?.assetPreview;
+	const mobileFiltersButton = (
+		<button
+			onClick={() => setMobileFiltersOpen(true)}
+			className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
+		>
+			<SlidersHorizontal size={14} />
+			{t.filters}
+			{(fv as string[]).length > 0 && (
+				<span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
+					{(fv as string[]).length}
+				</span>
+			)}
+		</button>
+	);
+	const sortDropdown = <SortDropdown options={getSortOptions(locale)} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />;
+	const countAndFiltersBar = (
+		<div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+			<p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
+			<div className="flex items-center gap-3">
+				{mobileFiltersButton}
+				{!hasBanner && sortDropdown}
+			</div>
+		</div>
+	);
 	const breadcrumbs = [
 		{ label: breadcrumbHome, href: "/" },
 		{ label: breadcrumbBrands, href: "/brands" },
@@ -343,34 +374,21 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				<Breadcrumb items={breadcrumbs} />
 			</div>
 
-			<div className="mb-6 flex items-center gap-3">
-				<span className="w-11 h-11 rounded-full bg-lime-300 flex items-center justify-center flex-shrink-0">
-					<Tag size={18} className="text-black" strokeWidth={1.5} />
-				</span>
-				<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black">{brandName}</h1>
-			</div>
-
-			{/* ── Top bar ── */}
-			<div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-				<p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
-
-				<div className="flex items-center gap-3">
-					<button
-						onClick={() => setMobileFiltersOpen(true)}
-						className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:border-primary hover:text-primary transition-colors"
-					>
-						<SlidersHorizontal size={14} />
-						{t.filters}
-						{(fv as string[]).length > 0 && (
-							<span className="bg-primary text-white text-[10px] font-bold rounded w-4 h-4 flex items-center justify-center">
-								{(fv as string[]).length}
-							</span>
-						)}
-					</button>
-
-					<SortDropdown options={getSortOptions(locale)} value={sort as SortKey} onChange={(v) => updateParam("sort", v)} />
+			{/* The banner (rendered further down, just above the product grid) already
+			    carries the brand's own visual identity — its own overlay — when it's
+			    available, so this plain icon+name header would be redundant. */}
+			{!hasBanner && (
+				<div className="mb-6 flex items-center gap-3">
+					<span className="w-11 h-11 rounded-full bg-lime-300 flex items-center justify-center flex-shrink-0">
+						<Tag size={18} className="text-black" strokeWidth={1.5} />
+					</span>
+					<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black">{brandName}</h1>
 				</div>
-			</div>
+			)}
+
+			{/* ── Top bar — only here (above the grid layout) when there's no banner
+			    to carry it instead; see countAndFiltersBar's other render site below. ── */}
+			{!hasBanner && countAndFiltersBar}
 
 			{/* ── Layout ── */}
 			<div className="flex gap-6 items-start">
@@ -389,6 +407,28 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 
 				{/* Product grid */}
 				<div className="flex-1 min-w-0">
+					{hasBanner && (
+						<div className="relative rounded-2xl overflow-hidden mb-6">
+							<img
+								src={vendureImageUrl(brandContent!.assetPreview!, vendureBase, { preset: "xlarge", format: "webp" })}
+								alt={brandContent!.title || brandName}
+								className="w-full h-auto min-h-[220px] md:min-h-0 object-cover"
+								loading="eager"
+								fetchPriority="high"
+							/>
+							{/* Gradient so the overlaid title/sort stay legible regardless of
+							    what's underneath — same recipe as the blog's featured-post
+							    hero overlay, for visual consistency. */}
+							<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+							<div className="absolute inset-x-0 bottom-0 p-4 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-3">
+								<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-white text-balance">{brandName}</h1>
+								{sortDropdown}
+							</div>
+						</div>
+					)}
+
+					{hasBanner && countAndFiltersBar}
+
 					{items.length === 0 ? (
 						<div className="text-center py-24 text-gray-400">
 							<p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>
@@ -422,47 +462,44 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 							</button>
 						</div>
 					)}
+
+					{/* Editorial brand content — optional per brand (most don't have this
+					    filled in yet), so the whole block just doesn't render rather than
+					    showing an empty heading/section. Kept in this same column (not
+					    full page width) so it lines up under the grid, not the sidebar. */}
+					{brandContent && (brandContent.description || brandContent.faq.length > 0) && (
+						<div className="mt-12 pt-8 border-t border-gray-100">
+							{brandContent.description && (
+								<div className="mb-10">
+									<div
+										className="prose prose-sm max-w-none text-gray-600 prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900"
+										dangerouslySetInnerHTML={{ __html: brandContent.description }}
+									/>
+								</div>
+							)}
+
+							{brandContent.faq.length > 0 && (
+								<div>
+									<h2 className="font-heading text-xl font-extrabold text-gray-900 mb-4">{faqs}</h2>
+									<div className="space-y-3">
+										{brandContent.faq.map((item, i) => (
+											<details key={i} className="group bg-white open:bg-gray-50 rounded-2xl shadow-sm open:shadow-md border border-gray-100 px-4 py-4 transition-all">
+												<summary className="flex items-center justify-between gap-4 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+													<span className="text-sm md:text-base font-semibold text-gray-900">{item.question}</span>
+													<span className="flex-shrink-0 w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center transition-colors group-open:bg-gray-900 group-open:border-gray-900">
+														<ArrowUpRight size={16} strokeWidth={2} className="text-gray-500 rotate-180 rtl:scale-x-[-1] transition-transform duration-200 group-open:rotate-0 group-open:text-white" />
+													</span>
+												</summary>
+												<p className="text-sm text-gray-500 leading-relaxed mt-3 pe-12">{item.answer}</p>
+											</details>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
-
-			{/* Editorial brand content — optional per brand (most don't have this
-			    filled in yet), so the whole block just doesn't render rather than
-			    showing an empty heading/section. */}
-			{brandContent && (brandContent.description || brandContent.faq.length > 0) && (
-				<div className="mt-12 pt-8 border-t border-gray-100">
-					{brandContent.description && (
-						<div className="max-w-3xl mb-10">
-							{brandContent.assetPreview && (
-								<img src={brandContent.assetPreview} alt={brandContent.title} className="w-full h-auto rounded-2xl object-cover mb-6" loading="lazy" />
-							)}
-							<h2 className="font-heading text-xl font-extrabold text-gray-900 mb-4">{aboutBrand(brandName)}</h2>
-							<div
-								className="prose prose-sm max-w-none text-gray-600 prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900"
-								dangerouslySetInnerHTML={{ __html: brandContent.description }}
-							/>
-						</div>
-					)}
-
-					{brandContent.faq.length > 0 && (
-						<div className="max-w-3xl">
-							<h2 className="font-heading text-xl font-extrabold text-gray-900 mb-4">{faqs}</h2>
-							<div className="space-y-3">
-								{brandContent.faq.map((item, i) => (
-									<details key={i} className="group bg-white open:bg-gray-50 rounded-2xl shadow-sm open:shadow-md border border-gray-100 px-4 py-4 transition-all">
-										<summary className="flex items-center justify-between gap-4 cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
-											<span className="text-sm md:text-base font-semibold text-gray-900">{item.question}</span>
-											<span className="flex-shrink-0 w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center transition-colors group-open:bg-gray-900 group-open:border-gray-900">
-												<ArrowUpRight size={16} strokeWidth={2} className="text-gray-500 rotate-180 rtl:scale-x-[-1] transition-transform duration-200 group-open:rotate-0 group-open:text-white" />
-											</span>
-										</summary>
-										<p className="text-sm text-gray-500 leading-relaxed mt-3 pe-12">{item.answer}</p>
-									</details>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			)}
 
 			{/* Mobile filter drawer */}
 			{mobileFiltersOpen && (

@@ -626,7 +626,7 @@ export default function MainLayout({ children, megaMenu, activeCustomer, pageSec
 								<Menu size={22} strokeWidth={1.5} />
 							</button>
 							<LocaleLink to="/" className="font-bold text-xl md:ms-0">
-								<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-12 w-auto inline-block" />
+								<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-10 md:h-14 w-auto inline-block" />
 							</LocaleLink>
 						</div>
 						<MegaMenu megaMenu={megaMenu} mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
