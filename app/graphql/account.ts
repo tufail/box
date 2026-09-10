@@ -12,6 +12,7 @@ export interface CustomerAddress {
   phoneNumber?: string;
   defaultShippingAddress: boolean;
   defaultBillingAddress: boolean;
+  customFields?: { qatarAreaId: number | null } | null;
 }
 
 export interface CustomerProfile {
@@ -151,6 +152,7 @@ export const GET_CUSTOMER_PROFILE_QUERY = `
         phoneNumber
         defaultShippingAddress
         defaultBillingAddress
+        customFields { qatarAreaId }
       }
     }
   }
@@ -332,6 +334,7 @@ export const CREATE_CUSTOMER_ADDRESS_MUTATION = `
       phoneNumber
       defaultShippingAddress
       defaultBillingAddress
+      customFields { qatarAreaId }
     }
   }
 `;
@@ -354,6 +357,7 @@ export const UPDATE_CUSTOMER_ADDRESS_MUTATION = `
       phoneNumber
       defaultShippingAddress
       defaultBillingAddress
+      customFields { qatarAreaId }
     }
   }
 `;

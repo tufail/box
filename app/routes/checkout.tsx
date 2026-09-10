@@ -10,7 +10,9 @@ import CheckoutLayout from "~/layouts/CheckoutLayout";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
 import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
-import { qatarZones } from "~/constants/qatar";
+import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
+import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
+import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
 import type { SadadPaymentMetadata } from "~/types/sadad";
 import type { SkipCashCheckoutResult } from "~/graphql/checkout";
@@ -75,11 +77,8 @@ const CHECKOUT_COPY = {
 		loginAndContinue: "Login & Continue",
 		addressLabel: "Address (villa, flat, building & block, etc.)",
 		street: "Street",
-		municipality: "Municipality",
-		zone: "Zone",
-		selectMunicipality: "Select Municipality...",
-		selectZone: "Select Zone...",
-		zoneOption: (n: number) => `Zone ${n}`,
+		zone: "Area",
+		selectZone: "Select your area...",
 		shippingMethod: "Shipping Method",
 		calculatingRates: "Calculating shipping rates…",
 		noShippingMethods: "No shipping methods available for this address.",
@@ -143,11 +142,8 @@ const CHECKOUT_COPY = {
 		loginAndContinue: "تسجيل الدخول والمتابعة",
 		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
 		street: "الشارع",
-		municipality: "البلدية",
 		zone: "المنطقة",
-		selectMunicipality: "اختر البلدية...",
-		selectZone: "اختر المنطقة...",
-		zoneOption: (n: number) => `المنطقة ${n}`,
+		selectZone: "اختر منطقتك...",
 		shippingMethod: "طريقة الشحن",
 		calculatingRates: "جارٍ حساب أسعار الشحن…",
 		noShippingMethods: "لا توجد طرق شحن متاحة لهذا العنوان.",
@@ -194,17 +190,25 @@ function itemsCountLabel(n: number, locale: Locale): string {
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const locale = getLocaleFromPathname(new URL(request.url).pathname);
-	const [orderResult, customerResult] = await Promise.allSettled([graphqlRequest<ActiveOrderData>(env, ACTIVE_ORDER_QUERY, undefined, { request }), graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request })]);
+	const [orderResult, customerResult, areasResult] = await Promise.allSettled([
+		graphqlRequest<ActiveOrderData>(env, ACTIVE_ORDER_QUERY, undefined, { request }),
+		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
+		graphqlRequest<QatarShippingAreasData>(env, GET_QATAR_SHIPPING_AREAS_QUERY, undefined, { request, cf: { cacheTtl: 3600, cacheEverything: true } }),
+	]);
 
 	const activeOrder = orderResult.status === "fulfilled" ? orderResult.value.data.activeOrder : null;
 	const activeCustomer = customerResult.status === "fulfilled" ? customerResult.value.data.activeCustomer : null;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "http://localhost:3000/shop-api").replace("/shop-api", "");
+	// Falls back to the bundled static list (with no backend id) if the live query fails --
+	// the area picker still works for zone-number purposes, it just can't carry a
+	// qatarAreaId in that degraded case.
+	const qatarAreas: AreaOption[] = areasResult.status === "fulfilled" ? areasResult.value.data.qatarShippingAreas : qatarAreasSorted.map((a) => ({ ...a, id: "" }));
 
 	if (!activeOrder || activeOrder.totalQuantity === 0) {
 		return redirect(localizePath("/", locale));
 	}
 
-	return { activeOrder, activeCustomer, vendureBase };
+	return { activeOrder, activeCustomer, vendureBase, qatarAreas };
 }
 
 export function meta() {
@@ -223,7 +227,7 @@ function resolveImg(preview: string, base: string) {
 
 // Maps an order shipping address or a customer address-book entry to the Shipping step's
 // form shape — both share the same field names, just from different API sources.
-function addressToShippingValues(addr: { fullName?: string | null; streetLine1: string | null; streetLine2?: string | null; city?: string | null; postalCode?: string | null; phoneNumber?: string | null } | null | undefined): ShippingAddressValues | null {
+function addressToShippingValues(addr: { fullName?: string | null; streetLine1: string | null; streetLine2?: string | null; city?: string | null; postalCode?: string | null; phoneNumber?: string | null; customFields?: { qatarAreaId: number | null } | null } | null | undefined): ShippingAddressValues | null {
 	if (!addr?.streetLine1) return null;
 	const [firstName = "", ...rest] = (addr.fullName ?? "").trim().split(" ");
 	return {
@@ -234,6 +238,7 @@ function addressToShippingValues(addr: { fullName?: string | null; streetLine1: 
 		city: addr.city ?? "",
 		postalCode: addr.postalCode ?? "",
 		phoneNumber: addr.phoneNumber ?? undefined,
+		qatarAreaId: addr.customFields?.qatarAreaId != null ? String(addr.customFields.qatarAreaId) : undefined,
 	};
 }
 
@@ -314,35 +319,6 @@ function Field({ label, name, type = "text", required, placeholder, className = 
 	);
 }
 
-function Select({ label, name, autoComplete, placeholder, required, className = "sm:col-span-2", defaultValue = "", onChange, children }: { label: string; name: string; autoComplete?: string; placeholder?: string; required?: boolean; className?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode }) {
-	return (
-		<div className={className}>
-			<label htmlFor={`checkout-${name}`} className="block text-sm font-medium text-gray-700 mb-1">
-				{label}
-				{required && <span className="text-red-500 ms-1">*</span>}
-			</label>
-			<div className="relative">
-				<select
-					id={`checkout-${name}`}
-					name={name}
-					autoComplete={autoComplete}
-					required={required}
-					defaultValue={defaultValue}
-					onChange={onChange}
-					className="w-full appearance-none border border-gray-200 rounded-full ps-4 pe-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-				>
-					{placeholder && (
-						<option value="" disabled>
-							{placeholder}
-						</option>
-					)}
-					{children}
-				</select>
-				<ChevronDown size={16} className="absolute end-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-			</div>
-		</div>
-	);
-}
 
 function TermsHint({ t }: { t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
 	return (
@@ -539,10 +515,12 @@ interface ShippingAddressValues {
 	city: string;
 	postalCode: string;
 	phoneNumber?: string;
+	qatarAreaId?: string;
 }
 
 function ShippingStep({
 	currency,
+	areas,
 	initialValues,
 	initialMethodId,
 	initialMode,
@@ -552,6 +530,7 @@ function ShippingStep({
 	onComplete,
 }: {
 	currency: string;
+	areas: AreaOption[];
 	initialValues?: ShippingAddressValues | null;
 	initialMethodId?: string | null;
 	initialMode?: "address" | "pickup";
@@ -564,11 +543,25 @@ function ShippingStep({
 	const t = CHECKOUT_COPY[locale];
 	const [mode, setMode] = useState<"address" | "pickup">(initialMode ?? "address");
 	const [error, setError] = useState<string | null>(null);
-	const [zoneList, setZoneList] = useState<number[]>(() => {
-		if (!initialValues?.city) return [];
-		const zone = qatarZones.find((z) => z.municipality === initialValues.city);
-		return zone ? zone.zoneCodes : [];
+	// Display-only label for the currently selected area -- kept in sync with the
+	// AreaSelect so the order summary shows the actual neighborhood name picked (a zone
+	// number can map to several named areas, so it can't be re-derived from postalCode
+	// alone). For a pre-filled address (resumed checkout, saved address book entry)
+	// without AreaSelect's onChange ever firing, prefers the exact area via
+	// initialValues.qatarAreaId, falling back to a best-effort zone-only guess if that
+	// isn't known (e.g. an address saved before this field existed).
+	const [selectedAreaName, setSelectedAreaName] = useState<string>(() => {
+		const exact = initialValues?.qatarAreaId ? areas.find((a) => a.id === initialValues.qatarAreaId) : undefined;
+		if (exact) return locale === "ar" ? exact.nameAr : exact.nameEn;
+		return initialValues?.postalCode ? areaLabelForZone(Number(initialValues.postalCode), locale) : "";
 	});
+	// AreaSelect is a controlled combobox (its hidden input isn't a native <select> whose
+	// value updates in the DOM ahead of React), so the currently-picked zone lives in state
+	// rather than being read back out of the form on demand.
+	const [zone, setZone] = useState<string>(initialValues?.postalCode ?? "");
+	// The specific area's backend row id -- pricing is looked up by this on the backend,
+	// alongside postalCode (zone number) which keeps flowing exactly as before.
+	const [areaId, setAreaId] = useState<string>(initialValues?.qatarAreaId ?? "");
 	const [addressSaved, setAddressSaved] = useState(false);
 	const [methods, setMethods] = useState<ShippingMethod[]>([]);
 	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId ?? null);
@@ -585,18 +578,25 @@ function ShippingStep({
 	const busy = savingAddress || loadingMethods || savingMethod;
 
 	// Reads the form's current values and saves the shipping address — used both by the
-	// explicit submit button and automatically the moment a zone is picked, so shipping
-	// rates can appear without an extra step/click.
-	function saveAddress() {
+	// explicit submit button and automatically the moment an area is picked, so shipping
+	// rates can appear without an extra step/click. `overrides`, when passed from
+	// handleZoneChange, carries the zone/label just picked directly — the hidden input's
+	// DOM value lags a render behind the `zone` state right after setZone(), so reading
+	// FormData in that same tick would still see the previous value.
+	function saveAddress(overrides?: { postalCode?: string; areaLabel?: string; areaId?: string }) {
 		if (!formRef.current || savingAddress) return false;
 		const fd = new FormData(formRef.current);
+		const postalCode = overrides?.postalCode ?? zone;
+		const pickedAreaId = overrides?.areaId ?? areaId;
 		const values: ShippingAddressValues = {
 			firstName: (fd.get("firstName") as string) ?? "",
 			lastName: (fd.get("lastName") as string) ?? "",
 			streetLine1: (fd.get("streetLine1") as string) ?? "",
 			streetLine2: (fd.get("streetLine2") as string) || undefined,
-			city: (fd.get("city") as string) ?? "",
-			postalCode: (fd.get("postalCode") as string) ?? "",
+			// No separate municipality field anymore -- the area list already covers every
+			// zone, so the municipality is derived from whichever zone the customer picked.
+			city: postalCode ? municipalityForZone(Number(postalCode), locale) : "",
+			postalCode,
 			phoneNumber: (fd.get("phoneNumber") as string) || undefined,
 		};
 		onDraftChange?.(values);
@@ -604,10 +604,12 @@ function ShippingStep({
 		// blank at this point and get filled in (and re-saved) before the final submit.
 		if (!values.postalCode.trim()) return false;
 
-		addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, ${t.zoneOption(Number(values.postalCode))}`;
+		const area = overrides?.areaLabel ?? selectedAreaName ?? areaLabelForZone(Number(values.postalCode), locale);
+		addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, ${area}`;
 		const body: Record<string, string> = { _intent: "setShippingAddress", firstName: values.firstName, lastName: values.lastName, streetLine1: values.streetLine1, city: values.city, countryCode: "QA", province: "Doha", postalCode: values.postalCode };
 		if (values.streetLine2) body.streetLine2 = values.streetLine2;
 		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
+		if (pickedAreaId) body.qatarAreaId = pickedAreaId;
 		setError(null);
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 		return true;
@@ -640,19 +642,13 @@ function ShippingStep({
 		if (next === "pickup") savePickupAddress();
 	}
 
-	function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
-		const zone = qatarZones.find((z) => z.municipality === e.target.value);
-		setZoneList(zone ? zone.zoneCodes : []);
-		// Municipality changed — any previously fetched rates are stale
-		setAddressSaved(false);
+	function handleZoneChange(zoneNumber: string, areaName: string, pickedAreaId: string) {
+		setZone(zoneNumber);
+		setAreaId(pickedAreaId);
+		setSelectedAreaName(areaName);
 		setMethods([]);
 		setSelectedMethod(null);
-	}
-
-	function handleZoneChange() {
-		setMethods([]);
-		setSelectedMethod(null);
-		saveAddress();
+		saveAddress({ postalCode: zoneNumber, areaLabel: areaName, areaId: pickedAreaId });
 	}
 
 	// If we already have a zone on mount — whether from the order's own saved address (guest)
@@ -767,9 +763,9 @@ function ShippingStep({
 		if (mode !== "address") return;
 		const name = (e.target as unknown as { name?: string }).name;
 		if (!name) return;
-		if (!["firstName", "lastName", "streetLine1", "city"].includes(name)) return;
+		if (!["firstName", "lastName", "streetLine1"].includes(name)) return;
 		if (addressSaved || savingAddress) return;
-		if (!(formRef.current?.elements.namedItem("postalCode") as HTMLSelectElement | null)?.value) return;
+		if (!zone) return;
 		saveAddress();
 	}
 
@@ -799,20 +795,24 @@ function ShippingStep({
 					<>
 						<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} />
 						<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} />
-						<Select name="city" autoComplete="locality" placeholder={t.selectMunicipality} required label={t.municipality} className="sm:col-span-1" defaultValue={initialValues?.city} onChange={handleCityChange}>
-							{qatarZones.map((z, index) => (
-								<option key={index} value={z.municipality}>
-									{z.municipality}
-								</option>
-							))}
-						</Select>
-						<Select name="postalCode" autoComplete="postal-code" placeholder={t.selectZone} required label={t.zone} className="sm:col-span-1" defaultValue={initialValues?.postalCode} onChange={handleZoneChange}>
-							{zoneList.map((zone, index) => (
-								<option key={index} value={`${zone}`}>
-									{t.zoneOption(zone)}
-								</option>
-							))}
-						</Select>
+						<div className="sm:col-span-2">
+							<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
+								{t.zone}
+								<span className="text-red-500 ms-1">*</span>
+							</label>
+							<AreaSelect
+								id="checkout-postalCode"
+								name="postalCode"
+								areas={areas}
+								locale={locale}
+								placeholder={t.selectZone}
+								required
+								value={zone}
+								initialAreaId={initialValues?.qatarAreaId}
+								onChange={handleZoneChange}
+								inputClassName="w-full border border-gray-300 rounded-full ps-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							/>
+						</div>
 					</>
 				) : (
 					<div className="sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
@@ -1229,7 +1229,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
-	const { activeOrder: initialOrder, activeCustomer, vendureBase } = useLoaderData<typeof loader>();
+	const { activeOrder: initialOrder, activeCustomer, vendureBase, qatarAreas } = useLoaderData<typeof loader>();
 	const navigate = useNavigate();
 	const { setCartCount } = useCart();
 	const locale = getLocaleFromPathname(useLocation().pathname);
@@ -1339,6 +1339,7 @@ export default function CheckoutPage() {
 						<StepSection num={2} label={t.shipping} active={step === 2} completed={completed.includes(2)} onNavigate={() => goTo(2)}>
 							<ShippingStep
 								currency={order.currencyCode}
+								areas={qatarAreas}
 								initialValues={shippingAddressDraft}
 								initialMethodId={shippingMethodDraft}
 								initialMode={initialState.shippingModeDraft}

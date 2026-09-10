@@ -4,7 +4,9 @@ import type { Route } from "./+types/account.addresses";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_CUSTOMER_PROFILE_QUERY, type CustomerProfileData, type CustomerAddress } from "~/graphql/account";
 import AccountLayout from "~/layouts/AccountLayout";
-import { qatarZones } from "~/constants/qatar";
+import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
+import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
+import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { MapPin, Plus, Pencil, Trash2, Star, X } from "lucide-react";
 import { isValidQatarPhone } from "~/lib/validation";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
@@ -12,13 +14,22 @@ import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const locale = getLocaleFromPathname(new URL(request.url).pathname);
+	let customer: CustomerProfileData["activeCustomer"];
 	try {
 		const { data } = await graphqlRequest<CustomerProfileData>(env, GET_CUSTOMER_PROFILE_QUERY, undefined, { request });
 		if (!data.activeCustomer) return redirect(localizePath("/", locale));
-		return { customer: data.activeCustomer };
+		customer = data.activeCustomer;
 	} catch {
 		return redirect(localizePath("/", locale));
 	}
+
+	// Kept separate from the customer fetch above -- this one failing (e.g. the live
+	// query not deployed yet) shouldn't take down the whole address book, just fall
+	// back to the bundled static list (with no backend id) for zone-number purposes.
+	const areasResult = await graphqlRequest<QatarShippingAreasData>(env, GET_QATAR_SHIPPING_AREAS_QUERY, undefined, { request, cf: { cacheTtl: 3600, cacheEverything: true } }).catch(() => null);
+	const qatarAreas: AreaOption[] = areasResult ? areasResult.data.qatarShippingAreas : qatarAreasSorted.map((a) => ({ ...a, id: "" }));
+
+	return { customer, qatarAreas };
 }
 
 export function meta() {
@@ -37,19 +48,15 @@ const COPY = {
 		lastName: "Last Name",
 		addressLabel: "Address (villa, flat, building & block, etc.)",
 		street: "Street",
-		municipality: "Municipality",
-		selectMunicipality: "Select Municipality...",
-		zone: "Zone",
-		selectZone: "Select Zone...",
-		zoneOption: (n: number) => `Zone ${n}`,
+		zone: "Area",
+		selectZone: "Select your area...",
 		phoneNumber: "Phone Number",
 		saving: "Saving…",
 		saveAddress: "Save Address",
 		firstNameRequired: "First name is required.",
 		lastNameRequired: "Last name is required.",
 		addressRequired: "Address is required.",
-		selectMunicipalityError: "Please select a municipality.",
-		selectZoneError: "Please select a zone.",
+		selectZoneError: "Please select your area.",
 		phoneRequired: "Phone number is required.",
 		invalidPhone: "Enter a valid Qatar phone number.",
 		default: "Default",
@@ -73,19 +80,15 @@ const COPY = {
 		lastName: "اسم العائلة",
 		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
 		street: "الشارع",
-		municipality: "البلدية",
-		selectMunicipality: "اختر البلدية...",
 		zone: "المنطقة",
-		selectZone: "اختر المنطقة...",
-		zoneOption: (n: number) => `المنطقة ${n}`,
+		selectZone: "اختر منطقتك...",
 		phoneNumber: "رقم الهاتف",
 		saving: "جارٍ الحفظ…",
 		saveAddress: "حفظ العنوان",
 		firstNameRequired: "الاسم الأول مطلوب.",
 		lastNameRequired: "اسم العائلة مطلوب.",
 		addressRequired: "العنوان مطلوب.",
-		selectMunicipalityError: "يرجى اختيار البلدية.",
-		selectZoneError: "يرجى اختيار المنطقة.",
+		selectZoneError: "يرجى اختيار منطقتك.",
 		phoneRequired: "رقم الهاتف مطلوب.",
 		invalidPhone: "أدخل رقم هاتف قطري صالح.",
 		default: "افتراضي",
@@ -116,6 +119,7 @@ interface AddressFormValues {
 	city: string;
 	postalCode: string;
 	phoneNumber: string;
+	qatarAreaId?: string;
 }
 
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
@@ -125,14 +129,15 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 
 // ── Address form (create + edit) ────────────────────────────────────────────
 
-function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValues; onSaved: (address: CustomerAddress) => void; onCancel: () => void }) {
-	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
+function AddressForm({ areas, initial, onSaved, onCancel }: { areas: AreaOption[]; initial?: AddressFormValues; onSaved: (address: CustomerAddress) => void; onCancel: () => void }) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = COPY[locale];
 	const [error, setError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-	const [zoneList, setZoneList] = useState<number[]>(() => {
-		const zone = initial ? qatarZones.find((z) => z.municipality === initial.city) : undefined;
-		return zone ? zone.zoneCodes : [];
-	});
+	const [postalCode, setPostalCode] = useState(initial?.postalCode ?? "");
+	// The specific area's backend row id -- pricing is looked up by this on the backend,
+	// alongside postalCode (zone number) which keeps flowing exactly as before.
+	const [areaId, setAreaId] = useState(initial?.qatarAreaId ?? "");
 	const fetcher = useFetcher<{ error?: string; address?: CustomerAddress }>();
 	const loading = fetcher.state !== "idle";
 
@@ -145,27 +150,22 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 		if (fetcher.data.address) onSaved(fetcher.data.address);
 	}, [fetcher.data, fetcher.state]);
 
-	function handleCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
-		const zone = qatarZones.find((z) => z.municipality === e.target.value);
-		setZoneList(zone ? zone.zoneCodes : []);
-	}
-
 	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		const fd = new FormData(e.currentTarget);
 		const first = (fd.get("firstName") as string).trim();
 		const last = (fd.get("lastName") as string).trim();
 		const streetLine1 = (fd.get("streetLine1") as string).trim();
-		const city = fd.get("city") as string;
 		const streetLine2 = (fd.get("streetLine2") as string).trim();
 		const postalCode = fd.get("postalCode") as string;
 		const phoneNumber = (fd.get("phoneNumber") as string).trim();
+		// No separate municipality field anymore -- derived from whichever zone was picked.
+		const city = postalCode ? municipalityForZone(Number(postalCode), locale) : "";
 
 		const errors: Record<string, string> = {};
 		if (!first) errors.firstName = t.firstNameRequired;
 		if (!last) errors.lastName = t.lastNameRequired;
 		if (!streetLine1) errors.streetLine1 = t.addressRequired;
-		if (!city) errors.city = t.selectMunicipalityError;
 		if (!postalCode) errors.postalCode = t.selectZoneError;
 		if (!phoneNumber) errors.phoneNumber = t.phoneRequired;
 		else if (!isValidQatarPhone(phoneNumber)) errors.phoneNumber = t.invalidPhone;
@@ -182,6 +182,7 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 		if (initial?.id) body.id = initial.id;
 		if (streetLine2) body.streetLine2 = streetLine2;
 		if (postalCode) body.postalCode = postalCode;
+		if (areaId) body.qatarAreaId = areaId;
 		if (phoneNumber) body.phoneNumber = phoneNumber;
 		setError(null);
 		fetcher.submit(body, { method: "post", encType: "application/json", action: "/api/account" });
@@ -222,36 +223,26 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 					<label htmlFor="address-streetLine2" className={labelCls}>{t.street}</label>
 					<input id="address-streetLine2" name="streetLine2" autoComplete="address-line2" defaultValue={initial?.streetLine2} className={inputCls} />
 				</div>
-				<div>
-					<label htmlFor="address-city" className={labelCls}>
-						{t.municipality} <span className="text-red-500">*</span>
-					</label>
-					<select id="address-city" name="city" required defaultValue={initial?.city ?? ""} onChange={handleCityChange} className={fieldErrors.city ? errCls : inputCls}>
-						<option value="" disabled>
-							{t.selectMunicipality}
-						</option>
-						{qatarZones.map((z, i) => (
-							<option key={i} value={z.municipality}>
-								{z.municipality}
-							</option>
-						))}
-					</select>
-					{fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
-				</div>
-				<div>
+				<div className="sm:col-span-2">
 					<label htmlFor="address-postalCode" className={labelCls}>
 						{t.zone} <span className="text-red-500">*</span>
 					</label>
-					<select id="address-postalCode" name="postalCode" required defaultValue={initial?.postalCode ?? ""} className={fieldErrors.postalCode ? errCls : inputCls}>
-						<option value="" disabled>
-							{t.selectZone}
-						</option>
-						{zoneList.map((zone, i) => (
-							<option key={i} value={`${zone}`}>
-								{t.zoneOption(zone)}
-							</option>
-						))}
-					</select>
+					<AreaSelect
+						id="address-postalCode"
+						name="postalCode"
+						areas={areas}
+						locale={locale}
+						placeholder={t.selectZone}
+						required
+						value={postalCode}
+						initialAreaId={initial?.qatarAreaId}
+						onChange={(zoneNumber, _areaName, pickedAreaId) => {
+							setPostalCode(zoneNumber);
+							setAreaId(pickedAreaId);
+							setFieldErrors((prev) => (prev.postalCode ? { ...prev, postalCode: "" } : prev));
+						}}
+						inputClassName={fieldErrors.postalCode ? errCls : inputCls}
+					/>
 					{fieldErrors.postalCode && <p className="text-xs text-red-600 mt-1">{fieldErrors.postalCode}</p>}
 				</div>
 				<div className="sm:col-span-2">
@@ -280,7 +271,8 @@ function AddressForm({ initial, onSaved, onCancel }: { initial?: AddressFormValu
 // ── Address card (display + delete + set default) ──────────────────────────
 
 function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: CustomerAddress; onDeleted: (id: string) => void; onUpdated: (address: CustomerAddress) => void; onEdit: () => void }) {
-	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = COPY[locale];
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const deleteFetcher = useFetcher<{ success?: boolean; id?: string; error?: string }>();
 	const defaultFetcher = useFetcher<{ address?: CustomerAddress; error?: string }>();
@@ -318,7 +310,7 @@ function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: Custo
 					</div>
 					<p className="text-sm text-gray-500 mt-1">
 						{address.streetLine1}
-						{address.streetLine2 ? `, ${address.streetLine2}` : ""}, {address.city}, {t.zoneOption(Number(address.postalCode))}
+						{address.streetLine2 ? `, ${address.streetLine2}` : ""}, {address.city}, {areaLabelForZone(Number(address.postalCode), locale)}
 					</p>
 					{address.phoneNumber && <p className="text-sm text-gray-400 mt-0.5">{address.phoneNumber}</p>}
 					<div className="flex items-center gap-4 mt-3">
@@ -355,7 +347,7 @@ function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: Custo
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AddressesPage({ loaderData }: Route.ComponentProps) {
-	const { customer } = loaderData;
+	const { customer, qatarAreas } = loaderData;
 	const t = COPY[getLocaleFromPathname(useLocation().pathname)];
 	const [addresses, setAddresses] = useState<CustomerAddress[]>(customer.addresses);
 	const [formState, setFormState] = useState<"none" | "create" | CustomerAddress>("none");
@@ -393,6 +385,7 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 
 				{formState !== "none" && (
 					<AddressForm
+						areas={qatarAreas}
 						initial={
 							formState === "create"
 								? undefined
@@ -404,6 +397,7 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 										city: formState.city,
 										postalCode: formState.postalCode,
 										phoneNumber: formState.phoneNumber ?? "",
+										qatarAreaId: formState.customFields?.qatarAreaId != null ? String(formState.customFields.qatarAreaId) : undefined,
 									}
 						}
 						onSaved={handleSaved}

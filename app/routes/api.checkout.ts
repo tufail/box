@@ -205,6 +205,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         postalCode,
         countryCode,
         phoneNumber,
+        qatarAreaId,
       } = body as {
         firstName: string;
         lastName: string;
@@ -215,6 +216,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         postalCode?: string;
         countryCode: string;
         phoneNumber?: string;
+        qatarAreaId?: string;
       };
 
       const { data, token } = await graphqlRequest<{
@@ -232,6 +234,12 @@ export async function action({ request, context }: Route.ActionArgs) {
             postalCode: postalCode || undefined,
             countryCode,
             phoneNumber: phoneNumber || undefined,
+            // Per-area shipping price is looked up by this on the backend; postalCode
+            // (zone number) above stays as-is for display/fallback, per the qatar-shipping
+            // plugin's contract -- omitted entirely when unknown (e.g. AreaSelect fell back
+            // to the static area list because the live query failed) rather than sent as
+            // an empty/invalid id.
+            ...(qatarAreaId ? { customFields: { qatarAreaId: Number(qatarAreaId) } } : {}),
           },
         },
         { request }

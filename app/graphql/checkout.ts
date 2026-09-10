@@ -120,6 +120,7 @@ export const SET_SHIPPING_ADDRESS_MUTATION = `
           postalCode
           country
           phoneNumber
+          customFields { qatarAreaId }
         }
       }
       ... on NoActiveOrderError { errorCode message }
