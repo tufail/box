@@ -165,12 +165,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const { data } = mainResult.value;
 		const allFacetValues = facetsResult.status === "fulfilled" ? facetsResult.value.data.search.facetValues : [];
 		const brandContent: BrandPageContent | null = contentResult.status === "fulfilled" ? contentResult.value.data.brandPageContent : null;
-		// Social-preview image always uses the desktop banner (link previews aren't
-		// viewport-driven like the on-page mobile source is) — jpg, not webp, since
-		// some crawlers (historically Facebook/Twitter) don't render webp previews.
-		const brandImage = brandContent?.assetPreview
-			? vendureImageUrl(brandContent.assetPreview, vendureBase, { preset: "xlarge", format: "jpg" })
-			: null;
+		// Social-preview image prefers the mobile crop — link previews (WhatsApp,
+		// Facebook, Twitter) are almost always viewed on a phone, and fall back to
+		// the desktop banner for brands that haven't set a mobile one. jpg, not
+		// webp, since some crawlers (historically Facebook/Twitter) don't render
+		// webp previews.
+		const brandPreviewAsset = brandContent?.mobileAssetPreview || brandContent?.assetPreview;
+		const brandImage = brandPreviewAsset ? vendureImageUrl(brandPreviewAsset, vendureBase, { preset: "xlarge", format: "jpg" }) : null;
 
 		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, brandImage, canonicalUrl, locale };
 	} catch (e) {
