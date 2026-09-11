@@ -567,6 +567,16 @@ function ShippingStep({
 	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId ?? null);
 	const formRef = useRef<HTMLFormElement>(null);
 	const addressSummaryRef = useRef<string>("");
+	// Mirrors selectedMethod so the methods-loaded effect below can read the latest value
+	// without adding it as a dependency (that would re-run the effect on every method pick,
+	// not just when new rates arrive) -- and without reaching for the setSelectedMethod
+	// updater-function trick, which caused a real bug: calling onMethodChange (the parent's
+	// setState) from inside that updater triggers React's "Cannot update a component while
+	// rendering a different component" warning, since updater functions can run during render.
+	const selectedMethodRef = useRef(selectedMethod);
+	useEffect(() => {
+		selectedMethodRef.current = selectedMethod;
+	}, [selectedMethod]);
 
 	const addressFetcher = useFetcher<{ error?: string; setOrderShippingAddress?: Record<string, unknown> }>();
 	const methodsFetcher = useFetcher<{ shippingMethods?: ShippingMethod[]; error?: string }>();
@@ -702,11 +712,10 @@ function ShippingStep({
 			} else {
 				const deliveryOnly = list.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
 				if (deliveryOnly.length > 0) {
-					setSelectedMethod((prev) => {
-						const next = prev && deliveryOnly.some((m) => m.id === prev) ? prev : deliveryOnly[0].id;
-						onMethodChange?.(next);
-						return next;
-					});
+					const prev = selectedMethodRef.current;
+					const next = prev && deliveryOnly.some((m) => m.id === prev) ? prev : deliveryOnly[0].id;
+					setSelectedMethod(next);
+					onMethodChange?.(next);
 				}
 			}
 		}
