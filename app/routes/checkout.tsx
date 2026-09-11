@@ -433,6 +433,13 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 				onComplete({ firstName: "", lastName: "", email: submittedEmailRef.current, isGuest: true });
 			} else if (r.__typename === "EmailAddressConflictError") {
 				setNeedsPassword(true);
+			} else if (r.__typename === "AlreadyLoggedInError") {
+				// Reachable by navigating back to a completed Customer step and
+				// re-submitting while already logged in (e.g. the order was already
+				// attached to this session) -- there's nothing to fix here, they're
+				// already the customer on this order, so just resolve their real
+				// identity the same way a fresh login does and move on.
+				fetcher.load(`/api/checkout?intent=activeCustomer&lang=${locale}`);
 			} else {
 				setError((r.message as string) || t.couldNotProceedAsGuest);
 			}
