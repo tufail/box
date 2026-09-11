@@ -293,6 +293,7 @@ export interface SocialLoginResult {
     identifier?: string;
     errorCode?: string;
     message?: string;
+    authenticationError?: string;
   };
 }
 
@@ -307,6 +308,7 @@ export const SOCIAL_LOGIN_MUTATION = `
       ... on InvalidCredentialsError {
         errorCode
         message
+        authenticationError
       }
       ... on NotVerifiedError {
         errorCode

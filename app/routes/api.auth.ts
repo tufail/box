@@ -218,7 +218,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         });
       }
       return Response.json({
-        error: result.message ?? "Social sign-in failed. Please try again.",
+        error: result.authenticationError || result.message || "Social sign-in failed. Please try again.",
       });
     } catch {
       return Response.json(
