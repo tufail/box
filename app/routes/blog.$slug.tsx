@@ -211,7 +211,7 @@ export default function BlogPostDetail({ loaderData }: Route.ComponentProps) {
 				// bg-secondary is a hand-authored @apply class (app.css), not a --color-*
 				// theme token, so Tailwind's opacity modifier (bg-secondary/40) can't
 				// attach to it — the same hex written as an arbitrary value can.
-				<div className="bg-[#DCDFD5]/40 dark:bg-gray-900/60">
+				<div className="bg-[#DCDFD5]/40">
 					<div className="container mx-auto px-4 py-12">
 						<h2 className="font-heading text-xl font-extrabold text-gray-900">{t.shopTitle}</h2>
 						<p className="text-sm text-gray-500 mt-1 mb-6">{t.shopSubtitle}</p>

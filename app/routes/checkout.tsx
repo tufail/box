@@ -1149,16 +1149,40 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 				<CouponForm orderState={order.state} onApplied={onOrderUpdate} />
 			</div>
 
-			{/* Condensed summary — mobile only, shown while collapsed */}
+			{/* Condensed summary — mobile only, shown while collapsed. Thumbnails give a
+			    quick "what's in my cart" glance without needing to expand for it. */}
 			{!expanded && (
-				<div className="lg:hidden px-5 py-3 border-b border-gray-200 space-y-1.5">
-					<div className="flex justify-between text-sm text-gray-600">
-						<span>{t.shipping}</span>
-						<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
+				<div className="lg:hidden px-5 py-3 border-b border-gray-200 space-y-3">
+					{/* pt-2 -mt-2 gives the badges' negative top/end offset room to breathe inside
+					    this box without shifting the row's position — overflow-x-auto forces
+					    overflow-y to clip too (can't scroll one axis and stay visible on the
+					    other), so without it the badges get sliced off flush with the row. */}
+					<div className="flex items-center gap-2 overflow-x-auto pt-2 -mt-2 pe-2">
+						{order.lines.map((line) => {
+							const img = line.featuredAsset?.preview ?? line.productVariant.product.featuredAsset?.preview;
+							return (
+								<div key={line.id} className="relative flex-shrink-0">
+									{img ? (
+										<img src={resolveImg(img, vendureBase)} alt={line.productVariant.product.name} className="w-12 h-12 object-cover rounded border border-gray-200" />
+									) : (
+										<div className="w-12 h-12 bg-gray-100 rounded border border-gray-200" />
+									)}
+									<span className="absolute -top-1.5 -end-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
+										{line.quantity}
+									</span>
+								</div>
+							);
+						})}
 					</div>
-					<div className="flex justify-between font-bold text-gray-900 text-base">
-						<span>{t.total}</span>
-						<span>{fmt(order.totalWithTax, order.currencyCode, locale)}</span>
+					<div className="space-y-1.5">
+						<div className="flex justify-between text-sm text-gray-600">
+							<span>{t.shipping}</span>
+							<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
+						</div>
+						<div className="flex justify-between font-bold text-gray-900 text-base">
+							<span>{t.total}</span>
+							<span>{fmt(order.totalWithTax, order.currencyCode, locale)}</span>
+						</div>
 					</div>
 				</div>
 			)}
