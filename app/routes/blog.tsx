@@ -4,7 +4,7 @@ import Link from "~/components/LocaleLink";
 import Breadcrumb from "~/components/Breadcrumb";
 import BlogPostCard from "~/components/BlogPostCard";
 import VendureImage from "~/components/VendureImage";
-import { Clock, LayoutGrid } from "lucide-react";
+import { Clock, LayoutGrid, ArrowRight } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -36,6 +36,8 @@ const COPY = {
 		h1: "The NutriBox Blog",
 		subtitle: "Nutrition science and training guides, not supplement hype.",
 		allCategories: "All",
+		featuredLabel: "Featured Article",
+		readArticle: "Read Article",
 		minRead: (n: number) => `${n} min read`,
 		prev: "Previous",
 		next: "Next",
@@ -50,6 +52,8 @@ const COPY = {
 		h1: "مدونة NutriBox",
 		subtitle: "علم تغذية وتمرين قائم على الأدلة، لا ضجيج مكملات.",
 		allCategories: "الكل",
+		featuredLabel: "مقال مميز",
+		readArticle: "قراءة المقال",
 		minRead: (n: number) => `قراءة ${n} دقائق`,
 		prev: "السابق",
 		next: "التالي",
@@ -168,29 +172,41 @@ export default function BlogIndex({ loaderData }: Route.ComponentProps) {
 			</div>
 
 			{featured && (
-				<Link to={`/blog/${featured.slug}`} className="group relative block rounded-3xl overflow-hidden mb-10 h-72 md:h-[26rem]">
-					{featured.assetPreview ? (
-						<VendureImage src={featured.assetPreview} vendureBase={vendureBase} alt={featured.title} width={1200} height={520} eager objectFit="contain" imgClassName="group-hover:scale-105 transition-transform duration-500" />
-					) : (
-						<div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[#16332f]" />
-					)}
-					<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-					<div className="absolute inset-x-0 bottom-0 p-6 md:p-10 max-w-2xl">
+				<Link
+					to={`/blog/${featured.slug}`}
+					className="group grid md:grid-cols-2 items-stretch mb-10 rounded-3xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+				>
+					{/* Content — left on desktop, below the image on mobile */}
+					<div className="order-2 md:order-1 flex flex-col justify-center p-6 sm:p-8 md:p-12">
+						<span className="text-primary text-xs font-bold uppercase tracking-wider mb-3">{t.featuredLabel}</span>
 						{featured.category && (
-							<span className="inline-block bg-white/15 border border-white/30 text-white text-[11px] font-bold uppercase tracking-wide px-3 py-1 rounded-full mb-3">
+							<span className="self-start inline-block bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wide px-3 py-1 rounded-full mb-4">
 								{featured.category.name}
 							</span>
 						)}
-						<h2 className="font-heading2 text-white text-2xl md:text-4xl leading-tight font-bold text-balance">{featured.title}</h2>
-						<p className="text-white/80 text-sm md:text-base mt-3 line-clamp-2 max-w-xl">{featured.excerpt}</p>
-						<div className="flex items-center gap-2 text-white/70 text-xs md:text-sm mt-4">
-							{featured.authorName && <span className="font-medium text-white">{featured.authorName}</span>}
+						<h2 className="font-heading2 text-gray-900 text-2xl md:text-3xl lg:text-4xl leading-tight font-bold text-balance">{featured.title}</h2>
+						<p className="text-gray-500 text-sm md:text-base mt-4 line-clamp-3">{featured.excerpt}</p>
+						<div className="flex items-center gap-2 text-gray-400 text-xs md:text-sm mt-5">
+							{featured.authorName && <span className="font-medium text-gray-700">{featured.authorName}</span>}
 							<span className="w-1 h-1 rounded-full bg-current" />
 							<span className="inline-flex items-center gap-1">
 								<Clock size={13} />
 								{t.minRead(featured.readingTimeMinutes)}
 							</span>
 						</div>
+						<span className="inline-flex items-center gap-1.5 text-primary font-semibold text-sm mt-6 group-hover:gap-2.5 transition-all">
+							{t.readArticle}
+							<ArrowRight size={16} className="rtl:rotate-180" />
+						</span>
+					</div>
+
+					{/* Image — right on desktop, on top on mobile */}
+					<div className="order-1 md:order-2 relative h-56 sm:h-72 md:h-auto overflow-hidden">
+						{featured.assetPreview ? (
+							<VendureImage src={featured.assetPreview} vendureBase={vendureBase} alt={featured.title} width={800} height={600} eager objectFit="cover" imgClassName="group-hover:scale-105 transition-transform duration-500" />
+						) : (
+							<div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[#16332f]" />
+						)}
 					</div>
 				</Link>
 			)}
