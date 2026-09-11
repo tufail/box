@@ -622,12 +622,15 @@ function ShippingStep({
 
 	const addressFetcher = useFetcher<{ error?: string; setOrderShippingAddress?: Record<string, unknown> }>();
 	const methodsFetcher = useFetcher<{ shippingMethods?: ShippingMethod[]; error?: string }>();
-	const saveMethodFetcher = useFetcher<{ setOrderShippingMethod?: Record<string, unknown>; error?: string }>();
 
+	// True only while handleSubmit's own self-contained save→fetch→confirm sequence is
+	// running -- separate from the two fetchers above, which drive the *live* rate
+	// preview as the customer picks a zone and are no longer trusted as a precondition
+	// for submitting (see handleSubmit).
+	const [submitting, setSubmitting] = useState(false);
 	const savingAddress = addressFetcher.state !== "idle";
 	const loadingMethods = methodsFetcher.state !== "idle";
-	const savingMethod = saveMethodFetcher.state !== "idle";
-	const busy = savingAddress || loadingMethods || savingMethod;
+	const busy = savingAddress || loadingMethods || submitting;
 
 	// Reads the form's current values and saves the shipping address — used both by the
 	// explicit submit button and automatically the moment an area is picked, so shipping
@@ -636,7 +639,12 @@ function ShippingStep({
 	// DOM value lags a render behind the `zone` state right after setZone(), so reading
 	// FormData in that same tick would still see the previous value.
 	function saveAddress(overrides?: { postalCode?: string; areaLabel?: string; areaId?: string }) {
-		if (!formRef.current || savingAddress) return false;
+		// Guards on the full `busy` flag (not just savingAddress) so this live-preview
+		// auto-save can't fire concurrently with handleSubmit's own authoritative
+		// save->fetch->confirm sequence and race it -- e.g. blurring the phone field
+		// (which happens as part of clicking Continue) used to kick off a second,
+		// overlapping setOrderShippingAddress call right as submission started.
+		if (!formRef.current || busy) return false;
 		const fd = new FormData(formRef.current);
 		const postalCode = overrides?.postalCode ?? zone;
 		const pickedAreaId = overrides?.areaId ?? areaId;
@@ -672,6 +680,8 @@ function ShippingStep({
 	// from the picked CustomerAddress instead of reading the freeform form fields,
 	// since in "saved" mode that form isn't rendered at all.
 	function selectSavedAddress(addr: CustomerAddress) {
+		// See saveAddress()'s busy guard -- same reasoning.
+		if (busy) return;
 		const values = addressToShippingValues(addr);
 		if (!values) return;
 		setSelectedSavedId(addr.id);
@@ -706,7 +716,8 @@ function ShippingStep({
 	// Store Pickup: only firstName/lastName/phoneNumber come from the customer — the rest
 	// of the address is the store's own fixed location, not a zone-driven form.
 	function savePickupAddress() {
-		if (!formRef.current || savingAddress) return;
+		// See saveAddress()'s busy guard -- same reasoning.
+		if (!formRef.current || busy) return;
 		const fd = new FormData(formRef.current);
 		const firstName = (fd.get("firstName") as string) ?? "";
 		const lastName = (fd.get("lastName") as string) ?? "";
@@ -728,6 +739,14 @@ function ShippingStep({
 		setSelectedMethod(null);
 		setError(null);
 		if (next === "pickup") savePickupAddress();
+		// Switching back from pickup with a zone already known (picked before switching
+		// away, or from a saved/resumed address) previously left rates stale until some
+		// other trigger happened to fire -- refetch immediately, same as the pickup branch.
+		else if (addressMode === "new" && zone) saveAddress();
+		else if (addressMode === "saved" && selectedSavedId) {
+			const addr = savedAddresses?.find((a) => a.id === selectedSavedId);
+			if (addr) selectSavedAddress(addr);
+		}
 	}
 
 	function handleZoneChange(zoneNumber: string, areaName: string, pickedAreaId: string) {
@@ -804,83 +823,179 @@ function ShippingStep({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [methodsFetcher.data]);
 
-	useEffect(() => {
-		if (saveMethodFetcher.state !== "idle" || !saveMethodFetcher.data) return;
-		const d = saveMethodFetcher.data;
-		if (d.error) {
-			setError(d.error);
-			return;
-		}
-		if (d.setOrderShippingMethod) {
-			const r = d.setOrderShippingMethod;
-			if (r.__typename === "Order") {
-				const method = methods.find((m) => m.id === selectedMethod)!;
-				const totals: UpdatedOrderTotals = { shippingWithTax: r.shippingWithTax as number, totalWithTax: r.totalWithTax as number, subTotalWithTax: r.subTotalWithTax as number };
-				const methodLabel = `${method.name} - ${method.priceWithTax === 0 ? t.free : fmt(method.priceWithTax, currency, locale)}`;
-				onComplete(`${addressSummaryRef.current} · ${methodLabel}`, method, totals);
-			} else {
-				setError((r.message as string) || t.couldNotSetShippingMethod);
-			}
-		}
-	}, [saveMethodFetcher.data, saveMethodFetcher.state]);
-
-	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+	// Deliberately self-contained: does its own save-address -> fetch-methods -> pick-one
+	// -> confirm-method sequence with plain awaited fetches, instead of trusting that the
+	// scattered live-preview side effects above (zone change, field blur, mode toggle,
+	// saved-address pick) already ran. Those can all be skipped -- browser autofill firing
+	// no blur event, an already-active address needing no interaction at all, switching
+	// Ship-to-Address/Store-Pickup back and forth -- and a customer left staring at a
+	// silently-disabled Continue button with no way to force it was the actual bug.
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		if (!addressSaved || !selectedMethod) return;
+		if (busy) return;
 		setError(null);
-		// Guest checkout only collected an email — now that we have their real name for the
-		// shipping address, re-submit it via the same "guest" intent so the customer record
-		// (not just this order's address) ends up with a real name too. Fire-and-forget: the
-		// email was already validated in step 1, so this shouldn't fail in practice.
-		if (customerName?.isGuest && customerName.email && formRef.current) {
+
+		let values: ShippingAddressValues;
+		let addressBody: Record<string, string>;
+
+		if (mode === "pickup") {
+			if (!formRef.current) return;
 			const fd = new FormData(formRef.current);
 			const firstName = (fd.get("firstName") as string) ?? "";
 			const lastName = (fd.get("lastName") as string) ?? "";
-			fetch("/api/checkout", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ _intent: "guest", firstName, lastName, emailAddress: customerName.email }),
-			}).catch(() => {});
-		}
-		// A logged-in customer with no saved addresses yet is entering their first one here --
-		// save it to their account (as their new default) so it shows up as a saved address
-		// next time, instead of only ever living on this one order. Only for a freeform "new"
-		// address a real account can own -- not store pickup, and not once they already have
-		// addresses on file (picking/adding at that point is a deliberate address-book action,
-		// left to the account page rather than silently duplicating on every checkout).
-		if (savedAddresses !== null && savedAddresses.length === 0 && mode === "address" && formRef.current) {
-			const fd = new FormData(formRef.current);
-			const firstName = (fd.get("firstName") as string) ?? "";
-			const lastName = (fd.get("lastName") as string) ?? "";
-			const streetLine1 = (fd.get("streetLine1") as string) ?? "";
-			const streetLine2 = (fd.get("streetLine2") as string) || undefined;
 			const phoneNumber = (fd.get("phoneNumber") as string) || undefined;
-			const city = zone ? municipalityForZone(Number(zone), locale) : "";
-			fetch("/api/checkout", {
+			values = { firstName, lastName, phoneNumber, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, postalCode: STORE_PICKUP_ADDRESS.postalCode };
+			addressBody = { _intent: "setShippingAddress", firstName, lastName, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, countryCode: STORE_PICKUP_ADDRESS.countryCode, province: STORE_PICKUP_ADDRESS.province, postalCode: STORE_PICKUP_ADDRESS.postalCode };
+			if (phoneNumber) addressBody.phoneNumber = phoneNumber;
+			addressSummaryRef.current = `${firstName} ${lastName} · ${t.storePickup}`;
+		} else if (addressMode === "saved" && selectedSavedId && savedAddresses) {
+			const addr = savedAddresses.find((a) => a.id === selectedSavedId);
+			const addrValues = addr ? addressToShippingValues(addr) : null;
+			if (!addr || !addrValues) {
+				setError(t.couldNotSaveAddress);
+				return;
+			}
+			const knownArea = addrValues.qatarAreaId ? areas.find((a) => a.id === addrValues.qatarAreaId) : undefined;
+			const resolvedArea = knownArea ?? areas.find((a) => `${a.zoneNumber}` === addrValues.postalCode);
+			const resolvedAreaId = resolvedArea?.id ?? "";
+			const areaName = resolvedArea ? (locale === "ar" ? resolvedArea.nameAr : resolvedArea.nameEn) : areaLabelForZone(Number(addrValues.postalCode), locale);
+			setAreaId(resolvedAreaId);
+			setSelectedAreaName(areaName);
+			values = addrValues;
+			addressBody = { _intent: "setShippingAddress", firstName: addrValues.firstName, lastName: addrValues.lastName, streetLine1: addrValues.streetLine1, city: addrValues.city, countryCode: "QA", province: "Doha", postalCode: addrValues.postalCode };
+			if (addrValues.streetLine2) addressBody.streetLine2 = addrValues.streetLine2;
+			if (addrValues.phoneNumber) addressBody.phoneNumber = addrValues.phoneNumber;
+			if (resolvedAreaId) addressBody.qatarAreaId = resolvedAreaId;
+			addressSummaryRef.current = `${addrValues.firstName} ${addrValues.lastName} · ${addrValues.streetLine1}, ${addrValues.city}, ${areaName}`;
+		} else {
+			if (!formRef.current) return;
+			if (!zone.trim()) {
+				setError(t.selectZonePrompt);
+				return;
+			}
+			const fd = new FormData(formRef.current);
+			const postalCode = zone;
+			values = {
+				firstName: (fd.get("firstName") as string) ?? "",
+				lastName: (fd.get("lastName") as string) ?? "",
+				streetLine1: (fd.get("streetLine1") as string) ?? "",
+				streetLine2: (fd.get("streetLine2") as string) || undefined,
+				city: municipalityForZone(Number(postalCode), locale),
+				postalCode,
+				phoneNumber: (fd.get("phoneNumber") as string) || undefined,
+			};
+			const area = selectedAreaName || areaLabelForZone(Number(postalCode), locale);
+			addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, ${area}`;
+			addressBody = { _intent: "setShippingAddress", firstName: values.firstName, lastName: values.lastName, streetLine1: values.streetLine1, city: values.city, countryCode: "QA", province: "Doha", postalCode: values.postalCode };
+			if (values.streetLine2) addressBody.streetLine2 = values.streetLine2;
+			if (values.phoneNumber) addressBody.phoneNumber = values.phoneNumber;
+			if (areaId) addressBody.qatarAreaId = areaId;
+		}
+
+		onDraftChange?.(values);
+		setSubmitting(true);
+		try {
+			const addrData = await fetch("/api/checkout", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					_intent: "saveAddressToAccount",
-					firstName,
-					lastName,
-					streetLine1,
-					streetLine2,
-					city,
-					countryCode: "QA",
-					province: "Doha",
-					postalCode: zone,
-					phoneNumber,
-					qatarAreaId: areaId || undefined,
-				}),
-			})
-				.then((res) => res.json() as Promise<{ createCustomerAddress?: CustomerAddress; error?: string }>)
-				.then((d) => {
-					if (d.createCustomerAddress) onAddressSavedToAccount?.(d.createCustomerAddress);
-					else if (d.error) notify(t.couldNotSaveToAccount, "error");
+				body: JSON.stringify(addressBody),
+			}).then((r) => r.json() as Promise<{ setOrderShippingAddress?: Record<string, unknown>; error?: string }>);
+
+			const orderResult = addrData.setOrderShippingAddress;
+			if (!orderResult || orderResult.__typename !== "Order") {
+				setError((orderResult?.message as string) || addrData.error || t.couldNotSaveAddress);
+				return;
+			}
+			setAddressSaved(true);
+
+			const methodsData = await fetch(`/api/checkout?intent=shippingMethods&lang=${locale}`).then(
+				(r) => r.json() as Promise<{ shippingMethods?: ShippingMethod[]; error?: string }>
+			);
+			const allMethods = methodsData.shippingMethods ?? [];
+			setMethods(allMethods);
+
+			let methodToUse: ShippingMethod | undefined;
+			if (mode === "pickup") {
+				methodToUse = allMethods.find((m) => m.code === STORE_PICKUP_METHOD_CODE);
+				if (!methodToUse) {
+					setError(t.pickupUnavailable);
+					return;
+				}
+			} else {
+				const deliveryOnly = allMethods.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
+				methodToUse = deliveryOnly.find((m) => m.id === selectedMethod) ?? deliveryOnly[0];
+				if (!methodToUse) {
+					setError(t.noShippingMethods);
+					return;
+				}
+			}
+			setSelectedMethod(methodToUse.id);
+			onMethodChange?.(methodToUse.id);
+
+			// Guest checkout only collected an email — now that we have their real name for
+			// the shipping address, re-submit it via the same "guest" intent so the customer
+			// record (not just this order's address) ends up with a real name too.
+			// Fire-and-forget: the email was already validated in step 1.
+			if (customerName?.isGuest && customerName.email) {
+				fetch("/api/checkout", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ _intent: "guest", firstName: values.firstName, lastName: values.lastName, emailAddress: customerName.email }),
+				}).catch(() => {});
+			}
+			// A logged-in customer with no saved addresses yet is entering their first one
+			// here -- save it to their account (as their new default) so it shows up as a
+			// saved address next time. Only for a freeform "new" address a real account can
+			// own -- not store pickup, and not once they already have addresses on file.
+			if (savedAddresses !== null && savedAddresses.length === 0 && mode === "address" && addressMode === "new") {
+				fetch("/api/checkout", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						_intent: "saveAddressToAccount",
+						firstName: values.firstName,
+						lastName: values.lastName,
+						streetLine1: values.streetLine1,
+						streetLine2: values.streetLine2,
+						city: values.city,
+						countryCode: "QA",
+						province: "Doha",
+						postalCode: values.postalCode,
+						phoneNumber: values.phoneNumber,
+						qatarAreaId: areaId || undefined,
+					}),
 				})
-				.catch(() => notify(t.couldNotSaveToAccount, "error"));
+					.then((res) => res.json() as Promise<{ createCustomerAddress?: CustomerAddress; error?: string }>)
+					.then((d) => {
+						if (d.createCustomerAddress) onAddressSavedToAccount?.(d.createCustomerAddress);
+						else if (d.error) notify(t.couldNotSaveToAccount, "error");
+					})
+					.catch(() => notify(t.couldNotSaveToAccount, "error"));
+			}
+
+			const methodData = await fetch("/api/checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ _intent: "setShippingMethod", shippingMethodId: methodToUse.id }),
+			}).then((r) => r.json() as Promise<{ setOrderShippingMethod?: Record<string, unknown>; error?: string }>);
+
+			const methodResult = methodData.setOrderShippingMethod;
+			if (!methodResult || methodResult.__typename !== "Order") {
+				setError((methodResult?.message as string) || methodData.error || t.couldNotSetShippingMethod);
+				return;
+			}
+			const totals: UpdatedOrderTotals = {
+				shippingWithTax: methodResult.shippingWithTax as number,
+				totalWithTax: methodResult.totalWithTax as number,
+				subTotalWithTax: methodResult.subTotalWithTax as number,
+			};
+			const methodLabel = `${methodToUse.name} - ${methodToUse.priceWithTax === 0 ? t.free : fmt(methodToUse.priceWithTax, currency, locale)}`;
+			onComplete(`${addressSummaryRef.current} · ${methodLabel}`, methodToUse, totals);
+		} catch {
+			setError(t.couldNotSaveAddress);
+		} finally {
+			setSubmitting(false);
 		}
-		saveMethodFetcher.submit({ _intent: "setShippingMethod", shippingMethodId: selectedMethod }, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
 
 	// Safety net: if the zone was picked before the other required fields were filled in
@@ -897,7 +1012,11 @@ function ShippingStep({
 		// first save flips addressSaved permanently true — a guard here would mean nothing
 		// ever re-saves the order's address afterward, silently dropping whatever the
 		// customer types into phone (or edits in name/street) after picking their zone.
-		if (savingAddress) return;
+		// `busy` (not just savingAddress) also covers handleSubmit's own in-flight sequence --
+		// this blur fires on every one of these fields as focus leaves them to click Continue,
+		// and without this guard it raced handleSubmit's authoritative save with a redundant,
+		// concurrent one hitting the same order.
+		if (busy) return;
 		if (!zone) return;
 		saveAddress();
 	}
@@ -1060,7 +1179,13 @@ function ShippingStep({
 
 			{mode === "address" && !addressSaved && !savingAddress && <p className="text-center text-xs text-gray-400 mt-4">{t.selectZonePrompt}</p>}
 
-			<SubmitBtn label={t.continueToPayment} loading={busy} disabled={!selectedMethod || noMethodsAvailable} t={t} />
+			{/* Not gated on selectedMethod/addressSaved already being set -- handleSubmit does its
+		    own save-address -> fetch-methods -> confirm sequence on click, so the customer
+		    is never stuck on a disabled button just because a background auto-save (zone
+		    change, autofill, mode toggle) didn't happen to run first. noMethodsAvailable is
+		    real, already-known information (a prior attempt found zero methods for this
+		    zone), so it's still worth blocking on. */}
+		<SubmitBtn label={t.continueToPayment} loading={busy} disabled={noMethodsAvailable} t={t} />
 		</form>
 	);
 }
