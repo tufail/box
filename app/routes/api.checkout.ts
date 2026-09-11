@@ -20,6 +20,7 @@ import {
   type ActiveCustomer,
   type SkipCashCheckoutResult,
 } from "~/graphql/checkout";
+import { CREATE_CUSTOMER_ADDRESS_MUTATION, type CreateCustomerAddressResult } from "~/graphql/account";
 
 type GQLResult = Record<string, unknown>;
 
@@ -246,6 +247,61 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
       return new Response(
         JSON.stringify({ setOrderShippingAddress: data.setOrderShippingAddress }),
+        { headers: makeHeaders(token) }
+      );
+    }
+
+    // ── Save the checkout address to the logged-in customer's address book ──
+    // Only called from the Shipping step when the customer had zero saved addresses
+    // (their first-ever address), so it's always their new default -- see
+    // ShippingStep's handleSubmit in checkout.tsx.
+    if (intent === "saveAddressToAccount") {
+      const {
+        firstName,
+        lastName,
+        streetLine1,
+        streetLine2,
+        city,
+        province,
+        postalCode,
+        countryCode,
+        phoneNumber,
+        qatarAreaId,
+      } = body as {
+        firstName: string;
+        lastName: string;
+        streetLine1: string;
+        streetLine2?: string;
+        city?: string;
+        province?: string;
+        postalCode?: string;
+        countryCode: string;
+        phoneNumber?: string;
+        qatarAreaId?: string;
+      };
+
+      const { data, token } = await graphqlRequest<CreateCustomerAddressResult>(
+        env,
+        CREATE_CUSTOMER_ADDRESS_MUTATION,
+        {
+          input: {
+            fullName: `${firstName} ${lastName}`.trim(),
+            streetLine1,
+            streetLine2: streetLine2 || undefined,
+            city: city || undefined,
+            province: province || undefined,
+            postalCode: postalCode || undefined,
+            countryCode,
+            phoneNumber: phoneNumber || undefined,
+            defaultShippingAddress: true,
+            defaultBillingAddress: true,
+            ...(qatarAreaId ? { customFields: { qatarAreaId: Number(qatarAreaId) } } : {}),
+          },
+        },
+        { request }
+      );
+      return new Response(
+        JSON.stringify({ createCustomerAddress: data.createCustomerAddress }),
         { headers: makeHeaders(token) }
       );
     }

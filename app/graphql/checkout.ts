@@ -1,10 +1,13 @@
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
+import type { CustomerAddress } from "./account";
+
 export interface ActiveCustomer {
   id: string;
   firstName: string;
   lastName: string;
   emailAddress: string;
+  addresses: CustomerAddress[];
 }
 
 export interface ShippingMethod {
@@ -33,6 +36,20 @@ export const ACTIVE_CUSTOMER_QUERY = `
       firstName
       lastName
       emailAddress
+      addresses {
+        id
+        fullName
+        streetLine1
+        streetLine2
+        city
+        province
+        postalCode
+        country { name code }
+        phoneNumber
+        defaultShippingAddress
+        defaultBillingAddress
+        customFields { qatarAreaId }
+      }
     }
   }
 `;

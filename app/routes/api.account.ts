@@ -94,7 +94,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "createAddress") {
-    const { fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, qatarAreaId } = body;
+    const { fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId } = body;
     if (!fullName || !streetLine1) {
       return json({ error: "Full name and street address are required." }, null, 400);
     }
@@ -105,6 +105,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (postalCode) input.postalCode = postalCode;
     if (phoneNumber) input.phoneNumber = phoneNumber;
     if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
+    if (defaultBillingAddress) input.defaultBillingAddress = defaultBillingAddress === "true";
     // Per-area shipping price is looked up by this on the backend; postalCode (zone
     // number) above stays as-is, per the qatar-shipping plugin's contract.
     if (qatarAreaId) input.customFields = { qatarAreaId: Number(qatarAreaId) };
@@ -124,7 +125,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "updateAddress") {
-    const { id, fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, qatarAreaId } = body;
+    const { id, fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId } = body;
     if (!id) {
       return json({ error: "Missing address id." }, null, 400);
     }
@@ -137,6 +138,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (postalCode) input.postalCode = postalCode;
     if (phoneNumber !== undefined) input.phoneNumber = phoneNumber;
     if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
+    if (defaultBillingAddress) input.defaultBillingAddress = defaultBillingAddress === "true";
     if (qatarAreaId) input.customFields = { qatarAreaId: Number(qatarAreaId) };
 
     try {

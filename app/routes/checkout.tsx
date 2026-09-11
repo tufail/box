@@ -5,6 +5,7 @@ import type { Route } from "./+types/checkout";
 import { graphqlRequest } from "workers/graphqlClient";
 import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData, type OrderDiscount } from "~/graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer, type ShippingMethod, type PaymentMethod } from "~/graphql/checkout";
+import type { CustomerAddress } from "~/graphql/account";
 import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X, Repeat, Store, MapPin, Banknote } from "lucide-react";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
@@ -79,6 +80,11 @@ const CHECKOUT_COPY = {
 		street: "Street",
 		zone: "Area",
 		selectZone: "Select your area...",
+		savedAddresses: "Choose a delivery address",
+		addNewAddress: "+ Add a new address",
+		useSavedAddress: "← Choose a saved address",
+		defaultBadge: "Default",
+		couldNotSaveToAccount: "Address saved for this order, but could not be added to your account.",
 		shippingMethod: "Shipping Method",
 		calculatingRates: "Calculating shipping rates…",
 		noShippingMethods: "No shipping methods available for this address.",
@@ -144,6 +150,11 @@ const CHECKOUT_COPY = {
 		street: "الشارع",
 		zone: "المنطقة",
 		selectZone: "اختر منطقتك...",
+		savedAddresses: "اختر عنوان التوصيل",
+		addNewAddress: "+ إضافة عنوان جديد",
+		useSavedAddress: "← اختر عنوانًا محفوظًا",
+		defaultBadge: "افتراضي",
+		couldNotSaveToAccount: "تم حفظ العنوان لهذا الطلب، ولكن تعذّرت إضافته إلى حسابك.",
 		shippingMethod: "طريقة الشحن",
 		calculatingRates: "جارٍ حساب أسعار الشحن…",
 		noShippingMethods: "لا توجد طرق شحن متاحة لهذا العنوان.",
@@ -272,6 +283,11 @@ function deriveCheckoutState(order: ActiveOrder, activeCustomer: ActiveCustomer 
 		shippingAddressDraft: addressDraft,
 		shippingMethodDraft: shippingLine?.shippingMethod.id ?? null,
 		shippingModeDraft: shippingLine?.shippingMethod.code === STORE_PICKUP_METHOD_CODE ? ("pickup" as const) : ("address" as const),
+		// null = not logged in; an array (possibly empty) = a real customer's address book.
+		// Deliberately activeCustomer.addresses, not derived from orderCustomer -- a guest
+		// order still has its own order.customer record, which must NOT be mistaken for a
+		// real logged-in account with an address book.
+		initialAddresses: activeCustomer?.addresses ?? null,
 	};
 }
 
@@ -369,6 +385,8 @@ interface CustomerSummary {
 	email: string;
 	/** Guest checkout only collects email — name is filled in later, at the Shipping step. */
 	isGuest?: boolean;
+	/** Only set for a real (non-guest) login — resolved via the activeCustomer fetch. */
+	addresses?: CustomerAddress[];
 }
 
 function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstName: string; lastName: string; emailAddress: string } | null; onComplete: (s: CustomerSummary) => void }) {
@@ -386,7 +404,7 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 		error?: string;
 		setCustomerForOrder?: Record<string, unknown>;
 		login?: Record<string, unknown>;
-		activeCustomer?: { id: string; firstName: string; lastName: string; emailAddress: string } | null;
+		activeCustomer?: { id: string; firstName: string; lastName: string; emailAddress: string; addresses?: CustomerAddress[] } | null;
 	}>();
 	const submittedEmailRef = useRef("");
 	const busy = fetcher.state !== "idle";
@@ -403,7 +421,7 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 		// Resolved via the activeCustomer fetch triggered below — after either a password
 		// login or a social login (LOGIN_MUTATION alone doesn't return a name).
 		if (d.activeCustomer) {
-			onComplete({ firstName: d.activeCustomer.firstName, lastName: d.activeCustomer.lastName, email: d.activeCustomer.emailAddress });
+			onComplete({ firstName: d.activeCustomer.firstName, lastName: d.activeCustomer.lastName, email: d.activeCustomer.emailAddress, addresses: d.activeCustomer.addresses ?? [] });
 			return;
 		}
 
@@ -525,9 +543,11 @@ function ShippingStep({
 	initialMethodId,
 	initialMode,
 	customerName,
+	savedAddresses,
 	onDraftChange,
 	onMethodChange,
 	onComplete,
+	onAddressSavedToAccount,
 }: {
 	currency: string;
 	areas: AreaOption[];
@@ -535,12 +555,16 @@ function ShippingStep({
 	initialMethodId?: string | null;
 	initialMode?: "address" | "pickup";
 	customerName?: { firstName: string; lastName: string; email?: string; isGuest?: boolean } | null;
+	/** null = not logged in (guest); an array (possibly empty) = a real customer's address book. */
+	savedAddresses: CustomerAddress[] | null;
 	onDraftChange?: (values: ShippingAddressValues) => void;
 	onMethodChange?: (methodId: string) => void;
 	onComplete: (summary: string, method: ShippingMethod, totals: UpdatedOrderTotals) => void;
+	onAddressSavedToAccount?: (address: CustomerAddress) => void;
 }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
+	const { notify } = useNotification();
 	const [mode, setMode] = useState<"address" | "pickup">(initialMode ?? "address");
 	const [error, setError] = useState<string | null>(null);
 	// Display-only label for the currently selected area -- kept in sync with the
@@ -563,6 +587,17 @@ function ShippingStep({
 	// alongside postalCode (zone number) which keeps flowing exactly as before.
 	const [areaId, setAreaId] = useState<string>(initialValues?.qatarAreaId ?? "");
 	const [addressSaved, setAddressSaved] = useState(false);
+	// A saved-address picker only makes sense for a logged-in customer who actually has
+	// addresses on file, and only when the order doesn't already have one confirmed
+	// (initialValues truthy = resuming a checkout that already picked/saved an address --
+	// keep showing the freeform form pre-filled with that, same as before this feature).
+	const hasSavedAddresses = !!savedAddresses && savedAddresses.length > 0;
+	const [addressMode, setAddressMode] = useState<"saved" | "new">(hasSavedAddresses && !initialValues ? "saved" : "new");
+	const [selectedSavedId, setSelectedSavedId] = useState<string | null>(() => {
+		if (!hasSavedAddresses) return null;
+		const def = savedAddresses!.find((a) => a.defaultShippingAddress);
+		return (def ?? savedAddresses![0]).id;
+	});
 	const [methods, setMethods] = useState<ShippingMethod[]>([]);
 	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId ?? null);
 	const formRef = useRef<HTMLFormElement>(null);
@@ -625,6 +660,31 @@ function ShippingStep({
 		return true;
 	}
 
+	// Confirms a customer's saved address-book entry against THIS order -- mirrors
+	// saveAddress()'s tail (same mutation, same state updates) but sources its values
+	// from the picked CustomerAddress instead of reading the freeform form fields,
+	// since in "saved" mode that form isn't rendered at all.
+	function selectSavedAddress(addr: CustomerAddress) {
+		const values = addressToShippingValues(addr);
+		if (!values) return;
+		setSelectedSavedId(addr.id);
+		setZone(values.postalCode);
+		setAreaId(values.qatarAreaId ?? "");
+		const exact = values.qatarAreaId ? areas.find((a) => a.id === values.qatarAreaId) : undefined;
+		const areaName = exact ? (locale === "ar" ? exact.nameAr : exact.nameEn) : areaLabelForZone(Number(values.postalCode), locale);
+		setSelectedAreaName(areaName);
+		setMethods([]);
+		setSelectedMethod(null);
+		onDraftChange?.(values);
+		addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, ${areaName}`;
+		const body: Record<string, string> = { _intent: "setShippingAddress", firstName: values.firstName, lastName: values.lastName, streetLine1: values.streetLine1, city: values.city, countryCode: "QA", province: "Doha", postalCode: values.postalCode };
+		if (values.streetLine2) body.streetLine2 = values.streetLine2;
+		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
+		if (values.qatarAreaId) body.qatarAreaId = values.qatarAreaId;
+		setError(null);
+		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
+	}
+
 	// Store Pickup: only firstName/lastName/phoneNumber come from the customer — the rest
 	// of the address is the store's own fixed location, not a zone-driven form.
 	function savePickupAddress() {
@@ -672,6 +732,9 @@ function ShippingStep({
 			savePickupAddress();
 		} else if (initialValues?.postalCode) {
 			saveAddress();
+		} else if (addressMode === "saved" && selectedSavedId) {
+			const addr = savedAddresses?.find((a) => a.id === selectedSavedId);
+			if (addr) selectSavedAddress(addr);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -761,6 +824,44 @@ function ShippingStep({
 				body: JSON.stringify({ _intent: "guest", firstName, lastName, emailAddress: customerName.email }),
 			}).catch(() => {});
 		}
+		// A logged-in customer with no saved addresses yet is entering their first one here --
+		// save it to their account (as their new default) so it shows up as a saved address
+		// next time, instead of only ever living on this one order. Only for a freeform "new"
+		// address a real account can own -- not store pickup, and not once they already have
+		// addresses on file (picking/adding at that point is a deliberate address-book action,
+		// left to the account page rather than silently duplicating on every checkout).
+		if (savedAddresses !== null && savedAddresses.length === 0 && mode === "address" && formRef.current) {
+			const fd = new FormData(formRef.current);
+			const firstName = (fd.get("firstName") as string) ?? "";
+			const lastName = (fd.get("lastName") as string) ?? "";
+			const streetLine1 = (fd.get("streetLine1") as string) ?? "";
+			const streetLine2 = (fd.get("streetLine2") as string) || undefined;
+			const phoneNumber = (fd.get("phoneNumber") as string) || undefined;
+			const city = zone ? municipalityForZone(Number(zone), locale) : "";
+			fetch("/api/checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					_intent: "saveAddressToAccount",
+					firstName,
+					lastName,
+					streetLine1,
+					streetLine2,
+					city,
+					countryCode: "QA",
+					province: "Doha",
+					postalCode: zone,
+					phoneNumber,
+					qatarAreaId: areaId || undefined,
+				}),
+			})
+				.then((res) => res.json() as Promise<{ createCustomerAddress?: CustomerAddress; error?: string }>)
+				.then((d) => {
+					if (d.createCustomerAddress) onAddressSavedToAccount?.(d.createCustomerAddress);
+					else if (d.error) notify(t.couldNotSaveToAccount, "error");
+				})
+				.catch(() => notify(t.couldNotSaveToAccount, "error"));
+		}
 		saveMethodFetcher.submit({ _intent: "setShippingMethod", shippingMethodId: selectedMethod }, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
 
@@ -801,47 +902,88 @@ function ShippingStep({
 				</button>
 			</div>
 
-			<FieldGroup>
-				<Field label={t.firstName} name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName || customerName?.firstName} />
-				<Field label={t.lastName} name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName || customerName?.lastName} />
-
-				{mode === "address" ? (
-					<>
-						<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} />
-						<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} />
-						<div className="sm:col-span-2">
-							<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
-								{t.zone}
-								<span className="text-red-500 ms-1">*</span>
+			{mode === "address" && addressMode === "saved" && savedAddresses ? (
+				<div className="mb-2">
+					<p className="text-sm font-semibold text-gray-700 mb-3">{t.savedAddresses}</p>
+					<div className="space-y-3">
+						{savedAddresses.map((addr) => (
+							<label key={addr.id} className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selectedSavedId === addr.id ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+								<input
+									type="radio"
+									name="savedAddress"
+									value={addr.id}
+									checked={selectedSavedId === addr.id}
+									onChange={() => selectSavedAddress(addr)}
+									className="accent-lime-400 flex-shrink-0 mt-1"
+								/>
+								<div className="flex-1 min-w-0">
+									<div className="flex items-center gap-2 flex-wrap">
+										<p className="font-medium text-gray-900">{addr.fullName}</p>
+										{addr.defaultShippingAddress && <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{t.defaultBadge}</span>}
+									</div>
+									<p className="text-sm text-gray-500 mt-0.5">
+										{addr.streetLine1}
+										{addr.streetLine2 ? `, ${addr.streetLine2}` : ""}, {addr.city}
+									</p>
+									{addr.phoneNumber && <p className="text-sm text-gray-400 mt-0.5">{addr.phoneNumber}</p>}
+								</div>
 							</label>
-							<AreaSelect
-								id="checkout-postalCode"
-								name="postalCode"
-								areas={areas}
-								locale={locale}
-								placeholder={t.selectZone}
-								required
-								value={zone}
-								initialAreaId={initialValues?.qatarAreaId}
-								onChange={handleZoneChange}
-								inputClassName="w-full border border-gray-300 rounded-full ps-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-							/>
-						</div>
-					</>
-				) : (
-					<div className="sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
-						<MapPin size={18} className="text-gray-400 flex-shrink-0 mt-0.5" />
-						<div>
-							<p className="text-sm font-medium text-gray-700">{t.pickupFromStoreNote}</p>
-							<p className="text-sm text-gray-500 mt-0.5">
-								{STORE_PICKUP_ADDRESS.streetLine1}, {STORE_PICKUP_ADDRESS.city}
-							</p>
-						</div>
+						))}
 					</div>
-				)}
+					<button type="button" onClick={() => setAddressMode("new")} className="mt-3 text-sm font-medium text-primary hover:underline">
+						{t.addNewAddress}
+					</button>
+				</div>
+			) : (
+				<FieldGroup>
+					{hasSavedAddresses && mode === "address" && (
+						<div className="sm:col-span-2 -mb-1">
+							<button type="button" onClick={() => setAddressMode("saved")} className="text-sm font-medium text-primary hover:underline">
+								{t.useSavedAddress}
+							</button>
+						</div>
+					)}
+					<Field label={t.firstName} name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName || customerName?.firstName} />
+					<Field label={t.lastName} name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName || customerName?.lastName} />
 
-				<Field label={t.phoneNumber} name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" required defaultValue={initialValues?.phoneNumber} />
-			</FieldGroup>
+					{mode === "address" ? (
+						<>
+							<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} />
+							<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} />
+							<div className="sm:col-span-2">
+								<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
+									{t.zone}
+									<span className="text-red-500 ms-1">*</span>
+								</label>
+								<AreaSelect
+									id="checkout-postalCode"
+									name="postalCode"
+									areas={areas}
+									locale={locale}
+									placeholder={t.selectZone}
+									required
+									value={zone}
+									initialAreaId={initialValues?.qatarAreaId}
+									onChange={handleZoneChange}
+									inputClassName="w-full border border-gray-300 rounded-full ps-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+								/>
+							</div>
+						</>
+					) : (
+						<div className="sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
+							<MapPin size={18} className="text-gray-400 flex-shrink-0 mt-0.5" />
+							<div>
+								<p className="text-sm font-medium text-gray-700">{t.pickupFromStoreNote}</p>
+								<p className="text-sm text-gray-500 mt-0.5">
+									{STORE_PICKUP_ADDRESS.streetLine1}, {STORE_PICKUP_ADDRESS.city}
+								</p>
+							</div>
+						</div>
+					)}
+
+					<Field label={t.phoneNumber} name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" required defaultValue={initialValues?.phoneNumber} />
+				</FieldGroup>
+			)}
 
 			{/* Shipping rates — address mode only; pickup selects its method implicitly */}
 			{mode === "address" && (loadingMethods || deliveryMethods.length > 0 || noMethodsAvailable) && (
@@ -1280,6 +1422,9 @@ export default function CheckoutPage() {
 	const [customerName, setCustomerName] = useState<{ firstName: string; lastName: string; email?: string; isGuest?: boolean } | null>(initialState.orderCustomer ? { firstName: initialState.orderCustomer.firstName, lastName: initialState.orderCustomer.lastName } : null);
 	const [shippingAddressDraft, setShippingAddressDraft] = useState<ShippingAddressValues | null>(initialState.shippingAddressDraft);
 	const [shippingMethodDraft, setShippingMethodDraft] = useState<string | null>(initialState.shippingMethodDraft);
+	// null = not logged in (guest); an array (possibly empty) = a real customer's address
+	// book -- see ShippingStep's savedAddresses prop and deriveCheckoutState above.
+	const [customerAddresses, setCustomerAddresses] = useState<CustomerAddress[] | null>(initialState.initialAddresses);
 	const { notify } = useNotification();
 	// Vendure locks the order (ArrangingPayment) once the customer reaches Payment --
 	// none of the earlier steps' mutations (setOrderShippingAddress, etc.) work until
@@ -1369,6 +1514,7 @@ export default function CheckoutPage() {
 								initialValues={initialState.orderCustomer}
 								onComplete={(s) => {
 									setCustomerName({ firstName: s.firstName, lastName: s.lastName, email: s.email, isGuest: s.isGuest });
+									if (s.addresses) setCustomerAddresses(s.addresses);
 									complete(1);
 								}}
 							/>
@@ -1382,8 +1528,10 @@ export default function CheckoutPage() {
 								initialMethodId={shippingMethodDraft}
 								initialMode={initialState.shippingModeDraft}
 								customerName={customerName}
+								savedAddresses={customerAddresses}
 								onDraftChange={setShippingAddressDraft}
 								onMethodChange={setShippingMethodDraft}
+								onAddressSavedToAccount={(addr) => setCustomerAddresses((prev) => [...(prev ?? []), addr])}
 								onComplete={(_summary, _method, totals) => {
 									setOrder((prev) => ({ ...prev, ...totals }));
 									complete(2);

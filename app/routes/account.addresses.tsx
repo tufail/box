@@ -59,7 +59,10 @@ const COPY = {
 		selectZoneError: "Please select your area.",
 		phoneRequired: "Phone number is required.",
 		invalidPhone: "Enter a valid Qatar phone number.",
-		default: "Default",
+		default: "Default Shipping",
+		defaultBilling: "Default Billing",
+		setAsDefaultShipping: "Set as default shipping address",
+		setAsDefaultBilling: "Set as default billing address",
 		edit: "Edit",
 		settingDefault: "Setting…",
 		setAsDefault: "Set as default",
@@ -91,7 +94,10 @@ const COPY = {
 		selectZoneError: "يرجى اختيار منطقتك.",
 		phoneRequired: "رقم الهاتف مطلوب.",
 		invalidPhone: "أدخل رقم هاتف قطري صالح.",
-		default: "افتراضي",
+		default: "شحن افتراضي",
+		defaultBilling: "فوترة افتراضية",
+		setAsDefaultShipping: "تعيين كعنوان شحن افتراضي",
+		setAsDefaultBilling: "تعيين كعنوان فوترة افتراضي",
 		edit: "تعديل",
 		settingDefault: "جارٍ التعيين…",
 		setAsDefault: "تعيين كافتراضي",
@@ -120,6 +126,8 @@ interface AddressFormValues {
 	postalCode: string;
 	phoneNumber: string;
 	qatarAreaId?: string;
+	defaultShippingAddress?: boolean;
+	defaultBillingAddress?: boolean;
 }
 
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
@@ -129,7 +137,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 
 // ── Address form (create + edit) ────────────────────────────────────────────
 
-function AddressForm({ areas, initial, onSaved, onCancel }: { areas: AreaOption[]; initial?: AddressFormValues; onSaved: (address: CustomerAddress) => void; onCancel: () => void }) {
+function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { areas: AreaOption[]; initial?: AddressFormValues; isFirstAddress?: boolean; onSaved: (address: CustomerAddress) => void; onCancel: () => void }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 	const [error, setError] = useState<string | null>(null);
@@ -172,12 +180,17 @@ function AddressForm({ areas, initial, onSaved, onCancel }: { areas: AreaOption[
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) return;
 
+		const defaultShippingAddress = fd.get("defaultShippingAddress") === "on";
+		const defaultBillingAddress = fd.get("defaultBillingAddress") === "on";
+
 		const body: Record<string, string> = {
 			_intent: initial?.id ? "updateAddress" : "createAddress",
 			fullName: `${first} ${last}`.trim(),
 			streetLine1,
 			city,
 			province: "Doha",
+			defaultShippingAddress: String(defaultShippingAddress),
+			defaultBillingAddress: String(defaultBillingAddress),
 		};
 		if (initial?.id) body.id = initial.id;
 		if (streetLine2) body.streetLine2 = streetLine2;
@@ -252,6 +265,17 @@ function AddressForm({ areas, initial, onSaved, onCancel }: { areas: AreaOption[
 					<input id="address-phoneNumber" name="phoneNumber" type="tel" required autoComplete="tel" defaultValue={initial?.phoneNumber} placeholder="+974 xxxx xxxx" className={fieldErrors.phoneNumber ? errCls : inputCls} />
 					{fieldErrors.phoneNumber && <p className="text-xs text-red-600 mt-1">{fieldErrors.phoneNumber}</p>}
 				</div>
+
+				<div className="sm:col-span-2 flex flex-col gap-2.5 pt-1">
+					<label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+						<input type="checkbox" name="defaultShippingAddress" defaultChecked={initial?.defaultShippingAddress ?? isFirstAddress ?? false} className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+						{t.setAsDefaultShipping}
+					</label>
+					<label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+						<input type="checkbox" name="defaultBillingAddress" defaultChecked={initial?.defaultBillingAddress ?? isFirstAddress ?? false} className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+						{t.setAsDefaultBilling}
+					</label>
+				</div>
 			</div>
 
 			{error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
@@ -307,6 +331,7 @@ function AddressCard({ address, onDeleted, onUpdated, onEdit }: { address: Custo
 					<div className="flex items-center gap-2 flex-wrap">
 						<p className="font-semibold text-gray-900">{address.fullName}</p>
 						{address.defaultShippingAddress && <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{t.default}</span>}
+						{address.defaultBillingAddress && <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{t.defaultBilling}</span>}
 					</div>
 					<p className="text-sm text-gray-500 mt-1">
 						{address.streetLine1}
@@ -352,10 +377,26 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 	const [addresses, setAddresses] = useState<CustomerAddress[]>(customer.addresses);
 	const [formState, setFormState] = useState<"none" | "create" | CustomerAddress>("none");
 
+	// Vendure only allows one default-shipping and one default-billing address at a
+	// time -- the server already enforces that when creating/updating an address, but
+	// this list is held in local state, so any other address that used to carry a
+	// default flag needs to be cleared here too or two "Default" badges could show at
+	// once until the next full page load.
+	function clearOtherDefaults(prev: CustomerAddress[], saved: CustomerAddress): CustomerAddress[] {
+		return prev.map((a) => {
+			if (a.id === saved.id) return saved;
+			return {
+				...a,
+				defaultShippingAddress: saved.defaultShippingAddress ? false : a.defaultShippingAddress,
+				defaultBillingAddress: saved.defaultBillingAddress ? false : a.defaultBillingAddress,
+			};
+		});
+	}
+
 	function handleSaved(address: CustomerAddress) {
 		setAddresses((prev) => {
 			const exists = prev.some((a) => a.id === address.id);
-			return exists ? prev.map((a) => (a.id === address.id ? address : a)) : [...prev, address];
+			return exists ? clearOtherDefaults(prev, address) : clearOtherDefaults([...prev, address], address);
 		});
 		setFormState("none");
 	}
@@ -365,7 +406,7 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 	}
 
 	function handleUpdated(address: CustomerAddress) {
-		setAddresses((prev) => prev.map((a) => (a.id === address.id ? address : { ...a, defaultShippingAddress: false })));
+		setAddresses((prev) => clearOtherDefaults(prev, address));
 	}
 
 	return (
@@ -386,6 +427,7 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 				{formState !== "none" && (
 					<AddressForm
 						areas={qatarAreas}
+						isFirstAddress={addresses.length === 0}
 						initial={
 							formState === "create"
 								? undefined
@@ -398,6 +440,8 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 										postalCode: formState.postalCode,
 										phoneNumber: formState.phoneNumber ?? "",
 										qatarAreaId: formState.customFields?.qatarAreaId != null ? String(formState.customFields.qatarAreaId) : undefined,
+										defaultShippingAddress: formState.defaultShippingAddress,
+										defaultBillingAddress: formState.defaultBillingAddress,
 									}
 						}
 						onSaved={handleSaved}
