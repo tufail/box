@@ -763,8 +763,13 @@ function ShippingStep({
 		if (mode !== "address") return;
 		const name = (e.target as unknown as { name?: string }).name;
 		if (!name) return;
-		if (!["firstName", "lastName", "streetLine1"].includes(name)) return;
-		if (addressSaved || savingAddress) return;
+		if (!["firstName", "lastName", "streetLine1", "phoneNumber"].includes(name)) return;
+		// No addressSaved guard: phoneNumber sits after the zone field in the form, so the
+		// zone-change auto-save typically fires before phone is even filled in, and yet that
+		// first save flips addressSaved permanently true — a guard here would mean nothing
+		// ever re-saves the order's address afterward, silently dropping whatever the
+		// customer types into phone (or edits in name/street) after picking their zone.
+		if (savingAddress) return;
 		if (!zone) return;
 		saveAddress();
 	}
@@ -826,7 +831,7 @@ function ShippingStep({
 					</div>
 				)}
 
-				<Field label={t.phoneNumber} name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" required={mode === "pickup"} defaultValue={initialValues?.phoneNumber} />
+				<Field label={t.phoneNumber} name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" required defaultValue={initialValues?.phoneNumber} />
 			</FieldGroup>
 
 			{/* Shipping rates — address mode only; pickup selects its method implicitly */}
