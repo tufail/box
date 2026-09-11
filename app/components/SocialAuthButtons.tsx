@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFetcher } from "react-router";
 import { Loader2 } from "lucide-react";
-import { getGoogleIdToken, getFacebookAccessToken } from "~/lib/socialAuth";
+import { initGoogleButton, getFacebookAccessToken } from "~/lib/socialAuth";
 
 // Configure via VITE_GOOGLE_CLIENT_ID / VITE_FACEBOOK_APP_ID in your .env file
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "";
@@ -48,6 +48,9 @@ interface Props {
 export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers = false, bg = "white" }: Props) {
   const [active, setActive] = useState<"google" | "facebook" | null>(null);
   const [socialError, setSocialError] = useState<string | null>(null);
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleOverlayRef = useRef<HTMLDivElement>(null);
+  const googleSettledRef = useRef(true);
   const fetcher = useFetcher<{ success?: boolean; error?: string }>();
   const fetcherBusy = fetcher.state !== "idle";
   const busy = active !== null || fetcherBusy;
@@ -73,19 +76,62 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers
     );
   }
 
-  async function handleGoogle() {
-    if (!GOOGLE_CLIENT_ID) {
-      setSocialError("Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to your .env file.");
-      return;
-    }
+  // Renders Google's real "Sign in with Google" button invisibly on top of our
+  // custom-styled one -- see socialAuth.ts for why (the old silent One Tap
+  // prompt() flow is unreliable now that browsers restrict cross-origin
+  // session checks). A click on our button lands on Google's real one.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !googleOverlayRef.current) return;
+    let cancelled = false;
+    initGoogleButton(
+      googleOverlayRef.current,
+      GOOGLE_CLIENT_ID,
+      token => {
+        googleSettledRef.current = true;
+        if (cancelled) return;
+        setSocialError(null);
+        setActive("google");
+        submit("google", token);
+      },
+      err => {
+        googleSettledRef.current = true;
+        if (cancelled) return;
+        setSocialError(err.message);
+        setActive(null);
+      },
+    ).then(() => {
+      if (!cancelled) setGoogleReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Google's button opens its own popup/account chooser with no "started"
+  // callback, so approximate a busy state from the click itself and clear it
+  // once the credential/error callback settles, or the window regains focus
+  // after the popup closes without completing (the cancel case).
+  function handleGoogleOverlayMouseDown() {
+    if (!googleReady) return;
+    googleSettledRef.current = false;
     setSocialError(null);
     setActive("google");
-    try {
-      const token = await getGoogleIdToken(GOOGLE_CLIENT_ID);
-      submit("google", token);
-    } catch (e) {
-      setSocialError(e instanceof Error ? e.message : "Google sign-in failed.");
-      setActive(null);
+    const onFocus = () => {
+      window.removeEventListener("focus", onFocus);
+      setTimeout(() => {
+        if (!googleSettledRef.current) {
+          googleSettledRef.current = true;
+          setActive(null);
+        }
+      }, 500);
+    };
+    window.addEventListener("focus", onFocus);
+  }
+
+  function handleGoogleFallbackClick() {
+    if (!GOOGLE_CLIENT_ID) {
+      setSocialError("Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to your .env file.");
     }
   }
 
@@ -117,10 +163,26 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers
     <div>
       {/* Buttons */}
       <div className="grid grid-cols-2 gap-3">
-        <button type="button" onClick={handleGoogle} disabled={busy} className={btnCls}>
-          {googleBusy ? <Loader2 size={16} className="animate-spin shrink-0" /> : <GoogleIcon />}
-          <span>{googleBusy ? "Signing in…" : "Google"}</span>
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={handleGoogleFallbackClick}
+            disabled={busy}
+            tabIndex={googleReady ? -1 : 0}
+            className={`${btnCls} w-full`}
+          >
+            {googleBusy ? <Loader2 size={16} className="animate-spin shrink-0" /> : <GoogleIcon />}
+            <span>{googleBusy ? "Signing in…" : "Google"}</span>
+          </button>
+          {/* Google's real button, rendered invisibly on top -- see socialAuth.ts */}
+          <div
+            ref={googleOverlayRef}
+            onMouseDown={handleGoogleOverlayMouseDown}
+            className="absolute inset-0 overflow-hidden opacity-0"
+            style={{ pointerEvents: busy ? "none" : "auto" }}
+            aria-hidden="true"
+          />
+        </div>
 
         <button type="button" onClick={handleFacebook} disabled={busy} className={btnCls}>
           {facebookBusy ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FacebookIcon />}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { redirect, useFetcher, useLocation } from "react-router";
 import type { Route } from "./+types/account.social";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -6,7 +6,7 @@ import { GET_CUSTOMER_PROFILE_QUERY, MY_LINKED_SOCIAL_ACCOUNTS_QUERY, type Custo
 import AccountLayout from "~/layouts/AccountLayout";
 import { AlertCircle, CheckCircle2, Link2, Link2Off, Loader2 } from "lucide-react";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
-import { getGoogleIdToken, getFacebookAccessToken } from "~/lib/socialAuth";
+import { initGoogleButton, getFacebookAccessToken } from "~/lib/socialAuth";
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "";
 const FACEBOOK_APP_ID = (import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined) ?? "";
@@ -122,6 +122,8 @@ interface PlatformCardProps {
   onConnect: () => void;
   onDisconnect: () => void;
   t: (typeof COPY)[keyof typeof COPY];
+  /** Rendered invisibly on top of the Connect button (used for Google's real button) */
+  overlay?: React.ReactNode;
 }
 
 function PlatformCard({
@@ -134,6 +136,7 @@ function PlatformCard({
   onConnect,
   onDisconnect,
   t,
+  overlay,
 }: PlatformCardProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm p-5">
@@ -171,14 +174,17 @@ function PlatformCard({
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2Off size={14} />} {busy ? t.disconnecting : t.disconnect}
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={onConnect}
-            disabled={busy}
-            className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 px-3 py-1.5 rounded-lg transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} {busy ? t.connecting : t.connect}
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={onConnect}
+              disabled={busy}
+              className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} {busy ? t.connecting : t.connect}
+            </button>
+            {overlay}
+          </div>
         )}
       </div>
     </div>
@@ -207,7 +213,11 @@ export default function SocialAccountsPage({ loaderData }: Route.ComponentProps)
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
   const [connectedProviders, setConnectedProviders] = useState(() => new Set(linkedAccounts.map((a) => a.provider)));
   const [busyProvider, setBusyProvider] = useState<"google" | "facebook" | null>(null);
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleOverlayRef = useRef<HTMLDivElement>(null);
+  const googleSettledRef = useRef(true);
   const fetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const googleConnected = connectedProviders.has("google");
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data || !busyProvider) return;
@@ -237,20 +247,72 @@ export default function SocialAccountsPage({ loaderData }: Route.ComponentProps)
     setTimeout(() => setToast(null), 4500);
   }
 
-  async function handleConnect(provider: "google" | "facebook") {
-    if (provider === "google" && !GOOGLE_CLIENT_ID) {
-      showToast(t.notConfigured(t.google), true);
-      return;
-    }
-    if (provider === "facebook" && !FACEBOOK_APP_ID) {
+  // Google's real "Sign in with Google" button is rendered invisibly on top
+  // of the Connect button -- see socialAuth.ts for why (the old silent One
+  // Tap prompt() flow is unreliable now that browsers restrict cross-origin
+  // session checks). Re-runs whenever the Connect button (re)appears, e.g.
+  // after disconnecting.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || googleConnected || !googleOverlayRef.current) return;
+    let cancelled = false;
+    setGoogleReady(false);
+    initGoogleButton(
+      googleOverlayRef.current,
+      GOOGLE_CLIENT_ID,
+      token => {
+        googleSettledRef.current = true;
+        if (cancelled) return;
+        setBusyProvider("google");
+        fetcher.submit(
+          { _intent: "linkGoogleAccount", token },
+          { method: "post", encType: "application/json", action: "/api/account" }
+        );
+      },
+      err => {
+        googleSettledRef.current = true;
+        if (cancelled) return;
+        showToast(err.message, true);
+        setBusyProvider(null);
+      },
+    ).then(() => {
+      if (!cancelled) setGoogleReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleConnected]);
+
+  function handleGoogleOverlayMouseDown() {
+    if (!googleReady) return;
+    googleSettledRef.current = false;
+    setBusyProvider("google");
+    const onFocus = () => {
+      window.removeEventListener("focus", onFocus);
+      setTimeout(() => {
+        if (!googleSettledRef.current) {
+          googleSettledRef.current = true;
+          setBusyProvider(null);
+        }
+      }, 500);
+    };
+    window.addEventListener("focus", onFocus);
+  }
+
+  function handleGoogleFallbackClick() {
+    if (!GOOGLE_CLIENT_ID) showToast(t.notConfigured(t.google), true);
+  }
+
+  async function handleConnectFacebook() {
+    if (!FACEBOOK_APP_ID) {
       showToast(t.notConfigured(t.facebook), true);
       return;
     }
-    setBusyProvider(provider);
+    setBusyProvider("facebook");
     try {
-      const token = provider === "google" ? await getGoogleIdToken(GOOGLE_CLIENT_ID) : await getFacebookAccessToken(FACEBOOK_APP_ID);
+      const token = await getFacebookAccessToken(FACEBOOK_APP_ID);
       fetcher.submit(
-        { _intent: provider === "google" ? "linkGoogleAccount" : "linkFacebookAccount", token },
+        { _intent: "linkFacebookAccount", token },
         { method: "post", encType: "application/json", action: "/api/account" }
       );
     } catch (e) {
@@ -291,12 +353,23 @@ export default function SocialAccountsPage({ loaderData }: Route.ComponentProps)
           name={t.google}
           icon={<GoogleIcon />}
           description={t.googleDesc}
-          connected={connectedProviders.has("google")}
-          connectedEmail={connectedProviders.has("google") ? customer.emailAddress : undefined}
+          connected={googleConnected}
+          connectedEmail={googleConnected ? customer.emailAddress : undefined}
           busy={busyProvider === "google"}
-          onConnect={() => handleConnect("google")}
+          onConnect={handleGoogleFallbackClick}
           onDisconnect={() => handleDisconnect("google")}
           t={t}
+          overlay={
+            !googleConnected && GOOGLE_CLIENT_ID ? (
+              <div
+                ref={googleOverlayRef}
+                onMouseDown={handleGoogleOverlayMouseDown}
+                className="absolute inset-0 overflow-hidden opacity-0"
+                style={{ pointerEvents: busyProvider ? "none" : "auto" }}
+                aria-hidden="true"
+              />
+            ) : null
+          }
         />
 
         <PlatformCard
@@ -306,7 +379,7 @@ export default function SocialAccountsPage({ loaderData }: Route.ComponentProps)
           connected={connectedProviders.has("facebook")}
           connectedEmail={connectedProviders.has("facebook") ? customer.emailAddress : undefined}
           busy={busyProvider === "facebook"}
-          onConnect={() => handleConnect("facebook")}
+          onConnect={handleConnectFacebook}
           onDisconnect={() => handleDisconnect("facebook")}
           t={t}
         />

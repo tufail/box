@@ -4,23 +4,21 @@ interface GoogleCredentialResponse {
   credential: string;
 }
 
-interface GooglePromptNotification {
-  isNotDisplayed: () => boolean;
-  isSkippedMoment: () => boolean;
-  isDismissedMoment: () => boolean;
-  getNotDisplayedReason: () => string;
-}
-
 interface GoogleAccounts {
   id: {
     initialize: (config: {
       client_id: string;
       callback: (r: GoogleCredentialResponse) => void;
-      auto_select?: boolean;
-      cancel_on_tap_outside?: boolean;
     }) => void;
-    prompt: (callback?: (n: GooglePromptNotification) => void) => void;
-    cancel: () => void;
+    renderButton: (
+      parent: HTMLElement,
+      options: {
+        type?: "standard" | "icon";
+        theme?: "outline" | "filled_blue" | "filled_black";
+        size?: "large" | "medium" | "small";
+        width?: number;
+      }
+    ) => void;
   };
 }
 
@@ -71,44 +69,46 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
-// ─── Google Sign-In (One Tap / GSI popup) ─────────────────────────────────────
+// ─── Google Sign-In (real Google button, rendered invisibly) ──────────────────
 //
-// Opens Google's consent UI inside the browser (no redirect). After the user
-// picks an account the GSI library calls our callback with a signed ID token.
-// Pass that token to Vendure's `authenticate` mutation as `{ google: { token } }`.
+// The old approach used the "One Tap" silent prompt() API, which tries to
+// auto-detect an active Google session by checking state across origins.
+// Browsers increasingly block that by default, so prompt() got suppressed
+// for real users ("Google sign-in was suppressed..."). Google's own docs now
+// mark the moment-notification reason codes prompt() relies on as
+// unsupported/deprecated under FedCM, so there's no reliable way to detect
+// *why* it failed anymore -- the fix is to stop depending on the silent
+// prompt for a button click and use Google's actual button-click flow
+// instead, which doesn't depend on cross-origin session detection.
+//
+// Google's real "Sign in with Google" button is rendered into `container`
+// at full size but invisible (opacity handled by the caller's CSS), stacked
+// on top of our custom-styled button so a click on our button actually
+// clicks Google's. After the user completes sign-in, the GSI library calls
+// back with a signed ID token, passed to Vendure's `authenticate` mutation
+// as `{ google: { token } }` -- same as before, no backend change needed.
 
-export async function getGoogleIdToken(clientId: string): Promise<string> {
+export async function initGoogleButton(
+  container: HTMLElement,
+  clientId: string,
+  onCredential: (idToken: string) => void,
+  onError: (err: Error) => void,
+): Promise<void> {
   await loadScript("https://accounts.google.com/gsi/client");
 
-  return new Promise((resolve, reject) => {
-    const g = window.google;
-    if (!g) { reject(new Error("Google SDK failed to initialise")); return; }
+  const g = window.google;
+  if (!g) { onError(new Error("Google SDK failed to initialise")); return; }
 
-    g.accounts.id.initialize({
-      client_id: clientId,
-      callback: ({ credential }) => {
-        if (credential) resolve(credential);
-        else reject(new Error("Google did not return a credential"));
-      },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-    });
-
-    g.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed()) {
-        const reason = notification.getNotDisplayedReason();
-        reject(
-          new Error(
-            reason === "suppressed_by_user" || reason === "opt_out_or_no_session"
-              ? "Google sign-in was suppressed. Try allowing third-party cookies."
-              : "Google sign-in is not available right now. Try a different method."
-          )
-        );
-      } else if (notification.isSkippedMoment() || notification.isDismissedMoment()) {
-        reject(new Error("Google sign-in was cancelled"));
-      }
-    });
+  g.accounts.id.initialize({
+    client_id: clientId,
+    callback: ({ credential }) => {
+      if (credential) onCredential(credential);
+      else onError(new Error("Google did not return a credential"));
+    },
   });
+
+  const width = Math.max(120, Math.round(container.getBoundingClientRect().width));
+  g.accounts.id.renderButton(container, { type: "standard", theme: "outline", size: "large", width });
 }
 
 // ─── Facebook Login (SDK popup) ───────────────────────────────────────────────
