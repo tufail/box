@@ -676,9 +676,20 @@ function ShippingStep({
 		if (!values) return;
 		setSelectedSavedId(addr.id);
 		setZone(values.postalCode);
-		setAreaId(values.qatarAreaId ?? "");
-		const exact = values.qatarAreaId ? areas.find((a) => a.id === values.qatarAreaId) : undefined;
-		const areaName = exact ? (locale === "ar" ? exact.nameAr : exact.nameEn) : areaLabelForZone(Number(values.postalCode), locale);
+
+		// A saved address's qatarAreaId can be missing (saved before this field existed)
+		// or stale (its QatarShippingArea row was since deleted/renumbered) -- the backend's
+		// eligibility checker requires it to resolve to a REAL, current area row with no
+		// zone-only fallback of its own (qatar-area-eligibility-checker.ts just returns
+		// false), so submitting it as-is would silently show zero shipping methods. Falls
+		// back to a best-effort same-zone area, same idea AreaSelect already uses for a
+		// postalCode-only value.
+		const knownArea = values.qatarAreaId ? areas.find((a) => a.id === values.qatarAreaId) : undefined;
+		const resolvedArea = knownArea ?? areas.find((a) => `${a.zoneNumber}` === values.postalCode);
+		const resolvedAreaId = resolvedArea?.id ?? "";
+		setAreaId(resolvedAreaId);
+
+		const areaName = resolvedArea ? (locale === "ar" ? resolvedArea.nameAr : resolvedArea.nameEn) : areaLabelForZone(Number(values.postalCode), locale);
 		setSelectedAreaName(areaName);
 		setMethods([]);
 		setSelectedMethod(null);
@@ -687,7 +698,7 @@ function ShippingStep({
 		const body: Record<string, string> = { _intent: "setShippingAddress", firstName: values.firstName, lastName: values.lastName, streetLine1: values.streetLine1, city: values.city, countryCode: "QA", province: "Doha", postalCode: values.postalCode };
 		if (values.streetLine2) body.streetLine2 = values.streetLine2;
 		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
-		if (values.qatarAreaId) body.qatarAreaId = values.qatarAreaId;
+		if (resolvedAreaId) body.qatarAreaId = resolvedAreaId;
 		setError(null);
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
