@@ -25,6 +25,13 @@
 	"observability": {
 		"enabled": true,
 	},
+	// Default per-request CPU time limit was too tight for SSR-rendering a
+	// component-heavy page (homepage carousels/banners/product cards) -- confirmed
+	// via `wrangler tail` catching real "Worker exceeded CPU time limit" errors
+	// causing intermittent 503s. 30s is the standard paid-plan ceiling.
+	"limits": {
+		"cpu_ms": 30000
+	},
 	"compatibility_flags": ["nodejs_compat"],
 	// Smart Placement: routes each request to the datacenter closest to your
 	// Vendure backend, reducing round-trip latency by 50-200 ms in production.
