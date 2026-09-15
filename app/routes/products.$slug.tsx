@@ -1,7 +1,7 @@
 import type { Route } from "./+types/products.$slug";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
+import { useFetcher, useRouteLoaderData, useLocation, redirect } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
@@ -425,12 +425,26 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 // ── Loader ─────────────────────────────────────────────────────────────────
 
+// Old -> current slug for products renamed after they'd already been indexed/linked
+// externally — a plain 404 on the old URL drops whatever ranking/links it had, where a
+// 301 here carries it over to the real page instead. Add an entry whenever a product's
+// slug changes and the old one might still be crawled or bookmarked somewhere.
+const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
+	"icy-blue-raz": "applied-nutrition-creatine-monohydrate-flavoured-250g-icy-blue-razz",
+};
+
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const slugParam = params.slug!;
 	const url = new URL(request.url);
 	const locale = getLocaleFromPathname(url.pathname);
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
+
+	// Checked before any lookup — a known-renamed slug redirects immediately instead of
+	// wasting a product query and a variant query just to learn what this map already
+	// knows the answer to.
+	const legacySlugTarget = LEGACY_PRODUCT_SLUG_REDIRECTS[slugParam];
+	if (legacySlugTarget) throw redirect(`${localizePath(`/products/${legacySlugTarget}`, locale)}${url.search}`, 301);
 
 	try {
 		// $slug is either a product's own slug (bare product page, defaults to its
