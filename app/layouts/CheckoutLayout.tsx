@@ -36,12 +36,16 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 			<header className="bg-white border-b border-gray-200">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link to="/" className="font-bold text-xl">
-						<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-6 md:h-10 w-auto inline-block" />
+						<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-10 md:h-14 w-auto inline-block" />
 					</Link>
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-2 text-sm text-gray-500">
 							<Lock size={14} />
-							<span>{t.secureCheckout}</span>
+							{/* The bigger logo (matched to the home header's size) leaves less room
+							    on narrow screens, so this wraps to two lines there -- the icon alone
+							    still reads as "secure" at a glance; the label returns once there's
+							    space for it. */}
+							<span className="hidden sm:inline">{t.secureCheckout}</span>
 						</div>
 						<button
 							onClick={toggleLanguage}

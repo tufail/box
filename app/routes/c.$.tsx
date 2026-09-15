@@ -257,7 +257,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       ? facetsResult.value.data.search.facetValues
       : data.search.facetValues;
 
-    const canonicalUrl = `${url.origin}${data.collection ? localizePath(buildCollectionPath(data.collection.breadcrumbs), locale) : localizePath("/c/" + path, locale)}`;
+    // Sort/filter (?sort=, ?fv=) intentionally consolidate to the bare collection URL --
+    // they're near-duplicate views of the same content. Pagination is different: page 2+
+    // has genuinely distinct products, so canonicalizing it to page 1 (as this used to do
+    // unconditionally) told search engines to ignore those products' only accessible URL.
+    // Self-referencing with ?page=N for N>1 fixes that while leaving page 1 unchanged.
+    const canonicalPath = data.collection ? localizePath(buildCollectionPath(data.collection.breadcrumbs), locale) : localizePath("/c/" + path, locale);
+    const canonicalUrl = `${url.origin}${canonicalPath}${page > 1 ? `?page=${page}` : ""}`;
     const collectionImage = data.collection?.featuredAsset?.preview
       ? vendureImageUrl(data.collection.featuredAsset.preview, vendureBase, { preset: "xlarge", format: "jpg" })
       : null;

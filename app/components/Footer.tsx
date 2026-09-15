@@ -62,6 +62,7 @@ const FOOTER_COPY = {
 			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours to same day" },
 			{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
 		],
+		shop: "Shop",
 		hours: "Sat-Thu 10am to 8pm",
 		followUs: "Follow Us",
 		tagline: "Your trusted destination for authentic sports nutrition, health supplements, and wellness products across Qatar.",
@@ -88,6 +89,7 @@ const FOOTER_COPY = {
 			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع من ساعتين إلى نفس اليوم" },
 			{ icon: ShieldCheck, title: "منتجات أصلية 100%", desc: "نتعامل فقط مع المنتجات الأصلية" },
 		],
+		shop: "تسوق",
 		hours: "السبت-الخميس من 10 صباحًا حتى 8 مساءً",
 		followUs: "تابعنا",
 		tagline: "وجهتك الموثوقة للمكملات الرياضية الأصلية والمكملات الصحية ومنتجات العافية في جميع أنحاء قطر.",
@@ -126,6 +128,23 @@ const socialLinks = [
 	{ href: "https://www.instagram.com/nutribox.qa/", label: "Instagram", Icon: InstagramIcon },
 	{ href: "https://www.tiktok.com/@nutribox.qa", label: "TikTok", Icon: TikTokIcon },
 	{ href: "https://share.google/m4uyBRqwEYe654INv", label: "Google", Icon: GoogleBusinessIcon },
+];
+
+// Real, verified category/brand destinations — a footer nav that only ever points at
+// pages that exist beats one padded out with guessed slugs. Brand names are kept in
+// Latin script for both locales (proper nouns/trademarks, same treatment as "NutriBox"
+// itself), matching how socialLinks' platform names above aren't translated either.
+const SHOP_LINKS: { to: string; en: string; ar: string }[] = [
+	{ to: "/c/sports-nutrition/protein", en: "Protein", ar: "بروتين" },
+	{ to: "/c/sports-nutrition/creatine", en: "Creatine", ar: "كرياتين" },
+	{ to: "/c/sports-nutrition/pre-workout", en: "Pre-Workout", ar: "قبل التمرين" },
+	{ to: "/c/sports-nutrition/protein/mass-gainers", en: "Mass Gainers", ar: "معززات الكتلة" },
+	{ to: "/c/supplements", en: "Vitamins & Supplements", ar: "الفيتامينات والمكملات" },
+	{ to: "/brands/optimum-nutrition", en: "Optimum Nutrition", ar: "Optimum Nutrition" },
+	{ to: "/brands/dymatize", en: "Dymatize", ar: "Dymatize" },
+	{ to: "/brands/muscletech", en: "MuscleTech", ar: "MuscleTech" },
+	{ to: "/collections", en: "All Categories", ar: "جميع الفئات" },
+	{ to: "/brands", en: "All Brands", ar: "جميع الماركات" },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -236,7 +255,7 @@ export default function Footer({ pageSections }: FooterProps) {
 				    element. */}
 				<div className="bg-stone-100 text-gray-900">
 					<div className="container mx-auto px-4 py-10">
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-6">
 							{/* Col 1 — Logo, tagline, social */}
 							<div>
 								<Link to="/" className="inline-block mb-3">
@@ -252,7 +271,23 @@ export default function Footer({ pageSections }: FooterProps) {
 								</div>
 							</div>
 
-							{/* Cols 2–3 — Dynamic page sections (Help, Company, …) */}
+							{/* Col 2 — Shop (top categories + brands) — appears on every page, unlike
+							    the mega menu's hover-only dropdown, this is plain crawlable HTML. */}
+							<nav aria-label={t.shop}>
+								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.shop}</h3>
+								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
+								<ul className="space-y-2.5">
+									{SHOP_LINKS.map((link) => (
+										<li key={link.to}>
+											<Link to={link.to} className="text-xs text-gray-600 hover:text-primary transition-colors">
+												{link[locale]}
+											</Link>
+										</li>
+									))}
+								</ul>
+							</nav>
+
+							{/* Cols 3–4 — Dynamic page sections (Help, Company, …) */}
 							{pageSections.length > 0
 								? pageSections.slice(0, 2).map((section, idx) => {
 										const label = SECTION_LABEL_OVERRIDES[section.slug]?.[locale] ?? section.name;
@@ -285,7 +320,7 @@ export default function Footer({ pageSections }: FooterProps) {
 									})
 								: null}
 
-							{/* Col 4 — Contact Us */}
+							{/* Col 5 — Contact Us */}
 							<address className="not-italic">
 								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.contactUs}</h3>
 								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />

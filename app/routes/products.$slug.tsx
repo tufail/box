@@ -79,7 +79,7 @@ const PDP_COPY = {
 		quickDelivery: "Same day delivery",
 		percentOff: (n: number) => `${n}% Off`,
 		perServing: (price: string) => `${price}/serving`,
-		by: "by",
+		moreFrom: "More from",
 		whatsappEnquiry: "WhatsApp Enquiry",
 		trustBadges: (express: boolean) => [express ? "Quick delivery within 2 hours to same day" : "Standard delivery within Qatar in 2-6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
 		productVideo: "Product Video",
@@ -157,7 +157,7 @@ const PDP_COPY = {
 		quickDelivery: "توصيل في نفس اليوم",
 		percentOff: (n: number) => `خصم ${n}%`,
 		perServing: (price: string) => `${price}/حصة`,
-		by: "بواسطة",
+		moreFrom: "المزيد من",
 		whatsappEnquiry: "استفسار عبر واتساب",
 		trustBadges: (express: boolean) => [express ? "توصيل سريع من ساعتين إلى نفس اليوم" : "التوصيل القياسي داخل قطر خلال 2-6 أيام عمل", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
 		productVideo: "فيديو المنتج",
@@ -1234,7 +1234,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							<h1 className="font-heading text-xl md:text-3xl font-extrabold text-black leading-snug">{activeVariantName || product.name}</h1>
 							{brand && (
 								<p className="text-sm text-gray-500">
-									{t.by} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
+									{t.moreFrom} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
 								</p>
 							)}
 							{ratingSummary && ratingSummary.totalReviews > 0 && (
