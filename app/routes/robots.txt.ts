@@ -36,8 +36,19 @@ const AI_CRAWLER_AGENTS = [
 // would prevent crawlers from ever seeing that meta tag).
 const DISALLOWED_PATHS = ["/account", "/checkout", "/api/", "/order-confirmation", "/review-images/upload"];
 
+// Carve-outs from the blanket /api/ disallow above, for endpoints components fetch
+// client-side (GET, no auth) to render content that's actually part of the page —
+// e.g. HomeBanner's top-bar/promo banners. Blocking these doesn't hide anything from
+// search (they're not pages), but it does stop Googlebot's renderer from fetching
+// them while executing the page's JS, which Search Console flags as "blocked by
+// robots.txt" and Google explicitly recommends against for render-affecting
+// resources. The most specific matching rule wins, so this overrides /api/ for just
+// these prefixes while everything else under /api/ (cart, checkout, account, auth —
+// mutation endpoints with nothing for a crawler to render) stays blocked.
+const ALLOWED_API_PATHS = ["/api/banner/"];
+
 function block(agent: string): string[] {
-	return [`User-agent: ${agent}`, ...DISALLOWED_PATHS.map((p) => `Disallow: ${p}`), ""];
+	return [`User-agent: ${agent}`, ...DISALLOWED_PATHS.map((p) => `Disallow: ${p}`), ...ALLOWED_API_PATHS.map((p) => `Allow: ${p}`), ""];
 }
 
 export async function loader({ request }: { request: Request }) {
