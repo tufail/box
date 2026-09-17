@@ -947,7 +947,22 @@ function ShippingStep({
 			// here -- save it to their account (as their new default) so it shows up as a
 			// saved address next time. Only for a freeform "new" address a real account can
 			// own -- not store pickup, and not once they already have addresses on file.
-			if (savedAddresses !== null && savedAddresses.length === 0 && mode === "address" && addressMode === "new") {
+			// Gated on methodToUse.code (the value actually being submitted, just resolved
+			// above) rather than the `mode` state alone -- a customer's account ended up with
+			// the store's own pickup address as their saved default, which `mode === "address"`
+			// should already have prevented; grounding this in the freshly-resolved shipping
+			// method removes any possibility of that check running against stale UI state.
+			// Also never for a guest -- they have no password to log back in with, so there's
+			// no "next time" for a saved address to help with, and every confirmed leak so far
+			// was a guest checkout.
+			if (
+				savedAddresses !== null &&
+				savedAddresses.length === 0 &&
+				mode === "address" &&
+				addressMode === "new" &&
+				methodToUse.code !== STORE_PICKUP_METHOD_CODE &&
+				!customerName?.isGuest
+			) {
 				fetch("/api/checkout", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
