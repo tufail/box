@@ -6,7 +6,8 @@ import { PRODUCTS_PER_SITEMAP_PAGE } from "./sitemap-products.xml";
 // The root sitemap.xml is now a sitemap *index* (per the sitemaps.org protocol)
 // rather than one file listing every entity directly — see app/lib/sitemap.ts
 // for the full reasoning. It points at sitemap-pages.xml, sitemap-collections.xml,
-// and however many sitemap-products-N.xml pages the current product count needs.
+// and however many ?page=N pages of sitemap-products.xml the current product
+// count needs.
 interface ProductCountData {
 	search: { totalItems: number };
 }
@@ -29,7 +30,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const sitemapPaths = [
 		"/sitemap-pages.xml",
 		"/sitemap-collections.xml",
-		...Array.from({ length: productSitemapCount }, (_, i) => `/sitemap-products-${i + 1}.xml`),
+		...Array.from({ length: productSitemapCount }, (_, i) => `/sitemap-products.xml?page=${i + 1}`),
 	];
 
 	return xmlResponse(sitemapIndex(SITE_URL, sitemapPaths));

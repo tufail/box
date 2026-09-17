@@ -53,7 +53,7 @@ export default [
 	route("sitemap.xml", "routes/sitemap.xml.ts"),
 	route("sitemap-pages.xml", "routes/sitemap-pages.xml.ts"),
 	route("sitemap-collections.xml", "routes/sitemap-collections.xml.ts"),
-	route("sitemap-products-:page.xml", "routes/sitemap-products.xml.ts"),
+	route("sitemap-products.xml", "routes/sitemap-products.xml.ts"),
 	route("robots.txt", "routes/robots.txt.ts"),
 	route("llms.txt", "routes/llms.txt.ts"),
 	...CONTENT_ROUTES.flatMap(([path, file]) => [route(path, file), route(`ar/${path}`, file, { id: `${file}.ar` })]),

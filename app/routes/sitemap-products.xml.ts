@@ -1,10 +1,16 @@
-import type { LoaderFunctionArgs } from "react-router";
+import type { Route } from "./+types/sitemap-products.xml";
 import { graphqlRequest, fetchInPages, urlEntry, urlset, xmlResponse } from "~/lib/sitemap";
 import { SITE_URL } from "~/lib/seo";
 import { vendureImageUrl } from "~/components/VendureImage";
 
-// Registered at "sitemap-products-:page.xml" — see app/routes.ts. Page numbers
-// are 1-based to match how they're listed from sitemap.xml (the index).
+// Registered at "sitemap-products.xml" (a static path, paginated via a
+// ?page= query param) — see app/routes.ts. A dynamic path segment was tried
+// first ("sitemap-products-:page.xml") and reverted: confirmed live that
+// React Router's router doesn't match a param embedded inside a segment with
+// a literal prefix/suffix ("No route matches URL /sitemap-products-1.xml"),
+// only a param occupying a whole segment on its own. Query-param pagination
+// sidesteps that entirely. Page numbers are 1-based to match how they're
+// listed from sitemap.xml (the index).
 export const PRODUCTS_PER_SITEMAP_PAGE = 2000;
 
 type SitemapProductItem = { slug: string; productAsset: { preview: string } | null };
@@ -22,18 +28,11 @@ const SITEMAP_PRODUCTS_QUERY = `
 	}
 `;
 
-// `params` typed via the generic LoaderFunctionArgs rather than this route's
-// auto-generated Route.LoaderArgs -- React Router's typed-routes inference
-// only reliably parses a param that occupies a whole path segment on its own;
-// here ":page" is embedded inside "sitemap-products-:page.xml" (a literal
-// prefix/suffix in the same segment), which it types as `{}`. The pattern
-// still works correctly at runtime (this is standard path-to-regexp syntax),
-// this is purely a typegen limitation for this one route registration.
-export async function loader({ context, request, params }: LoaderFunctionArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
-	const page = Math.max(1, Number(params.page) || 1);
+	const page = Math.max(1, Number(new URL(request.url).searchParams.get("page")) || 1);
 	const skip = (page - 1) * PRODUCTS_PER_SITEMAP_PAGE;
 
 	const items = await fetchInPages<SitemapProductItem>(
