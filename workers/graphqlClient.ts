@@ -8,7 +8,7 @@ export const DEFAULT_VENDURE_SHOP_API = "http://localhost:3000/shop-api";
 const CHANNEL_HEADER = "vendure-token";
 const AUTH_HEADER = "vendure-auth-token";
 
-interface VendureEnv {
+export interface VendureEnv {
   VENDURE_SHOP_API?: string;
   VENDURE_CHANNEL_TOKEN?: string;
 }

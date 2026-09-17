@@ -39,7 +39,9 @@ const ORGANIZATION_JSON_LD = {
 		contactType: "customer service",
 		areaServed: "QA",
 	},
-	sameAs: ["https://www.facebook.com/nutribox.qa", "https://www.instagram.com/nutribox.qa/"],
+	// Matches Footer.tsx's socialLinks exactly — all four real profiles, not just
+	// the two oldest ones.
+	sameAs: ["https://www.facebook.com/nutribox.qa", "https://www.instagram.com/nutribox.qa/", "https://www.tiktok.com/@nutribox.qa", "https://share.google/m4uyBRqwEYe654INv"],
 };
 
 // useLayoutEffect warns ("does nothing on the server") when it runs during SSR —

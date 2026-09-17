@@ -1110,21 +1110,58 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 	const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
 	const seller = { "@type": "Organization", name: SITE_NAME };
-	// Same for every offer sitewide (one market, one policy) — Qatar-only
-	// delivery and the 7-day window from the actual Refund & Return Policy
-	// page (/pages/refund-and-return-policy), not the PDP trust badge's
-	// "48 Hours" copy, which is a separate, inconsistent piece of marketing
-	// text — this schema has to match the real, binding policy.
-	const shippingDetails = {
-		"@type": "OfferShippingDetails",
-		shippingDestination: { "@type": "DefinedRegion", addressCountry: "QA" },
-	};
+	// Same for every offer sitewide (one market, one policy) — the 7-day window and
+	// return-shipping terms come from the actual Refund & Return Policy page
+	// (/pages/refund-and-return-policy), not the PDP trust badge's "48 Hours" copy
+	// (that's the separate, shorter window for damaged/incorrect/expired items,
+	// Section 5 of the same policy) — this schema has to match the real, binding
+	// terms for a normal return, not the marketing tagline or the exception case.
 	const hasMerchantReturnPolicy = {
 		"@type": "MerchantReturnPolicy",
 		applicableCountry: "QA",
 		returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
 		merchantReturnDays: 7,
+		// Policy: "Customers are responsible for return shipping costs, unless the
+		// return is due to our error or a defective/damaged product" — the general
+		// case (not that exception) is what a return-policy schema should represent.
+		returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+		// No in-store/kiosk drop-off — support arranges return shipping instructions
+		// per item, which ReturnByMail is the closest schema.org enum value for.
+		returnMethod: "https://schema.org/ReturnByMail",
 	};
+
+	// Shipping is priced per delivery zone (postalCode on the address = the Qatar
+	// zone number), not a single flat rate — matches the live pricing set on the
+	// qatar-shipping backend plugin. Represented as one OfferShippingDetails entry
+	// per price tier so the schema states real costs instead of picking one number
+	// that would misstate it for most of the country either way.
+	type ZoneSpec = number | { from: number; to: number };
+	const SHIPPING_TIERS: { rateQAR: string; zones: ZoneSpec[] }[] = [
+		{ rateQAR: "0", zones: [{ from: 1, to: 70 }] },
+		{ rateQAR: "29", zones: [{ from: 71, to: 75 }] },
+		{ rateQAR: "18", zones: [{ from: 90, to: 91 }] },
+		{ rateQAR: "40", zones: [83, 84, 86, { from: 92, to: 96 }] },
+		// Zone 0 = areas with no official zone number assigned (still priceable,
+		// see qatar-areas.ts) — falls into the same catch-all rate as the rest.
+		{ rateQAR: "49", zones: [0, { from: 76, to: 82 }, 85, { from: 87, to: 89 }, { from: 97, to: 98 }] },
+	];
+	function regionForZone(zone: ZoneSpec) {
+		return typeof zone === "number"
+			? { "@type": "DefinedRegion", addressCountry: "QA", postalCode: String(zone) }
+			: { "@type": "DefinedRegion", addressCountry: "QA", postalCodeRange: { "@type": "PostalCodeRangeSpecification", postalCodeBegin: String(zone.from), postalCodeEnd: String(zone.to) } };
+	}
+	// Same delivery estimate across every tier — zone only affects cost, not speed.
+	const deliveryTime = {
+		"@type": "ShippingDeliveryTime",
+		handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+		transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 6, unitCode: "DAY" },
+	};
+	const shippingDetails = SHIPPING_TIERS.map((tier) => ({
+		"@type": "OfferShippingDetails",
+		shippingDestination: tier.zones.length === 1 ? regionForZone(tier.zones[0]) : tier.zones.map(regionForZone),
+		shippingRate: { "@type": "MonetaryAmount", value: tier.rateQAR, currency: "QAR" },
+		deliveryTime,
+	}));
 
 	function offerFor(v: ProductDetailVariant) {
 		return {
@@ -1158,15 +1195,21 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	// description when neither curated field has been filled in yet.
 	const jsonLdDescription = (product.customFields?.aiOverview || product.customFields?.metaDescription || product.description.replace(/<[^>]+>/g, "").trim()).slice(0, 500);
 
+	// image is a required field for Product rich results — Search Console flagged
+	// products missing it entirely, which happened whenever featuredAsset wasn't
+	// set even though the product had other real images (a variant's own featured
+	// shot, or just something in the general assets list). Falls through to those
+	// before giving up, so only a product with literally zero images anywhere ends
+	// up without one.
+	const jsonLdImagePreview = product.featuredAsset?.preview || activeVariant?.featuredAsset?.preview || product.assets[0]?.preview || null;
+
 	const jsonLd = {
 		"@context": "https://schema.org",
 		"@type": "Product",
 		name: jsonLdName,
 		description: jsonLdDescription,
 		url: canonicalUrl,
-		...(product.featuredAsset?.preview && {
-			image: resolveImage(product.featuredAsset.preview, vendureBase),
-		}),
+		...(jsonLdImagePreview && { image: resolveImage(jsonLdImagePreview, vendureBase) }),
 		...(activeVariant?.sku && { sku: activeVariant.sku, mpn: activeVariant.sku }),
 		...(activeVariant?.customFields?.gtin12 && { gtin12: activeVariant.customFields.gtin12 }),
 		...(activeVariant?.customFields?.sizeSpecifications && { size: activeVariant.customFields.sizeSpecifications }),
