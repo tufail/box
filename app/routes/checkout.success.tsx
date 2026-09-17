@@ -5,9 +5,11 @@ import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
 import { graphqlRequest } from "workers/graphqlClient";
 import { CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION, GET_ORDER_BY_CODE_QUERY, type SkipCashPaymentStatusResult } from "~/graphql/checkout";
+import { GET_MY_REFERRAL_CODE_QUERY, type MyReferralCodeData } from "~/graphql/loyalty";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import VendureImage from "~/components/VendureImage";
 import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
+import PostOrderReferralPrompt from "~/components/PostOrderReferralPrompt";
 import type { VendurePayment } from "~/types/sadad";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
@@ -125,7 +127,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // No usable order code anywhere on the URL — the page component falls back to
     // the sessionStorage breadcrumb set right before the customer was redirected to
     // SkipCash, then re-navigates here with ?orderCode=.
-    return { order: null, paymentState: null, vendureBase };
+    return { order: null, paymentState: null, vendureBase, referralCode: null };
   }
 
   // Backup for a delayed/lost SkipCash webhook (or a sandbox where webhooks require
@@ -168,7 +170,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // Gateway-agnostic: any Settled payment means the order is paid, regardless of
     // which method (Sadad, SkipCash, ...) processed it.
     const settledPayment = order.payments?.find((p) => p.state === "Settled");
-    return { order, paymentState: settledPayment?.state ?? "Unknown", vendureBase };
+
+    // Already registered (has a linked User) — offer the referral share box
+    // instead of the create-account prompt. myReferralCode resolves off the
+    // current session, not the order, so this only comes back non-null when
+    // they placed the order while actually signed in — silently omitted
+    // otherwise rather than showing a broken/empty card.
+    let referralCode: string | null = null;
+    if (order.customer?.user) {
+      try {
+        const { data: referralData } = await graphqlRequest<MyReferralCodeData>(env, GET_MY_REFERRAL_CODE_QUERY, undefined, { request });
+        referralCode = referralData.myReferralCode;
+      } catch {
+        // Best-effort — see comment above.
+      }
+    }
+
+    return { order, paymentState: settledPayment?.state ?? "Unknown", vendureBase, referralCode };
   } catch (err) {
     if (err instanceof Response) throw err;
     // orderByCode can come back FORBIDDEN — a customer's browser returning
@@ -182,12 +200,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       order: { id: "", code: orderCode, state: "", totalWithTax: 0, subTotalWithTax: 0, shippingWithTax: 0, currencyCode: "QAR", customer: null, lines: [], payments: [] },
       paymentState: null,
       vendureBase,
+      referralCode: null,
     };
   }
 }
 
 export default function CheckoutSuccessPage() {
-  const { order, paymentState, vendureBase } = useLoaderData<typeof loader>();
+  const { order, paymentState, vendureBase, referralCode } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const locale = getLocaleFromPathname(useLocation().pathname);
@@ -330,6 +349,12 @@ export default function CheckoutSuccessPage() {
             {customerSnapshot && !customerSnapshot.user && (
               <div className="mb-8">
                 <PostOrderAccountPrompt email={customerSnapshot.emailAddress} firstName={customerSnapshot.firstName} lastName={customerSnapshot.lastName} locale={locale} />
+              </div>
+            )}
+
+            {customerSnapshot?.user && referralCode && (
+              <div className="mb-8">
+                <PostOrderReferralPrompt referralCode={referralCode} locale={locale} />
               </div>
             )}
           </>

@@ -5,8 +5,10 @@ import { Check, ShoppingBag, Package } from "lucide-react";
 import type { Route } from "./+types/order-confirmation";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_ORDER_CUSTOMER_BY_CODE_QUERY } from "~/graphql/checkout";
+import { GET_MY_REFERRAL_CODE_QUERY, type MyReferralCodeData } from "~/graphql/loyalty";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
+import PostOrderReferralPrompt from "~/components/PostOrderReferralPrompt";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta() {
@@ -46,17 +48,35 @@ interface OrderCustomerData {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const orderCode = url.searchParams.get("code") ?? "";
-  if (!orderCode) return { customer: null };
+  if (!orderCode) return { customer: null, referralCode: null };
 
   try {
     const { data } = await graphqlRequest<OrderCustomerData>(context.cloudflare.env, GET_ORDER_CUSTOMER_BY_CODE_QUERY, { code: orderCode }, { request });
-    return { customer: data.orderByCode?.customer ?? null };
+    const customer = data.orderByCode?.customer ?? null;
+
+    // Already registered (has a linked User) — offer the referral share box
+    // instead of the create-account prompt. myReferralCode resolves off the
+    // current session, not the order, so this only comes back non-null when
+    // they placed the order while actually signed in (the common case for a
+    // registered customer) — silently omitted otherwise rather than showing
+    // a broken/empty card.
+    let referralCode: string | null = null;
+    if (customer?.user) {
+      try {
+        const { data: referralData } = await graphqlRequest<MyReferralCodeData>(context.cloudflare.env, GET_MY_REFERRAL_CODE_QUERY, undefined, { request });
+        referralCode = referralData.myReferralCode;
+      } catch {
+        // Best-effort — see comment above.
+      }
+    }
+
+    return { customer, referralCode };
   } catch (err) {
     // Best-effort only — the account prompt is a nice-to-have, never worth
     // breaking this page over (e.g. the same post-redirect ownership-token
     // quirk documented in checkout.success.tsx's loader).
     console.error("[order-confirmation] orderByCode failed:", err);
-    return { customer: null };
+    return { customer: null, referralCode: null };
   }
 }
 
@@ -69,6 +89,7 @@ export default function OrderConfirmationPage({ loaderData }: Route.ComponentPro
   // loader, and a successful registration flips customer.user from null to set —
   // reading loaderData live here would yank the prompt away mid-success-message.
   const [customer] = useState(loaderData.customer);
+  const [referralCode] = useState(loaderData.referralCode);
 
   return (
     <CheckoutLayout>
@@ -103,6 +124,12 @@ export default function OrderConfirmationPage({ loaderData }: Route.ComponentPro
         {customer && !customer.user && (
           <div className="mb-8">
             <PostOrderAccountPrompt email={customer.emailAddress} firstName={customer.firstName} lastName={customer.lastName} locale={locale} />
+          </div>
+        )}
+
+        {customer?.user && referralCode && (
+          <div className="mb-8">
+            <PostOrderReferralPrompt referralCode={referralCode} locale={locale} />
           </div>
         )}
 
