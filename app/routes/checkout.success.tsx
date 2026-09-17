@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 import { redirect, useLocation, useLoaderData, useNavigate, useRevalidator } from "react-router";
 import Link from "~/components/LocaleLink";
-import { Check, ShoppingBag, Package } from "lucide-react";
+import { Check, ShoppingBag } from "lucide-react";
 import type { Route } from "./+types/checkout.success";
 import { graphqlRequest } from "workers/graphqlClient";
 import { CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION, GET_ORDER_BY_CODE_QUERY, type SkipCashPaymentStatusResult } from "~/graphql/checkout";
 import { GET_MY_REFERRAL_CODE_QUERY, type MyReferralCodeData } from "~/graphql/loyalty";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
-import VendureImage from "~/components/VendureImage";
 import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
 import PostOrderReferralPrompt from "~/components/PostOrderReferralPrompt";
+import OrderSummaryBox from "~/components/OrderSummaryBox";
 import type { VendurePayment } from "~/types/sadad";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
-import { formatPrice } from "~/lib/currency";
 
 export function meta() {
   return [
@@ -28,14 +27,6 @@ const COPY = {
   en: {
     orderConfirmed: "Order Confirmed!",
     thankYou: "Thank you for your purchase. We've received your order and will begin processing it shortly.",
-    orderDetails: "Order Details",
-    orderNumber: "Order Number",
-    orderItems: (n: number) => (n === 1 ? "1 item" : `${n} items`),
-    qty: "Qty",
-    subtotal: "Subtotal",
-    shipping: "Shipping",
-    free: "Free",
-    totalPaid: "Total Paid",
     paymentProcessing: "Payment Processing…",
     beingConfirmed: "is being confirmed. This usually takes a few seconds.",
     continueShopping: "Continue Shopping",
@@ -47,14 +38,6 @@ const COPY = {
   ar: {
     orderConfirmed: "تم تأكيد الطلب!",
     thankYou: "شكرًا لشرائك. لقد استلمنا طلبك وسنبدأ بمعالجته قريبًا.",
-    orderDetails: "تفاصيل الطلب",
-    orderNumber: "رقم الطلب",
-    orderItems: (n: number) => (n === 1 ? "قطعة واحدة" : `${n} قطع`),
-    qty: "الكمية",
-    subtotal: "المجموع الفرعي",
-    shipping: "الشحن",
-    free: "مجاني",
-    totalPaid: "المبلغ المدفوع",
     paymentProcessing: "جارٍ معالجة الدفع…",
     beingConfirmed: "قيد التأكيد. عادةً ما يستغرق ذلك بضع ثوانٍ.",
     continueShopping: "متابعة التسوق",
@@ -218,6 +201,9 @@ export default function CheckoutSuccessPage() {
   // registration flips order.customer.user from null to set, which would yank the
   // prompt away mid-success-message if read live from loaderData instead.
   const [customerSnapshot] = useState(() => order?.customer ?? null);
+  const isGuest = customerSnapshot && !customerSnapshot.user;
+  const showReferral = customerSnapshot?.user && referralCode;
+  const hasSideCard = isGuest || showReferral;
 
   // Re-checks payment status on an interval while still processing. Cleaned up
   // on unmount (order resolves, or the customer navigates away), unlike the old
@@ -272,91 +258,38 @@ export default function CheckoutSuccessPage() {
 
   return (
     <CheckoutLayout>
-      <div className="max-w-xl mx-auto text-center py-12 px-4">
+      <div className={`mx-auto py-12 px-4 ${isSettled ? "max-w-4xl" : "max-w-xl text-center"}`}>
         {isSettled ? (
           <>
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check size={40} className="text-green-500" strokeWidth={2.5} />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.orderConfirmed}</h1>
-            <p className="text-gray-500 leading-relaxed mb-8">
-              {t.thankYou}
-            </p>
-
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm text-start overflow-hidden mb-8">
-              <div className="flex items-center justify-between gap-3 px-5 py-4 bg-gray-50 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <Package size={18} className="text-gray-500 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-700">
-                    {t.orderNumber} <span className="font-mono">{order.code}</span>
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-gray-500">{t.orderItems(order.lines.length)}</span>
+            {/* Success header */}
+            <div className="flex flex-col items-center lg:flex-row lg:items-center gap-4 mb-8 text-center lg:text-start">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+                <Check size={26} className="text-green-500" strokeWidth={3} />
               </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{t.orderConfirmed}</h1>
+                <p className="text-gray-500 leading-relaxed">{t.thankYou}</p>
+              </div>
+            </div>
 
-              {order.lines.length > 0 && (
-                <div className="divide-y divide-gray-100 px-5">
-                  {order.lines.map((line) => {
-                    const preview = line.featuredAsset?.preview ?? line.productVariant.product.featuredAsset?.preview;
-                    const productHref = `/products/${line.productVariant.customFields?.slug ?? line.productVariant.product.slug}`;
-                    return (
-                      <div key={line.id} className="flex items-center gap-4 py-4">
-                        <div className="w-16 h-16 rounded-xl bg-stone-50 border border-gray-100 overflow-hidden shrink-0">
-                          {preview ? (
-                            <VendureImage src={preview} vendureBase={vendureBase} alt={line.productVariant.name} width={64} height={64} objectFit="contain" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package size={20} className="text-gray-300" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Link to={productHref} className="font-medium text-gray-900 hover:text-primary transition-colors line-clamp-1 text-sm">
-                            {line.productVariant.product.name}
-                          </Link>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{line.productVariant.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{t.qty}: {line.quantity}</p>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900 shrink-0">
-                          {formatPrice(line.linePriceWithTax, order.currencyCode, locale)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className={`grid grid-cols-1 gap-6 mb-8 ${hasSideCard ? "lg:grid-cols-2 lg:items-start" : ""}`}>
+              <OrderSummaryBox
+                orderCode={order.code}
+                lines={order.lines}
+                subTotalWithTax={order.subTotalWithTax}
+                shippingWithTax={order.shippingWithTax}
+                totalWithTax={order.totalWithTax}
+                currencyCode={order.currencyCode}
+                vendureBase={vendureBase}
+                locale={locale}
+              />
+
+              {isGuest && customerSnapshot && (
+                <PostOrderAccountPrompt email={customerSnapshot.emailAddress} firstName={customerSnapshot.firstName} lastName={customerSnapshot.lastName} locale={locale} />
               )}
 
-              <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 space-y-1.5">
-                {order.subTotalWithTax > 0 && (
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>{t.subtotal}</span>
-                    <span>{formatPrice(order.subTotalWithTax, order.currencyCode, locale)}</span>
-                  </div>
-                )}
-                {order.subTotalWithTax > 0 && (
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>{t.shipping}</span>
-                    <span>{order.shippingWithTax > 0 ? formatPrice(order.shippingWithTax, order.currencyCode, locale) : t.free}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-base font-bold text-gray-900 pt-1.5 mt-1.5 border-t border-gray-200">
-                  <span>{t.totalPaid}</span>
-                  <span>{formatPrice(order.totalWithTax, order.currencyCode, locale)}</span>
-                </div>
-              </div>
+              {showReferral && referralCode && <PostOrderReferralPrompt referralCode={referralCode} locale={locale} />}
             </div>
-
-            {customerSnapshot && !customerSnapshot.user && (
-              <div className="mb-8">
-                <PostOrderAccountPrompt email={customerSnapshot.emailAddress} firstName={customerSnapshot.firstName} lastName={customerSnapshot.lastName} locale={locale} />
-              </div>
-            )}
-
-            {customerSnapshot?.user && referralCode && (
-              <div className="mb-8">
-                <PostOrderReferralPrompt referralCode={referralCode} locale={locale} />
-              </div>
-            )}
           </>
         ) : timedOut ? (
           <>
