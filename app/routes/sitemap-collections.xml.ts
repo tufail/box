@@ -33,6 +33,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
+	// Degrades to an empty (still valid) sitemap on a backend failure, matching
+	// the original single-file sitemap's Promise.allSettled resilience — a
+	// transient backend blip should never turn into a 500 shown to Googlebot.
 	const collections = await fetchInPages<SitemapCollection>(
 		async (skip, take) => {
 			const result = await graphqlRequest<SitemapCollectionsData>(env, SITEMAP_COLLECTIONS_QUERY, { options: { take, skip } }, { request });
@@ -40,7 +43,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		},
 		0,
 		10000,
-	);
+	).catch(() => []);
 
 	const entries = collections.map((c) =>
 		urlEntry(

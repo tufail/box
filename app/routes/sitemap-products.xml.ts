@@ -35,6 +35,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const page = Math.max(1, Number(new URL(request.url).searchParams.get("page")) || 1);
 	const skip = (page - 1) * PRODUCTS_PER_SITEMAP_PAGE;
 
+	// Degrades to an empty (still valid) sitemap on a backend failure, matching
+	// the original single-file sitemap's Promise.allSettled resilience — a
+	// transient backend blip should never turn into a 500 shown to Googlebot.
 	const items = await fetchInPages<SitemapProductItem>(
 		async (pageSkip, take) => {
 			const result = await graphqlRequest<SitemapProductsData>(
@@ -47,7 +50,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		},
 		skip,
 		PRODUCTS_PER_SITEMAP_PAGE,
-	);
+	).catch(() => []);
 
 	const entries = items.map((p) =>
 		urlEntry(SITE_URL, `/products/${p.slug}`, undefined, p.productAsset?.preview ? [vendureImageUrl(p.productAsset.preview, vendureBase, { preset: "xlarge", format: "jpg" })] : []),

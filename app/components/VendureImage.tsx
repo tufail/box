@@ -58,6 +58,17 @@ function stepUp(preset: ImagePreset): ImagePreset {
   return idx === -1 || idx === SIZE_LADDER.length - 1 ? preset : SIZE_LADDER[idx + 1].preset;
 }
 
+// Vendure's asset server can live on a different host than the Shop API (e.g.
+// assets.nutribox.qa vs app-admin.nutribox.qa) -- comparing hosts against
+// vendureBase broke the moment those diverged, silently skipping ?preset=/
+// &format= on every single image site-wide (still loaded, just at whatever
+// Vendure's raw default preview size happens to be, uncropped/unresized).
+// The asset path convention (/assets/preview/...) is what's actually stable
+// across that kind of host change, so key off that instead.
+function isVendureAssetPath(url: string): boolean {
+  return url.includes("/assets/");
+}
+
 export function vendureImageUrl(
   src: string,
   vendureBase: string,
@@ -65,7 +76,7 @@ export function vendureImageUrl(
 ): string {
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
   const resolved = src.startsWith("http") ? src : `${base}${normalizeAssetPath(src)}`;
-  if (!base || !resolved.startsWith(base)) return resolved;
+  if (!isVendureAssetPath(resolved)) return resolved;
   try {
     const u = new URL(resolved);
     u.searchParams.set("preset", opts.preset);
@@ -115,7 +126,7 @@ export default function VendureImage({
 
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
   const resolved = src.startsWith("http") ? src : `${base}${normalizeAssetPath(src)}`;
-  const isVendure = base.length > 0 && resolved.startsWith(base);
+  const isVendure = isVendureAssetPath(resolved);
   const fit = objectFit === "cover" ? "object-cover" : "object-contain";
 
   const preset = presetForSize(Math.max(width, height));
