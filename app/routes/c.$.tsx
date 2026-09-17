@@ -86,7 +86,7 @@ function CollectionMarqueeHero({ title }: { title: string }) {
 
 // ── Sub-collection nav (1st-level children as scrollable link buttons) ──────
 
-function SubCollectionNav({ children, vendureBase, locale }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; vendureBase: string; locale: Locale }) {
+function SubCollectionNav({ children, basePath, vendureBase, locale }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; basePath: string; vendureBase: string; locale: Locale }) {
   const scrollLeftLabel = locale === "ar" ? "التمرير لليسار" : "Scroll left";
   const scrollRightLabel = locale === "ar" ? "التمرير لليمين" : "Scroll right";
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -118,7 +118,7 @@ function SubCollectionNav({ children, vendureBase, locale }: { children: { id: s
         {children.map((child) => (
           <Link
             key={child.id}
-            to={`/c/${child.slug}`}
+            to={`${basePath}/${child.slug}`}
             className="flex-shrink-0 flex items-center gap-2 ps-1.5 pe-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
           >
             {child.featuredAsset ? (
@@ -474,7 +474,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* ── Sub-collections (1st-level children) ── */}
-      {collection && <SubCollectionNav children={collection.children} vendureBase={vendureBase} locale={locale} />}
+      {collection && <SubCollectionNav children={collection.children} basePath={buildCollectionPath(collection.breadcrumbs)} vendureBase={vendureBase} locale={locale} />}
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">

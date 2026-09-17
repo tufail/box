@@ -83,7 +83,7 @@ export interface ProductDetailItem {
   } | null;
   variants: ProductDetailVariant[];
   facetValues: { name: string; code: string; facet: { name: string; code: string } }[];
-  collections: { id: string; name: string; slug: string }[];
+  collections: { id: string; name: string; slug: string; breadcrumbs: { name: string; slug: string }[] }[];
   relatedProducts: RelatedProduct[];
 }
 
@@ -132,7 +132,7 @@ const PRODUCT_DETAIL_FIELDS = `
     }
   }
   facetValues { name code facet { name code } }
-  collections { id name slug }
+  collections { id name slug breadcrumbs { name slug } }
   relatedProducts(limit: 16) {
     id
     name

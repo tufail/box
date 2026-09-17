@@ -105,6 +105,7 @@ export interface HomeCollectionItem {
   id: string;
   name: string;
   slug: string;
+  breadcrumbs: { name: string; slug: string }[];
   featuredAsset: { id: string; preview: string } | null;
 }
 
@@ -123,6 +124,10 @@ export const HOME_COLLECTIONS_QUERY = `
         id
         name
         slug
+        breadcrumbs {
+          name
+          slug
+        }
         featuredAsset {
           id
           preview

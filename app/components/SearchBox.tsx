@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router";
 import { Search, X } from "lucide-react";
 import type { SearchSuggestionsResponse, SearchSuggestionItem, SearchSuggestionCollection, SearchSuggestionFacetValue, PopularSearchTerm } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
+import { buildCollectionPath } from "~/graphql/collection";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { useTypewriter } from "~/hooks/useTypewriter";
 import { useFocusTrap } from "~/hooks/useFocusTrap";
@@ -262,9 +263,9 @@ export default function SearchBox() {
 		navigate(localizePath(`/products/${slug}`, locale));
 	};
 
-	const selectCollection = (slug: string) => {
+	const selectCollection = (breadcrumbs: { name: string; slug: string }[]) => {
 		setOpen(false);
-		navigate(localizePath(`/c/${slug}`, locale));
+		navigate(localizePath(buildCollectionPath(breadcrumbs), locale));
 	};
 
 	const selectFacet = (facetName: string, valueName: string) => {
@@ -379,7 +380,7 @@ export default function SearchBox() {
 													<>
 														<SectionLabel label={t.collections} />
 														{topCollections.map(({ collection, count }) => (
-															<CollectionRow key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.slug)} />
+															<CollectionRow key={collection.id} col={{ collection, count }} term={term} onSelect={() => selectCollection(collection.breadcrumbs)} />
 														))}
 													</>
 												)}

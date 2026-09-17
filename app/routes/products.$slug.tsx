@@ -26,6 +26,7 @@ import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
+import { buildCollectionPath } from "~/graphql/collection";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { parseServings } from "~/lib/shopCopy";
 import type { BannerItem } from "~/graphql/banner";
@@ -1095,9 +1096,20 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const breadcrumbs: BreadcrumbItem[] = [{ label: locale === "ar" ? "الرئيسية" : "Home", href: "/" }];
 	if (product.collections.length > 0) {
 		const col = product.collections[product.collections.length - 1];
-		breadcrumbs.push({ label: col.name, href: `/c/${col.slug}` });
+		breadcrumbs.push({ label: col.name, href: buildCollectionPath(col.breadcrumbs) });
 	}
 	breadcrumbs.push({ label: product.name });
+
+	// variantRankings (below, "Sales & Rankings") is a separate custom query that
+	// only returns a flat collectionSlug, not breadcrumbs — deep-link it via this
+	// product's own collections (which do have breadcrumbs) whenever the ranked
+	// collection happens to be one of them, since that's true in practice for
+	// every ranking shown here. Falls back to the bare slug (still resolves via
+	// c.$.tsx's canonicalizing redirect) for the rare case it isn't.
+	function rankingCollectionHref(slug: string): string {
+		const match = product.collections.find((c) => c.slug === slug);
+		return match ? buildCollectionPath(match.breadcrumbs) : `/c/${slug}`;
+	}
 
 	const videoUrl = product.customFields?.videoUrl ?? null;
 	const additionalInfo = product.customFields?.additionalInfo ?? null;
@@ -1398,7 +1410,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										{variantRankings.map((r) => (
 											<div className="flex text-[12px] font-semibold" key={r.collectionSlug}>
 												<span className="me-1">{t.rankIn(r.rank)} </span>
-												<Link to={`/c/${r.collectionSlug}`} className="text-blue-700 hover:underline">
+												<Link to={rankingCollectionHref(r.collectionSlug)} className="text-blue-700 hover:underline">
 													{r.collectionName}
 												</Link>
 											</div>
