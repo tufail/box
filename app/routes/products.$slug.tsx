@@ -1368,15 +1368,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 															to={variantHref}
 															replace
 															preventScrollReset
-															aria-disabled={!available}
 															onClick={(e) => {
-																if (!available || !matchedVariant) {
+																if (!matchedVariant) {
 																	e.preventDefault();
 																	return;
 																}
 																setSelected({ ...selected, [group.code]: val });
 															}}
-															className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50 pointer-events-none"}`}
+															className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-pointer hover:border-primary hover:text-primary bg-gray-50"}`}
 														>
 															{thumbSrc && <img src={vendureImageUrl(thumbSrc, vendureBase, { preset: "tiny", format: "webp" })} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-100 bg-white" />}
 															<span className={thumbSrc ? "flex flex-col leading-tight" : "block"}>
