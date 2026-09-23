@@ -77,6 +77,7 @@ export default [
 	route("api/subscriptions", "routes/api.subscriptions.ts"),
 	route("api/questions", "routes/api.questions.ts"),
 	route("api/newsletter", "routes/api.newsletter.ts"),
+	route("api/stock-notification", "routes/api.stock-notification.ts"),
 	route("api/trending", "routes/api.trending.ts"),
 	route("api/track-view", "routes/api.track-view.ts"),
 	route("api/track-blog-view", "routes/api.track-blog-view.ts"),

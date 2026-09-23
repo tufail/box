@@ -14,6 +14,7 @@ import SortDropdown from "~/components/SortDropdown";
 import ProductHighlights from "~/components/ProductHighlights";
 import ProductComparisonTable from "~/components/ProductComparisonTable";
 import ProductQA from "~/components/ProductQA";
+import BackInStockForm from "~/components/BackInStockForm";
 import RecentlyViewed from "~/components/RecentlyViewed";
 import { recordRecentlyViewed } from "~/lib/recentlyViewed";
 import { PRODUCT_DETAIL_QUERY, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, SEARCH_TOP_SELLING, PRODUCT_RATING_SUMMARY_QUERY, PRODUCT_REVIEWS_QUERY, relatedProductToSearchItem, productDetailToSearchItem, type ProductDetailData, type ProductDetailByVariantSlugData, type ProductDetailItem, type ProductDetailVariant, type SearchProductItem, type SearchProductsData, type SearchTopSellingVariables, type ProductRatingSummaryData, type ProductRatingSummary, type ProductReviewsData, type ReviewItem, type ReviewSortOrder, type VariantRanking } from "~/graphql/product";
@@ -72,7 +73,6 @@ const PDP_COPY = {
 		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2-6 business days.",
 		decrease: "Decrease",
 		increase: "Increase",
-		outOfStockBtn: "Out of Stock",
 		adding: "Adding...",
 		addedToCart: "Added to Cart ✓",
 		failedTryAgain: "Failed - try again",
@@ -150,7 +150,6 @@ const PDP_COPY = {
 		shippingInfoSuffixStandard: ". التوصيل القياسي داخل قطر خلال 2-6 أيام عمل.",
 		decrease: "إنقاص",
 		increase: "زيادة",
-		outOfStockBtn: "غير متوفر",
 		adding: "جارٍ الإضافة...",
 		addedToCart: "تمت الإضافة إلى السلة ✓",
 		failedTryAgain: "فشلت العملية - حاول مرة أخرى",
@@ -916,6 +915,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
 	const { openCart, setCartCount } = useCart();
 	const { notify } = useNotification();
+	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
 
 	// React Router keeps this component mounted across client-side navigations
 	// between two /products/:slug URLs (same route), so useState(initialSelected)
@@ -1513,19 +1513,23 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											</div>
 										</div>
 
-										{/* Add to Cart */}
-										<button
-											disabled={!inStock || cartFetcher.state !== "idle"}
-											onClick={() => {
-												if (!activeVariant || !inStock) return;
-												const payload: { productVariantId: string; quantity: number; subscriptionPlanId?: string } = { productVariantId: activeVariant.id, quantity: qty };
-												if (purchaseType === "subscribe" && selectedPlanId) payload.subscriptionPlanId = selectedPlanId;
-												cartFetcher.submit(payload, { method: "POST", action: "/api/cart", encType: "application/json" });
-											}}
-											className={`w-full text-white font-bold text-base py-4 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
-										>
-											{!inStock ? t.outOfStockBtn : cartFetcher.state !== "idle" ? t.adding : cartFeedback === "success" ? t.addedToCart : cartFeedback === "error" ? t.failedTryAgain : t.addToCart}
-										</button>
+										{/* Add to Cart, or Notify Me (back-in-stock email) when sold out */}
+										{inStock ? (
+											<button
+												disabled={!inStock || cartFetcher.state !== "idle"}
+												onClick={() => {
+													if (!activeVariant || !inStock) return;
+													const payload: { productVariantId: string; quantity: number; subscriptionPlanId?: string } = { productVariantId: activeVariant.id, quantity: qty };
+													if (purchaseType === "subscribe" && selectedPlanId) payload.subscriptionPlanId = selectedPlanId;
+													cartFetcher.submit(payload, { method: "POST", action: "/api/cart", encType: "application/json" });
+												}}
+												className={`w-full text-white font-bold text-base py-4 rounded transition-colors cursor-pointer ${!inStock ? "bg-gray-300 cursor-not-allowed" : cartFeedback === "success" ? "bg-green-600" : cartFeedback === "error" ? "bg-red-500 hover:bg-red-600" : "bg-[#3b8578] hover:bg-[#2e6b61] disabled:bg-gray-300 disabled:cursor-not-allowed"} rounded-full`}
+											>
+												{cartFetcher.state !== "idle" ? t.adding : cartFeedback === "success" ? t.addedToCart : cartFeedback === "error" ? t.failedTryAgain : t.addToCart}
+											</button>
+										) : activeVariant ? (
+											<BackInStockForm productVariantId={activeVariant.id} locale={locale} defaultEmail={rootData?.activeCustomer?.emailAddress} />
+										) : null}
 
 										{isExpressDelivery && (
 											<span

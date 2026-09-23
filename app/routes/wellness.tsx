@@ -346,7 +346,7 @@ function ItemCard({ item, sku, vendureBase }: { item: WellnessPlanItem; sku: str
 						<span />
 					)}
 					<div className="w-32">
-						<AddToCartButton inStock={item.inStock !== false} state={cartState} onClick={handleAddToCart} />
+						<AddToCartButton inStock={item.inStock !== false} state={cartState} onClick={handleAddToCart} notifyHref={productHref ?? undefined} />
 					</div>
 				</div>
 			</div>

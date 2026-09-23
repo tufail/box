@@ -215,7 +215,7 @@ export default function ProductCard({ product, vendureBase, eager = false }: Pro
 
 			{/* CTA button */}
 			<div className="mt-3">
-				<AddToCartButton inStock={product.inStock} state={cartFetcher.state !== "idle" ? "loading" : cartFeedback} onClick={handleAddToCart} />
+				<AddToCartButton inStock={product.inStock} state={cartFetcher.state !== "idle" ? "loading" : cartFeedback} onClick={handleAddToCart} notifyHref={productHref} />
 			</div>
 		</div>
 	);

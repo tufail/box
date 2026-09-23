@@ -23,6 +23,9 @@ interface GraphQLRequestOptions {
   // prefix even when called from an Arabic page. Callers of those endpoints
   // pass the page's locale through explicitly (see e.g. api.search.ts).
   locale?: Locale;
+  // Extra request headers, e.g. the shared storefront secret some public
+  // mutations require (see api.stock-notification.ts).
+  headers?: Record<string, string>;
 }
 
 function queryToString(query: string | TadaDocumentNode<unknown, unknown>): string {
@@ -69,6 +72,10 @@ export async function graphqlRequest<
 
   if (authToken) {
     headers["Authorization"] = `Bearer ${authToken}`;
+  }
+
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
   }
 
   const fetchOptions: RequestInit & { cf?: Record<string, unknown> } = {
