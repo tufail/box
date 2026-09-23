@@ -4,6 +4,7 @@ import { GET_BRAND_FACET_QUERY, GET_BRAND_PAGE_CONTENT_QUERY, type BrandFacetDat
 import { GET_CMS_PAGE_BY_SLUG, type CmsPageData } from "~/graphql/pages";
 import { GET_COLLECTIONS, type CollectionsResult } from "~/graphql/collection";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { htmlToText } from "~/lib/markdownPage";
 
 // llms-full.txt — the "everything in one fetch" companion to /llms.txt, per the
 // llms.txt convention (llms.txt stays a short curated index; llms-full.txt
@@ -20,26 +21,6 @@ import { SITE_NAME, SITE_URL } from "~/lib/seo";
 // once it's authored in the CMS. If/when most brands end up with content, this
 // should become a proper bulk backend query instead of growing this list.
 const CONTENT_BRAND_SLUGS = ["optimum-nutrition", "applied-nutrition", "muscletech"];
-
-function htmlToText(html: string): string {
-	return html
-		.replace(/<h[1-6][^>]*>/gi, "\n\n### ")
-		.replace(/<\/h[1-6]>/gi, "\n")
-		.replace(/<li[^>]*>/gi, "\n- ")
-		.replace(/<\/li>/gi, "")
-		.replace(/<\/(td|th)>/gi, " | ")
-		.replace(/<\/tr>/gi, "\n")
-		.replace(/<br\s*\/?>/gi, "\n")
-		.replace(/<\/(p|div)>/gi, "\n\n")
-		.replace(/<[^>]+>/g, "")
-		.replace(/&nbsp;/gi, " ")
-		.replace(/&amp;/gi, "&")
-		.replace(/&quot;/gi, '"')
-		.replace(/&#0?39;/gi, "'")
-		.replace(/[ \t]+\n/g, "\n")
-		.replace(/\n{3,}/g, "\n\n")
-		.trim();
-}
 
 interface FlatCollection {
 	id: string;
@@ -164,6 +145,10 @@ ${sectionText}
 	return new Response(body, {
 		headers: {
 			"Content-Type": "text/plain; charset=utf-8",
+			// This file's prose (About text, policy text) duplicates already-indexed
+			// HTML pages — noindex keeps Google from ever surfacing the plain-text
+			// file itself as a search result rather than the real page.
+			"X-Robots-Tag": "noindex",
 			"Cache-Control": "public, max-age=3600",
 		},
 	});

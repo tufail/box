@@ -44,8 +44,17 @@ const AI_CRAWLER_AGENTS = [
 // nothing for a crawler to fetch or index there regardless.
 const DISALLOWED_PATHS = ["/account", "/checkout", "/order-confirmation", "/review-images/upload"];
 
-function block(agent: string): string[] {
-	return [`User-agent: ${agent}`, ...DISALLOWED_PATHS.map((p) => `Disallow: ${p}`), ""];
+// The per-page .md mirrors (pages/:slug.md, blog/:slug.md — see markdownPage.ts)
+// exist for AI retrieval, not for search results: each one duplicates content
+// an HTML page already has indexed. Regular search engines are blocked from
+// even crawling them (on top of the X-Robots-Tag: noindex those routes already
+// send) so there's no chance of them being surfaced as a separate result —
+// deliberately NOT added to the AI-crawler blocks below, since letting those
+// fetch *.md is the entire point of publishing them.
+const SEARCH_ENGINE_ONLY_DISALLOWED_PATHS = ["/*.md$"];
+
+function block(agent: string, extraDisallowed: string[] = []): string[] {
+	return [`User-agent: ${agent}`, ...[...DISALLOWED_PATHS, ...extraDisallowed].map((p) => `Disallow: ${p}`), ""];
 }
 
 export async function loader({ request }: { request: Request }) {
@@ -60,7 +69,7 @@ export async function loader({ request }: { request: Request }) {
 		});
 	}
 
-	const lines = [...block("*"), ...AI_CRAWLER_AGENTS.flatMap(block), `Sitemap: ${SITE_URL}/sitemap.xml`, ""];
+	const lines = [...block("*", SEARCH_ENGINE_ONLY_DISALLOWED_PATHS), ...AI_CRAWLER_AGENTS.flatMap((agent) => block(agent)), `Sitemap: ${SITE_URL}/sitemap.xml`, ""];
 
 	return new Response(lines.join("\n"), {
 		headers: {

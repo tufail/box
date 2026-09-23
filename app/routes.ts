@@ -57,6 +57,10 @@ export default [
 	route("robots.txt", "routes/robots.txt.ts"),
 	route("llms.txt", "routes/llms.txt.ts"),
 	route("llms-full.txt", "routes/llms-full.txt.ts"),
+	// Plain-markdown mirrors for AI retrieval (see markdownPage.ts) -- English
+	// only, deliberately not mirrored under /ar/* like CONTENT_ROUTES below.
+	route("pages/:slug.md", "routes/pages.$slug.md.ts"),
+	route("blog/:slug.md", "routes/blog.$slug.md.ts"),
 	...CONTENT_ROUTES.flatMap(([path, file]) => [route(path, file), route(`ar/${path}`, file, { id: `${file}.ar` })]),
 	route("checkout/callback", "routes/checkout.callback.tsx"),
 	route("api/loyalty", "routes/api.loyalty.ts"),
