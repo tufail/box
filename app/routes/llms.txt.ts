@@ -133,7 +133,7 @@ ${optionalPageLinks || "- (no additional pages currently published)"}
 			"Content-Type": "text/plain; charset=utf-8",
 			// Index/nav file, not a page meant to rank in its own right — same
 			// reasoning as sitemap.xml being crawlable but never a search result.
-			"X-Robots-Tag": "noindex",
+			"X-Robots-Tag": "noindex, follow",
 			"Cache-Control": "public, max-age=3600",
 		},
 	});

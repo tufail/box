@@ -5,8 +5,9 @@ import { SITE_URL } from "~/lib/seo";
 import { htmlToText, markdownResponse } from "~/lib/markdownPage";
 
 // Plain-markdown mirror of /blog/:slug — see markdownPage.ts for the
-// noindex/canonical/robots.txt safeguards that keep this from affecting the
-// real article's search ranking.
+// noindex/robots.txt safeguards that keep this from affecting the real
+// article's search ranking. The real URL is still given via the body's
+// "Source:" line.
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const slug = params.slug as string;
@@ -25,5 +26,5 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 	const body = `# ${post.title}\n\nSource: ${canonicalUrl}\n${meta ? `\n${meta}\n` : ""}\n${htmlToText(post.content)}\n`;
 
-	return markdownResponse(body, canonicalUrl);
+	return markdownResponse(body);
 }

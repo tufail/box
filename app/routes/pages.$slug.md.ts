@@ -6,8 +6,8 @@ import { htmlToText, markdownResponse } from "~/lib/markdownPage";
 
 // Plain-markdown mirror of /pages/:slug (see markdownPage.ts for why this is
 // safe to publish alongside the HTML page without affecting search rankings:
-// noindex + rel=canonical back to the real page, and robots.txt blocks
-// regular search engines from even crawling *.md).
+// noindex, and robots.txt blocks regular search engines from even crawling
+// *.md). The real URL is still given via the "Source:" line in the body.
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const slug = params.slug as string;
@@ -25,5 +25,5 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 	const body = `# ${page.title}\n\nSource: ${canonicalUrl}\n\n${page.description ? htmlToText(page.description) : ""}\n`;
 
-	return markdownResponse(body, canonicalUrl);
+	return markdownResponse(body);
 }

@@ -26,16 +26,20 @@ export function htmlToText(html: string): string {
 // already-indexed HTML page. X-Robots-Tag: noindex keeps Google from ever
 // listing them as separate search results (robots.txt also blocks regular
 // search engines from crawling *.md at all; AI crawlers are deliberately left
-// able to fetch these), and the Link/rel=canonical header points at the real
-// HTML page so there's no ambiguity for any crawler that does see both.
+// able to fetch these). Deliberately no Link/rel=canonical header pointing at
+// the HTML page — Google explicitly warns against combining noindex with a
+// cross-page canonical (contradictory signals: canonical says "equivalent,
+// index that one instead", noindex says "never index this one"; per John
+// Mueller, Google's algorithms may just pick the canonical and ignore the
+// noindex). noindex alone is the clean, unambiguous signal for "never index
+// this at all" — which is the actual goal here, not ranking consolidation.
 // Existing purely so a second ranking-loss incident like the brand-content
 // duplicate-H1 one can't happen via this feature.
-export function markdownResponse(body: string, canonicalUrl: string): Response {
+export function markdownResponse(body: string): Response {
 	return new Response(body, {
 		headers: {
 			"Content-Type": "text/markdown; charset=utf-8",
-			"X-Robots-Tag": "noindex",
-			Link: `<${canonicalUrl}>; rel="canonical"`,
+			"X-Robots-Tag": "noindex, follow",
 			"Cache-Control": "public, max-age=3600",
 		},
 	});
