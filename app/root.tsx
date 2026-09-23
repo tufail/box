@@ -20,17 +20,41 @@ import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
 // Rendered on every page — establishes NutriBox as a single consistent entity for
 // Google's Knowledge Graph and for AI systems (ChatGPT/Gemini/Claude) grounding
 // answers about the business, rather than each page describing itself in isolation.
+// "Store" (not "Organization") because NutriBox sells through a physical storefront
+// as well as online — a Google-suggested draft also proposed "HealthAndBeautyShop"
+// as a second @type, but that string isn't a real schema.org type (the closest real
+// one, HealthAndBeautyBusiness, only covers salons/spas/gyms, not retail), so it's
+// omitted here rather than shipping invalid structured data.
 const ORGANIZATION_JSON_LD = {
 	"@context": "https://schema.org",
-	"@type": "Organization",
+	"@type": "Store",
 	name: SITE_NAME,
+	alternateName: ["NutriBox Supplements Doha", "NutriBox Qatar Protein & Beauty Store"],
+	description: "Qatar's trusted online and physical storefront destination for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty and collagen formulations.",
 	url: SITE_URL,
 	logo: `${SITE_URL}/images/logo.png`,
+	image: `${SITE_URL}/images/logo.png`,
+	"@id": SITE_URL,
+	priceRange: "$$",
+	currenciesAccepted: "QAR",
+	paymentAccepted: "Cash, Credit Card",
+	knowsAbout: ["Sports Nutrition", "Dietary Supplements", "Whey Protein Isolate", "Nutricosmetics", "Marine Collagen Gel", "Hair Skin and Nails Vitamins", "Wellness and Beauty Products"],
 	address: {
 		"@type": "PostalAddress",
-		streetAddress: "AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St",
+		streetAddress: "343 Al Sadd St, Building No. 41, 1st Floor, Office No. 2",
 		addressLocality: "Doha",
+		addressRegion: "Al Sadd",
 		addressCountry: "QA",
+	},
+	containedInPlace: {
+		"@type": "Place",
+		name: "AK Group Building",
+		address: {
+			"@type": "PostalAddress",
+			streetAddress: "343 Al Sadd St, Building No. 41",
+			addressLocality: "Doha",
+			addressCountry: "QA",
+		},
 	},
 	contactPoint: {
 		"@type": "ContactPoint",
@@ -39,8 +63,15 @@ const ORGANIZATION_JSON_LD = {
 		contactType: "customer service",
 		areaServed: "QA",
 	},
-	// Matches Footer.tsx's socialLinks exactly — all four real profiles, not just
-	// the two oldest ones.
+	openingHoursSpecification: {
+		"@type": "OpeningHoursSpecification",
+		dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Saturday", "Sunday"],
+		opens: "10:00",
+		closes: "20:00",
+	},
+	// Matches Footer.tsx's socialLinks exactly — all four real profiles. The
+	// Google-suggested draft had genericized these to bare "https://facebook.com" /
+	// "https://tiktok.com" placeholders, so the real profile URLs are kept here.
 	sameAs: ["https://www.facebook.com/nutribox.qa", "https://www.instagram.com/nutribox.qa/", "https://www.tiktok.com/@nutribox.qa", "https://share.google/m4uyBRqwEYe654INv"],
 };
 
