@@ -118,32 +118,41 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		.filter((s): s is string => s !== null)
 		.join("\n\n");
 
+	// "--------" section separators + a "Source:" line under each heading, so a
+	// model reading this in one fetch can still tell sections apart and cite the
+	// live page each one came from — this file is a small number of hand-composed
+	// reference sections (About/Categories/Brands/Policies), not a page-by-page
+	// dump of the whole site, so there's no per-page nav/header/footer chrome to
+	// strip here in the first place (that's a real problem for sites that build
+	// llms-full.txt by concatenating rendered HTML page-by-page; this one is
+	// assembled straight from CMS/catalogue data, so it was never in the file).
+	const sections = [
+		{ heading: `About ${SITE_NAME}`, source: `${SITE_URL}/about`, body: about?.description ? htmlToText(about.description) : `See ${SITE_URL}/about.` },
+		{
+			heading: "Categories",
+			source: `${SITE_URL}/collections`,
+			body: `Each category below links to its live product listing and includes NutriBox's own description of what it covers.\n\n${categoryText || `See ${SITE_URL}/collections.`}`,
+		},
+		{
+			heading: "Brands carried",
+			source: `${SITE_URL}/brands`,
+			body: `${brandLinks || `See ${SITE_URL}/brands.`}\n${brandSummaries ? `\n### Brand summaries\n\nEditorial summaries are available for the following brands (more are added over time as content is authored):\n\n${brandSummaries}` : ""}`,
+		},
+		{ heading: "Shipping policy (full text)", source: `${SITE_URL}/pages/shipping-policy`, body: shipping?.description ? htmlToText(shipping.description) : `See ${SITE_URL}/pages/shipping-policy.` },
+		{ heading: "Return policy (full text)", source: `${SITE_URL}/pages/refund-and-return-policy`, body: returns?.description ? htmlToText(returns.description) : `See ${SITE_URL}/pages/refund-and-return-policy.` },
+	];
+
+	const sectionText = sections.map((s) => `## ${s.heading}\n\nSource: ${s.source}\n\n${s.body}`).join("\n\n--------------------------------------------------------------------------------\n\n");
+
 	const body = `# ${SITE_NAME} — Full Reference
 
 > Companion to ${SITE_URL}/llms.txt with the complete "About Us" text, full shipping and return policy text, category descriptions, and available brand summaries, for AI assistants that want richer context in a single fetch. Start with /llms.txt for a short index; this file has the detail behind it.
 
-## About ${SITE_NAME}
+--------------------------------------------------------------------------------
 
-${about?.description ? htmlToText(about.description) : `See ${SITE_URL}/about.`}
+${sectionText}
 
-## Categories
-
-Each category below links to its live product listing and includes NutriBox's own description of what it covers.
-
-${categoryText || `See ${SITE_URL}/collections.`}
-
-## Brands carried
-
-${brandLinks || `See ${SITE_URL}/brands.`}
-
-${brandSummaries ? `### Brand summaries\n\nEditorial summaries are available for the following brands (more are added over time as content is authored):\n\n${brandSummaries}\n` : ""}
-## Shipping policy (full text)
-
-${shipping?.description ? htmlToText(shipping.description) : `See ${SITE_URL}/pages/shipping-policy.`}
-
-## Return policy (full text)
-
-${returns?.description ? htmlToText(returns.description) : `See ${SITE_URL}/pages/refund-and-return-policy.`}
+--------------------------------------------------------------------------------
 
 ## Notes for AI assistants
 
