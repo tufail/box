@@ -27,14 +27,26 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, undefined, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
 
-	// Curated shop categories from the same admin-managed menu that drives the
-	// site's own header nav — a better fit here than dumping the full raw
-	// collection tree (that's what /sitemap.xml is for; this file stays a
-	// concise, curated map per the llms.txt convention).
+	// Full collection tree, sourced from the same admin-managed menu that drives
+	// the site's own header nav (top nav item -> section -> sub-link), rather
+	// than the raw Vendure collection tree — this is the business's own curated
+	// grouping, and matches what a shopper actually sees in the header.
 	const menuItems = menuResult.status === "fulfilled" ? (menuResult.value.data.getMegaMenu?.items ?? []) : [];
 	const categoryLinks = menuItems
 		.filter((item) => !item.excludeFromNav && item.url)
-		.map((item) => `- [${item.label}](${SITE_URL}${item.url})`)
+		.map((item) => {
+			const sections = item.columns.flatMap((c) => c.sections).filter((s) => s.title && s.url);
+			const sectionLines = sections
+				.map((s) => {
+					const subLinks = s.links
+						.filter((l) => l.url)
+						.map((l) => `    - [${l.label}](${SITE_URL}${l.url})`)
+						.join("\n");
+					return `  - [${s.title}](${SITE_URL}${s.url})${subLinks ? `\n${subLinks}` : ""}`;
+				})
+				.join("\n");
+			return `- [${item.label}](${SITE_URL}${item.url})${sectionLines ? `\n${sectionLines}` : ""}`;
+		})
 		.join("\n");
 
 	const brands = brandsResult.status === "fulfilled" ? (brandsResult.value.data.facets.items[0]?.values ?? []) : [];
@@ -52,13 +64,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	const body = `# ${SITE_NAME}
 
-> Qatar's online and in-store destination for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty & collagen formulations, with fast delivery across Qatar.
+> Qatar's best online store and shop for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty & collagen formulations — with fast delivery across Qatar.
 
-${SITE_NAME} (${SITE_URL}) operates both a physical storefront in Doha and an online store serving the whole of Qatar. Every product is sourced through verified distribution channels with an authenticity guarantee. Prices are in Qatari Riyal (QAR); payment is accepted by cash or credit card.
+${SITE_NAME} (${SITE_URL}) is Qatar's leading destination for sports nutrition and supplements, combining a physical storefront in Doha with an online store serving the whole country. Every product is sourced through verified distribution channels with an authenticity guarantee. Prices are in Qatari Riyal (QAR); payment is accepted by cash or credit card.
 
 ## Store & contact
 
-- Address: 343 Al Sadd St, Building No. 41, 1st Floor, Office No. 2, Al Sadd, Doha, Qatar
+- Address: AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St, Doha, Qatar
 - Phone: +974-7015-7900
 - Email: sales@nutribox.qa
 - Hours: 10:00-20:00, Monday-Thursday and Saturday-Sunday (closed Friday)

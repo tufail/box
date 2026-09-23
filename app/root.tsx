@@ -39,22 +39,17 @@ const ORGANIZATION_JSON_LD = {
 	currenciesAccepted: "QAR",
 	paymentAccepted: "Cash, Credit Card",
 	knowsAbout: ["Sports Nutrition", "Dietary Supplements", "Whey Protein Isolate", "Nutricosmetics", "Marine Collagen Gel", "Hair Skin and Nails Vitamins", "Wellness and Beauty Products"],
+	// Matches the address used everywhere else on the site (Footer.tsx's store
+	// address line, checkout.tsx's pickup address streetLine1) — a Google-
+	// suggested draft had it reordered ("343 Al Sadd St, Building No. 41, 1st
+	// Floor, Office No. 2") plus a redundant containedInPlace nested Place
+	// duplicating the same building under a different string; both dropped so
+	// there's exactly one address text for this business site-wide.
 	address: {
 		"@type": "PostalAddress",
-		streetAddress: "343 Al Sadd St, Building No. 41, 1st Floor, Office No. 2",
+		streetAddress: "AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St",
 		addressLocality: "Doha",
-		addressRegion: "Al Sadd",
 		addressCountry: "QA",
-	},
-	containedInPlace: {
-		"@type": "Place",
-		name: "AK Group Building",
-		address: {
-			"@type": "PostalAddress",
-			streetAddress: "343 Al Sadd St, Building No. 41",
-			addressLocality: "Doha",
-			addressCountry: "QA",
-		},
 	},
 	contactPoint: {
 		"@type": "ContactPoint",
