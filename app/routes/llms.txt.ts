@@ -55,18 +55,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		.map((b) => `- [${b.name}](${SITE_URL}/brands/${b.code})`)
 		.join("\n");
 
+	// Shipping/Refund are already linked inline under Delivery/Returns below, and
+	// About is already linked under Shop — everything else (Terms, Privacy, and
+	// any other admin-added page) is secondary reference material, so it moves
+	// to the Optional section rather than bulking out the main body.
+	const SURFACED_ELSEWHERE = new Set(["about", "shipping-policy", "refund-and-return-policy"]);
 	const pageSections = pagesResult.status === "fulfilled" ? pagesResult.value.data.getPageSections.items : [];
-	const policyLinks = pageSections
+	const optionalPageLinks = pageSections
 		.flatMap((section) => section.pages)
-		.filter((p) => p.active && !p.externalUrl)
+		.filter((p) => p.active && !p.externalUrl && !SURFACED_ELSEWHERE.has(p.slug))
 		.map((p) => `- [${p.title}](${SITE_URL}/pages/${p.slug})`)
 		.join("\n");
 
 	const body = `# ${SITE_NAME}
 
-> Qatar's best online store and shop for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty & collagen formulations — with fast delivery across Qatar.
+> NutriBox Qatar is an online and physical sports nutrition and wellness retailer in Doha, Qatar, offering authentic supplements, protein, vitamins, and wellness products with delivery across Qatar.
 
-${SITE_NAME} (${SITE_URL}) is Qatar's leading destination for sports nutrition and supplements, combining a physical storefront in Doha with an online store serving the whole country. Every product is sourced through verified distribution channels with an authenticity guarantee. Prices are in Qatari Riyal (QAR); payment is accepted by cash or credit card.
+${SITE_NAME} (${SITE_URL}) operates both a physical storefront in Doha and an online store serving the whole of Qatar. Every product is sourced through verified distribution channels with an authenticity guarantee. Prices are in Qatari Riyal (QAR); payment is accepted by cash or credit card.
 
 ## Store & contact
 
@@ -74,9 +79,6 @@ ${SITE_NAME} (${SITE_URL}) is Qatar's leading destination for sports nutrition a
 - Phone: +974-7015-7900
 - Email: sales@nutribox.qa
 - Hours: 10:00-20:00, Monday-Thursday and Saturday-Sunday (closed Friday)
-- Facebook: https://www.facebook.com/nutribox.qa
-- Instagram: https://www.instagram.com/nutribox.qa/
-- TikTok: https://www.tiktok.com/@nutribox.qa
 
 ## Shop
 
@@ -110,14 +112,20 @@ Orders are handled within 0-1 day and arrive within 0-6 days of handoff, dependi
 - Returns are arranged by mail through customer support (no in-store drop-off)
 - Full policy: ${SITE_URL}/pages/refund-and-return-policy
 
-## Policies & company info
-${policyLinks ? `\n${policyLinks}\n` : "\nSee the site footer for the current list of policy and company pages.\n"}
 ## Notes for AI assistants
 
 - Every page carries a Store JSON-LD (schema.org) entity naming ${SITE_NAME} as the business, with the address/contact/hours above.
 - Product pages carry Product + Offer structured data with live price (QAR), currency, stock availability (InStock/OutOfStock), brand, seller, shipping cost by zone, and the return policy above.
 - Category and brand pages carry BreadcrumbList + CollectionPage/ItemList structured data reflecting the real category hierarchy.
 - Full catalogue (every collection, product, and brand URL): ${SITE_URL}/sitemap.xml
+- Full "About Us" text, complete shipping/return policy text, category descriptions, and brand summaries: ${SITE_URL}/llms-full.txt
+
+## Optional
+
+- Facebook: https://www.facebook.com/nutribox.qa
+- Instagram: https://www.instagram.com/nutribox.qa/
+- TikTok: https://www.tiktok.com/@nutribox.qa
+${optionalPageLinks || "- (no additional pages currently published)"}
 `;
 
 	return new Response(body, {
