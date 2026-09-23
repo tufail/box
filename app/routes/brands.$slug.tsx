@@ -271,6 +271,26 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
 	);
 }
 
+// The brand-content CMS batch was authored as its own standalone document —
+// <h1>Brand Name</h1> followed by <h2> section headings ("Why Choose...",
+// "Popular Products...") — but it's actually injected as a sub-section of a
+// page that already has its own real <h1>. Left as-is, that produces two
+// identical H1s; shifting only the <h1> to <h2> without also shifting its
+// <h2> children would just create a different bug — a title sitting as a
+// sibling of its own subsections instead of their parent. So every level
+// cascades down by one (h1→h2, h2→h3, h3→h4, ...), preserving the CMS
+// author's relative structure while nesting the whole block correctly under
+// the page's real H1. Applied here rather than fixed per-record in the CMS,
+// so every brand with this content shape is corrected at once.
+function demoteHeadingLevels(html: string): string {
+	return html
+		.replace(/<(\/?)h5(\s|>)/gi, "<$1h6$2")
+		.replace(/<(\/?)h4(\s|>)/gi, "<$1h5$2")
+		.replace(/<(\/?)h3(\s|>)/gi, "<$1h4$2")
+		.replace(/<(\/?)h2(\s|>)/gi, "<$1h3$2")
+		.replace(/<(\/?)h1(\s|>)/gi, "<$1h2$2");
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BrandPage({ loaderData }: Route.ComponentProps) {
@@ -499,7 +519,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 								<div className="mb-10">
 									<div
 										className="prose prose-sm max-w-none text-gray-600 prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900"
-										dangerouslySetInnerHTML={{ __html: brandContent.description }}
+										dangerouslySetInnerHTML={{ __html: demoteHeadingLevels(brandContent.description) }}
 									/>
 								</div>
 							)}
