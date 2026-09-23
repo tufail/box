@@ -85,8 +85,23 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 		if (fromNotifyLink) containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
 	}, [productVariantId]);
 
+	const succeeded = fetcher.data?.ok === true && submittedFor === productVariantId;
+
+	// Turnstile throws if asked to reset/remove a widget whose container React has
+	// already unmounted (e.g. the form swapping to the success message), and a throw
+	// inside an effect takes down the whole page. Never let it.
+	function safeTurnstile(action: (id: string) => void) {
+		const id = widgetId.current;
+		if (!id || !window.turnstile) return;
+		try {
+			action(id);
+		} catch {
+			// widget already gone
+		}
+	}
+
 	useEffect(() => {
-		if (!open || !TURNSTILE_SITE_KEY || !turnstileRef.current) return;
+		if (!open || succeeded || !TURNSTILE_SITE_KEY || !turnstileRef.current) return;
 		let cancelled = false;
 		loadTurnstile()
 			.then(() => {
@@ -104,20 +119,20 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 			.catch(() => {});
 		return () => {
 			cancelled = true;
-			if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);
+			safeTurnstile((id) => window.turnstile!.remove(id));
 			widgetId.current = null;
-		};
-	}, [open, locale]);
-
-	// Turnstile tokens are single-use: get a fresh one after each submission.
-	useEffect(() => {
-		if (fetcher.state === "idle" && fetcher.data && widgetId.current && window.turnstile) {
 			setTurnstileToken(null);
-			window.turnstile.reset(widgetId.current);
-		}
-	}, [fetcher.state, fetcher.data]);
+		};
+	}, [open, succeeded, locale]);
 
-	const succeeded = fetcher.data?.ok === true && submittedFor === productVariantId;
+	// Turnstile tokens are single-use: after a failed submission (the form is still
+	// on screen) get a fresh one so the shopper can retry.
+	useEffect(() => {
+		if (fetcher.state === "idle" && fetcher.data && !succeeded) {
+			setTurnstileToken(null);
+			safeTurnstile((id) => window.turnstile!.reset(id));
+		}
+	}, [fetcher.state, fetcher.data, succeeded]);
 	const waitingForTurnstile = !!TURNSTILE_SITE_KEY && !turnstileToken;
 
 	return (
@@ -137,10 +152,10 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 					{t.notifyMe}
 				</button>
 			) : (
-				<div className="rounded-xl border border-gray-200 bg-white p-4">
+				<div className="w-full min-w-0">
 					<p className="text-xs text-gray-500">{t.subtext}</p>
 					<form
-						className="relative mt-3 flex gap-2"
+						className="relative mt-2 flex flex-col gap-2"
 						onSubmit={(e) => {
 							e.preventDefault();
 							const company = (e.currentTarget.elements.namedItem("company") as HTMLInputElement | null)?.value ?? "";
@@ -166,12 +181,12 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 							onChange={(e) => setEmail(e.target.value)}
 							placeholder={t.emailAddress}
 							disabled={sending}
-							className="min-w-0 flex-1 rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-primary focus:outline-none disabled:opacity-70"
+							className="w-full min-w-0 rounded-full border border-gray-300 bg-white px-5 py-3.5 text-sm focus:border-primary focus:outline-none disabled:opacity-70"
 						/>
 						<button
 							type="submit"
 							disabled={sending || waitingForTurnstile}
-							className="whitespace-nowrap rounded-full bg-[#3b8578] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2e6b61] disabled:cursor-not-allowed disabled:opacity-70"
+							className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#3b8578] py-4 text-base font-bold text-white transition-colors hover:bg-[#2e6b61] disabled:cursor-not-allowed disabled:opacity-70"
 						>
 							{sending ? t.sending : t.submit}
 						</button>
