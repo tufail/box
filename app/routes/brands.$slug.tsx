@@ -30,12 +30,8 @@ const PAGE_SIZE = 24;
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const COPY = {
-	// localSuffix carries the "Qatar" local-relevance signal into the H1 (not
-	// just the meta title/description) — Google's localized indexing otherwise
-	// reads a bare brand-name H1 as a generic global directory page rather than
-	// a local Qatar retailer page.
-	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands", faqs: "Frequently Asked Questions", localSuffix: "in Qatar" },
-	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات", faqs: "الأسئلة الشائعة", localSuffix: "في قطر" },
+	en: { breadcrumbHome: "Home", breadcrumbBrands: "Brands", faqs: "Frequently Asked Questions" },
+	ar: { breadcrumbHome: "الرئيسية", breadcrumbBrands: "الماركات", faqs: "الأسئلة الشائعة" },
 } as const;
 
 function getSortOptions(locale: Locale): { value: SortKey; label: string }[] {
@@ -321,7 +317,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 	}
 
 	const t = SHOP_COPY[locale];
-	const { breadcrumbHome, breadcrumbBrands, faqs, localSuffix } = COPY[locale];
+	const { breadcrumbHome, breadcrumbBrands, faqs } = COPY[locale];
 	// When there's a banner, the brand name and sort control move onto it
 	// (bottom-left/bottom-right overlay) instead of sitting in a plain row
 	// above the page — sort's the only thing that actually moves onto the
@@ -416,7 +412,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 					<span className="w-11 h-11 rounded-full bg-lime-300 flex items-center justify-center flex-shrink-0">
 						<Tag size={18} className="text-black" strokeWidth={1.5} />
 					</span>
-					<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black">{brandName} <span className="font-semibold">{localSuffix}</span></h1>
+					<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black">{brandName}</h1>
 				</div>
 			)}
 
@@ -467,7 +463,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 							    hero overlay, for visual consistency. */}
 							<div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none rounded-2xl" />
 							<div className="absolute inset-x-0 bottom-0 p-4 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-3">
-								<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-white text-balance">{brandName} <span className="font-semibold">{localSuffix}</span></h1>
+								<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-white text-balance">{brandName}</h1>
 								{sortDropdown}
 							</div>
 						</div>
