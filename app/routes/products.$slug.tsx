@@ -25,7 +25,7 @@ import { getAddToCartErrorMessage } from "~/graphql/order";
 import type { SubscriptionPlan } from "~/graphql/subscription";
 import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
-import { SITE_NAME, SITE_URL, truncateAtWord } from "~/lib/seo";
+import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
 import { buildCollectionPath } from "~/graphql/collection";
 import { formatPrice as formatCurrency } from "~/lib/currency";
@@ -392,9 +392,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 	const baseTitle = variantName ?? product.name;
 	const title = `${baseTitle} - NutriBox Qatar`;
-	const badges = locale === "ar" ? "🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة." : "🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.";
-	const lead = locale === "ar" ? `تسوق ${baseTitle} من ${SITE_NAME}. ` : `Shop ${baseTitle} at ${SITE_NAME}. `;
-	const fallbackDescription = `${truncateAtWord(lead, 160 - badges.length)}${badges}`;
+	const fallbackDescription =
+		locale === "ar"
+			? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.`
+			: `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
 	// description lives on the Product, shared across every variant -- there's no per-variant
 	// field in admin. Each variant still gets its own indexable canonical URL (pageSlug), so
 	// reusing that shared text there would put identical descriptions on multiple distinct
@@ -403,7 +404,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// per variant via baseTitle.
 	const isVariantPage = (loaderData?.pageSlug ?? product.slug) !== product.slug;
 	const rawDescription = product.description.replace(/<[^>]+>/g, "").trim();
-	const description = truncateAtWord(isVariantPage ? fallbackDescription : rawDescription || fallbackDescription, 160);
+	const description = (isVariantPage ? fallbackDescription : rawDescription || fallbackDescription).slice(0, 160);
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
