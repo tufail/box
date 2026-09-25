@@ -1,5 +1,5 @@
 import type { Route } from "./+types/brands";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "~/components/LocaleLink";
 import { ChevronLeft, ChevronRight, Globe, ShieldCheck, Truck } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -131,23 +131,38 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // brand tiles — only some brands have a real logo file. A missing one falls
 // back to a single-letter monogram (not the full name) since the name
 // doesn't fit legibly in a small square and just wraps/truncates awkwardly.
+//
+// State-driven (not the imperative e.currentTarget.style.display flavor of
+// this pattern) because of an SSR hydration race: the browser starts
+// fetching an <img>'s src as soon as it parses the server-rendered HTML,
+// often before React hydrates and attaches the onError listener. A
+// same-origin 404 (this is all of them, for brands with no logo file)
+// frequently resolves faster than hydration completes, so the native error
+// event fires on a listener-less node and is lost — the fallback never
+// shows, even though the image genuinely failed. The mount-time check below
+// catches that: it inspects the already-loaded (successfully or not) image
+// via its ref, independent of whether the error event was there to hear it.
 function BrandLogo({ code, name, className }: { code: string; name: string; className?: string }) {
-	return (
-		<div className={`relative bg-gray-50 rounded-lg overflow-hidden ${className ?? ""}`}>
-			<img
-				src={`/images/brands/${code}.jpg`}
-				alt={name}
-				className="w-full h-full object-contain p-2"
-				loading="lazy"
-				onError={(e) => {
-					e.currentTarget.style.display = "none";
-					const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-					if (fallback) fallback.style.display = "flex";
-				}}
-			/>
-			<span style={{ display: "none" }} className="absolute inset-0 items-center justify-center bg-lime-300">
+	const [errored, setErrored] = useState(false);
+	const imgRef = useRef<HTMLImageElement>(null);
+
+	useEffect(() => {
+		if (imgRef.current?.complete && imgRef.current.naturalWidth === 0) {
+			setErrored(true);
+		}
+	}, []);
+
+	if (errored) {
+		return (
+			<div className={`relative bg-lime-300 rounded-lg flex items-center justify-center ${className ?? ""}`}>
 				<span className="font-heading font-extrabold text-black text-lg">{name.trim()[0]?.toUpperCase()}</span>
-			</span>
+			</div>
+		);
+	}
+
+	return (
+		<div className={`relative bg-white rounded-lg overflow-hidden ${className ?? ""}`}>
+			<img ref={imgRef} src={`/images/brands/${code}.jpg`} alt={name} className="w-full h-full object-contain p-2" loading="lazy" onError={() => setErrored(true)} />
 		</div>
 	);
 }
@@ -236,7 +251,7 @@ export default function BrandsPage({ loaderData }: Route.ComponentProps) {
 			<div className="container mx-auto px-4">
 				{/* ── Trending brands ── */}
 				{trending.length > 0 && (
-					<div className="mt-10">
+					<div className="mt-10 mb-6">
 						<div className="flex items-end justify-between gap-4 mb-4">
 							<div>
 								<h2 className="font-heading text-xl sm:text-2xl font-extrabold text-black flex items-center gap-2">
@@ -255,15 +270,26 @@ export default function BrandsPage({ loaderData }: Route.ComponentProps) {
 							</div>
 						</div>
 
-						<div ref={scrollerRef} className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+						{/* py-3 here isn't decorative spacing — overflow-x-auto forces overflow-y
+						    to clip too (a CSS quirk: one axis can't scroll while the other stays
+						    truly visible), which was cutting the cards' box-shadow off top and
+						    bottom. The padding gives the shadow room to render before the clip
+						    boundary. */}
+						<div ref={scrollerRef} className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory py-3">
 							{trending.map((brand) => (
 								<Link
 									key={brand.code}
 									to={`/brands/${brand.code}`}
-									className="group relative flex-shrink-0 w-40 sm:w-44 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black transition-all overflow-hidden"
+									className="group relative flex-shrink-0 w-40 sm:w-44 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black transition-all"
 								>
-									<BrandLogo code={brand.code} name={brand.name} className="h-28 w-full" />
-									{brand.popular && <span className="absolute top-2 start-2 bg-lime-300 text-black text-[10px] font-bold px-2 py-1 rounded-full">{t.popularBadge}</span>}
+									{/* overflow-hidden lives here (not on the Link above) so it only clips
+									    the logo image to the card's top corners — putting it on the Link
+									    itself would clip the box-shadow too, since a shadow paints outside
+									    the border box and overflow-hidden cuts anything outside it. */}
+									<div className="relative overflow-hidden rounded-t-2xl">
+										<BrandLogo code={brand.code} name={brand.name} className="h-28 w-full" />
+										{brand.popular && <span className="absolute top-2 start-2 bg-lime-300 text-black text-[10px] font-bold px-2 py-1 rounded-full">{t.popularBadge}</span>}
+									</div>
 									<div className="p-3">
 										<div className="text-sm font-bold text-gray-900 truncate group-hover:text-black">{brand.name}</div>
 										<div className="text-xs text-gray-400 mt-0.5">{brand.count !== null ? `${brand.count}+ ${t.products}` : ""}</div>

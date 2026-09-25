@@ -138,7 +138,13 @@ function BrandsDropdown() {
 
 					{/* Right — top brands grid */}
 					<div className="flex-1 p-4 bg-stone-100">
-						<p className="text-sm font-bold text-gray-800 mb-3">{locale === "ar" ? "أشهر العلامات التجارية" : "Top Brands"}</p>
+						<div className="flex items-center justify-between mb-3">
+							<p className="text-sm font-bold text-gray-800">{locale === "ar" ? "أشهر العلامات التجارية" : "Top Brands"}</p>
+							<Link to="/brands" onClick={close} className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5">
+								{locale === "ar" ? "جميع العلامات التجارية" : "All Brands"}
+								<ChevronRight size={12} strokeWidth={2} className="rtl:rotate-180" />
+							</Link>
+						</div>
 						<div className="grid grid-cols-3 gap-3">
 							{TOP_BRANDS.map((brand) => (
 								<Link key={brand.code} to={`/brands/${brand.code}`} className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group" onClick={close}>
