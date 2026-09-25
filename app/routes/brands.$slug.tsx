@@ -87,8 +87,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const description =
 		brandContent?.metaDescription ||
 		(locale === "ar"
-			? `تسوق منتجات ${brandName} الأصلية من ${SITE_NAME} - توصيل سريع في قطر.`
-			: `Shop authentic ${brandName} products at ${SITE_NAME} - fast delivery in Qatar.`);
+			? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
+			: `Shop authentic ${brandName} products at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`);
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 	const image = loaderData?.brandImage ?? "";

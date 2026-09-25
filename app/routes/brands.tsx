@@ -16,7 +16,7 @@ import { TOP_BRANDS } from "~/lib/brands";
 const COPY = {
 	en: {
 		title: `Shop by Brand - ${SITE_NAME}`,
-		description: `Browse all brands available at ${SITE_NAME} - authentic sports nutrition, beauty, and wellness products with fast delivery in Qatar.`,
+		description: `Browse top brands at ${SITE_NAME}. Authentic sports nutrition, beauty & wellness. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`,
 		breadcrumbHome: "Home",
 		breadcrumbBrands: "Brands",
 		eyebrow: "Trusted Worldwide",
@@ -41,7 +41,7 @@ const COPY = {
 	},
 	ar: {
 		title: `تسوق حسب الماركة - ${SITE_NAME}`,
-		description: `تصفح جميع الماركات المتوفرة في ${SITE_NAME} - منتجات تغذية رياضية وجمال وعافية أصلية مع توصيل سريع في قطر.`,
+		description: `تصفح أفضل الماركات في ${SITE_NAME}. منتجات تغذية رياضية وجمال وعافية أصلية. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`,
 		breadcrumbHome: "الرئيسية",
 		breadcrumbBrands: "الماركات",
 		eyebrow: "موثوق عالمياً",

@@ -386,13 +386,25 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const vendureBase = loaderData?.vendureBase ?? "";
 	const variantName = loaderData?.activeVariantName ?? null;
+	const locale = loaderData?.locale ?? "en";
 
 	if (!product) return [{ title: "Product - NutriBox Qatar" }];
 
-	const baseTitle = variantName ?? product.customFields?.metaTitle ?? product.name;
+	const baseTitle = variantName ?? product.name;
 	const title = `${baseTitle} - NutriBox Qatar`;
-	const rawDescription = product.customFields?.metaDescription ?? product.description.replace(/<[^>]+>/g, "").trim();
-	const description = rawDescription.slice(0, 160);
+	const fallbackDescription =
+		locale === "ar"
+			? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.`
+			: `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
+	// description lives on the Product, shared across every variant -- there's no per-variant
+	// field in admin. Each variant still gets its own indexable canonical URL (pageSlug), so
+	// reusing that shared text there would put identical descriptions on multiple distinct
+	// URLs. Only the bare product page (pageSlug === product.slug) uses it; every
+	// variant-specific URL always gets the templated description instead, which is unique
+	// per variant via baseTitle.
+	const isVariantPage = (loaderData?.pageSlug ?? product.slug) !== product.slug;
+	const rawDescription = product.description.replace(/<[^>]+>/g, "").trim();
+	const description = (isVariantPage ? fallbackDescription : rawDescription || fallbackDescription).slice(0, 160);
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;

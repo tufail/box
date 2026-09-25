@@ -173,8 +173,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
   const fallbackDescription =
     locale === "ar"
-      ? `تسوق منتجات ${name} الأصلية من ${SITE_NAME} - أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.`
-      : `Shop authentic ${name} products at ${SITE_NAME} - 100% genuine, fast delivery across Qatar.`;
+      ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
+      : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
   const description = customMetaDescription || (rawDescription ? rawDescription.slice(0, 160) : fallbackDescription);
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";

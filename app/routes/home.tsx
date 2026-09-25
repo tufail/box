@@ -13,11 +13,11 @@ import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 const COPY = {
 	en: {
 		title: "Qatar's Premium Protein & Supplement Store | NutriBox Qatar",
-		description: "Shop authentic protein, vitamins, and sports nutrition at NutriBox Qatar. 100% genuine products, fast delivery across Qatar.",
+		description: "Premium protein, vitamins & sports nutrition delivered fast across Doha and all of Qatar. Trusted quality, unbeatable prices — shop NutriBox Qatar today.",
 	},
 	ar: {
 		title: "متجر المكملات الغذائية والبروتين الفاخر في قطر | نوتري بوكس قطر",
-		description: "تسوّق بروتينات ومكملات وفيتامينات أصلية من نوتري بوكس قطر. منتجات أصلية 100%، وتوصيل سريع لجميع أنحاء قطر.",
+		description: "بروتين ومكملات غذائية وتغذية رياضية بجودة عالية، مع توصيل سريع إلى الدوحة وجميع أنحاء قطر. أسعار تنافسية – تسوّق الآن من نوتري بوكس قطر.",
 	},
 } as const;
 
