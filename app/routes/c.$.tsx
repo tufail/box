@@ -18,7 +18,7 @@ import {
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
 import { vendureImageUrl } from "~/components/VendureImage";
-import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, truncateAtWord } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -171,11 +171,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const title = customMetaTitle || `${name} - ${SITE_NAME}`;
   const customMetaDescription = collection?.customFields?.metaDescription?.trim();
   const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
-  const fallbackDescription =
-    locale === "ar"
-      ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-      : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
-  const description = customMetaDescription || (rawDescription ? rawDescription.slice(0, 160) : fallbackDescription);
+  // Truncate the dynamic lead (collection name can be long) at a word boundary rather than
+  // slicing the whole assembled string, so the trailing trust badges never get cut mid-word.
+  const badges = locale === "ar" ? "✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة." : "✓ Secure Shopping ✓ Delivery to Doha & nationwide.";
+  const lead = locale === "ar" ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ` : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. `;
+  const fallbackDescription = `${truncateAtWord(lead, 160 - badges.length)}${badges}`;
+  const description = customMetaDescription || truncateAtWord(rawDescription || fallbackDescription, 160);
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";
 

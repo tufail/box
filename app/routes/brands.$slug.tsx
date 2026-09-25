@@ -20,7 +20,7 @@ import {
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, truncateAtWord } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -84,11 +84,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// set; the generic template is the fallback for the many brands that don't
 	// have this content filled in yet, not an error case.
 	const title = brandContent?.metaTitle || brandContent?.title || `${brandName} - ${SITE_NAME}`;
-	const description =
-		brandContent?.metaDescription ||
-		(locale === "ar"
-			? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-			: `Shop authentic ${brandName} products at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`);
+	// Truncate the dynamic lead (brand name can be long) at a word boundary rather than
+	// slicing the whole assembled string, so the trailing trust badges never get cut mid-word.
+	const badges = locale === "ar" ? "✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة." : "✓ Secure Shopping ✓ Delivery to Doha & nationwide.";
+	const lead = locale === "ar" ? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ` : `Shop authentic ${brandName} products at ${SITE_NAME} store. Best prices. `;
+	const description = brandContent?.metaDescription || `${truncateAtWord(lead, 160 - badges.length)}${badges}`;
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 	const image = loaderData?.brandImage ?? "";
