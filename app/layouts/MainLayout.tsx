@@ -12,7 +12,7 @@ import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
 import { Link, useFetcher, useLocation, useNavigate } from "react-router";
 import LocaleLink from "../components/LocaleLink";
-import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, X, Check } from "lucide-react";
+import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, Phone, X, Check } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import { useWishlist } from "../context/WishlistContext";
 import { getLocaleFromPathname, stripLocalePrefix, toggleLocalePath } from "~/lib/i18n";
@@ -479,7 +479,13 @@ function TopBarNewsPills() {
 			// with the teal top bar behind it.
 			const pillClass = "inline-flex items-center gap-1.5 border border-white/40 text-white text-[11px] font-bold px-3 py-1 rounded-full whitespace-nowrap hover:bg-white/10 transition-colors flex-shrink-0";
 			const titleLower = item.title.toLowerCase();
-			const Icon = titleLower.includes("shipping") ? Truck : titleLower.includes("authentic") || titleLower.includes("safe") ? ShieldCheck : Tag;
+			const Icon = titleLower.includes("call") || titleLower.includes("phone")
+				? Phone
+				: titleLower.includes("shipping") || titleLower.includes("delivery")
+				? Truck
+				: titleLower.includes("authentic") || titleLower.includes("safe")
+				? ShieldCheck
+				: Tag;
 			const content = (
 				<>
 					<Icon size={12} strokeWidth={2} className="flex-shrink-0 text-lime-300" />

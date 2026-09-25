@@ -239,7 +239,15 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 				</div>
 				<ul className="overflow-y-auto flex-1">
 					{sidebarItems.map((item, index) => {
-						const links = [...item.columns].sort((a, b) => a.position - b.position).flatMap((col) => col.sections.flatMap((sec) => sec.links));
+						// Each section's own title+url IS its category link (e.g. "Weight Loss" ->
+						// /c/supplements/weight-loss) -- section.links is only an optional second
+						// drill-down level a few sections also have (e.g. "Gut Health" -> "Bloat
+						// Relief"). Desktop renders the title as its own header link separately from
+						// section.links; flattening only sec.links here would silently drop every
+						// section that doesn't also have a nested sub-link.
+						const links = [...item.columns].sort((a, b) => a.position - b.position).flatMap((col) =>
+							col.sections.flatMap((sec) => [...(sec.title ? [{ label: sec.title, url: sec.url }] : []), ...sec.links])
+						);
 						const hasLinks = links.length > 0;
 						const isExpanded = mobileExpandedItem === index;
 						return (
