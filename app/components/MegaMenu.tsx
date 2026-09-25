@@ -6,6 +6,7 @@ import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "
 import type { BrandValue } from "../graphql/brand";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
+import { TOP_BRANDS } from "~/lib/brands";
 
 function itemHref(item: Pick<MegaMenuItem, "url">): string {
 	return item.url ?? "#";
@@ -18,23 +19,6 @@ function linkHref(link: Pick<MegaMenuLink, "url">): string {
 function sectionHref(section: Pick<MegaMenuSection, "url">): string | null {
 	return section.url || null;
 }
-
-// Same curated set shown in the footer's "Top Brands" — kept in sync by hand since
-// there's no "featured" flag on the brand facet to drive this from data.
-const TOP_BRANDS = [
-	{ name: "Optimum Nutrition", code: "optimum-nutrition" },
-	{ name: "MuscleTech", code: "muscletech" },
-	{ name: "Applied Nutrition", code: "applied-nutrition" },
-	{ name: "Dymatize", code: "dymatize" },
-	{ name: "EVLution Nutrition", code: "evlution-nutrition" },
-	{ name: "Rule One Proteins", code: "rule-one-proteins" },
-	{ name: "NOW Foods", code: "now-foods" },
-	{ name: "Ghost", code: "ghost" },
-	{ name: "Bloom", code: "bloom" },
-	{ name: "Maryruth's Organics", code: "maryruths-organics" },
-	{ name: "Life Extension", code: "life-extension" },
-	{ name: "California Gold Nutrition", code: "california-gold-nutrition" },
-];
 
 // Styled to match the other top-nav items (same trigger button, same hover-dropdown positioning).
 function BrandsDropdown() {

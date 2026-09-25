@@ -136,3 +136,24 @@ export const GET_BRAND_PAGE_CONTENT_QUERY = `
 		}
 	}
 `;
+
+// Lighter than COLLECTION_FACETS_QUERY's facetValues aggregation (which the
+// backend caps at 50 distinct values total, so it can't return a count for
+// every brand in one call) — this asks for a bare totalItems, uncapped, for
+// one brand at a time. Used only for the small curated TOP_BRANDS set (see
+// app/lib/brands.ts), not fanned out across all ~65 brands.
+export interface BrandProductCountData {
+	search: { totalItems: number };
+}
+
+// groupByProduct: false to match BRAND_PRODUCTS_QUERY's own count above (and
+// c.$.tsx's collection listing) — that's the number a shopper actually sees
+// as "N products" on the brand/collection page itself, so this card's count
+// should agree with it rather than showing the grouped-by-product number.
+export const GET_BRAND_PRODUCT_COUNT_QUERY = `
+	query GetBrandProductCount($facetValueId: ID!) {
+		search(input: { facetValueIds: [$facetValueId], groupByProduct: false, take: 0 }) {
+			totalItems
+		}
+	}
+`;
