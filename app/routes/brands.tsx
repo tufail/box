@@ -1,9 +1,10 @@
 import type { Route } from "./+types/brands";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "~/components/LocaleLink";
 import { ChevronLeft, ChevronRight, Globe, ShieldCheck, Truck } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb from "~/components/Breadcrumb";
+import BrandLogo from "~/components/BrandLogo";
 import { GET_BRAND_FACET_QUERY, GET_BRAND_PRODUCT_COUNT_QUERY, type BrandFacetData, type BrandProductCountData, type BrandValue } from "~/graphql/brand";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from "~/lib/i18n";
@@ -125,46 +126,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	} catch {
 		return { brands: [], trending: [], canonicalUrl, locale };
 	}
-}
-
-// Same /images/brands/{code}.jpg convention already used by MegaMenu.tsx's
-// brand tiles — only some brands have a real logo file. A missing one falls
-// back to a single-letter monogram (not the full name) since the name
-// doesn't fit legibly in a small square and just wraps/truncates awkwardly.
-//
-// State-driven (not the imperative e.currentTarget.style.display flavor of
-// this pattern) because of an SSR hydration race: the browser starts
-// fetching an <img>'s src as soon as it parses the server-rendered HTML,
-// often before React hydrates and attaches the onError listener. A
-// same-origin 404 (this is all of them, for brands with no logo file)
-// frequently resolves faster than hydration completes, so the native error
-// event fires on a listener-less node and is lost — the fallback never
-// shows, even though the image genuinely failed. The mount-time check below
-// catches that: it inspects the already-loaded (successfully or not) image
-// via its ref, independent of whether the error event was there to hear it.
-function BrandLogo({ code, name, className }: { code: string; name: string; className?: string }) {
-	const [errored, setErrored] = useState(false);
-	const imgRef = useRef<HTMLImageElement>(null);
-
-	useEffect(() => {
-		if (imgRef.current?.complete && imgRef.current.naturalWidth === 0) {
-			setErrored(true);
-		}
-	}, []);
-
-	if (errored) {
-		return (
-			<div className={`relative bg-lime-300 rounded-lg flex items-center justify-center ${className ?? ""}`}>
-				<span className="font-heading font-extrabold text-black text-lg">{name.trim()[0]?.toUpperCase()}</span>
-			</div>
-		);
-	}
-
-	return (
-		<div className={`relative bg-white rounded-lg overflow-hidden ${className ?? ""}`}>
-			<img ref={imgRef} src={`/images/brands/${code}.jpg`} alt={name} className="w-full h-full object-contain p-2" loading="lazy" onError={() => setErrored(true)} />
-		</div>
-	);
 }
 
 export default function BrandsPage({ loaderData }: Route.ComponentProps) {

@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "../graphql/megamenu";
 import type { BrandValue } from "../graphql/brand";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { TOP_BRANDS } from "~/lib/brands";
+import BrandLogo from "~/components/BrandLogo";
 
 function itemHref(item: Pick<MegaMenuItem, "url">): string {
 	return item.url ?? "#";
@@ -148,21 +149,7 @@ function BrandsDropdown() {
 						<div className="grid grid-cols-3 gap-3">
 							{TOP_BRANDS.map((brand) => (
 								<Link key={brand.code} to={`/brands/${brand.code}`} className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary hover:shadow-sm transition-all group" onClick={close}>
-									<div className="w-full h-14 rounded relative overflow-hidden bg-gray-50">
-										<img
-											src={`/images/brands/${brand.code}.jpg`}
-											alt={brand.name}
-											className="w-full h-full object-contain p-1.5"
-											onError={(e) => {
-												e.currentTarget.style.display = "none";
-												const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-												if (fallback) fallback.style.display = "flex";
-											}}
-										/>
-										<span style={{ display: "none" }} className="absolute inset-0 items-center justify-center text-xs font-bold text-gray-400 group-hover:text-black transition-colors text-center px-1">
-											{brand.name}
-										</span>
-									</div>
+									<BrandLogo code={brand.code} name={brand.name} className="w-full h-14" />
 								</Link>
 							))}
 						</div>
@@ -181,7 +168,10 @@ interface MegaMenuProps {
 
 export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }: MegaMenuProps) {
 	const [desktopOpen, setDesktopOpen] = useState<number | null>(null);
-	const [mobileExpandedItem, setMobileExpandedItem] = useState<number | null>(null);
+	// "brands" is a sentinel alongside the category-item indices — the mobile
+	// "Shop by Brands" row is one more accordion entry in the same single-open
+	// list, not a separate toggle state.
+	const [mobileExpandedItem, setMobileExpandedItem] = useState<number | "brands" | null>(null);
 	const [mounted, setMounted] = useState(false);
 	const locale = getLocaleFromPathname(useLocation().pathname);
 
@@ -223,6 +213,10 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 	useEffect(() => {
 		if (!mobileOpen) setMobileExpandedItem(null);
 	}, [mobileOpen]);
+
+	function toggleMobileBrands() {
+		setMobileExpandedItem(mobileExpandedItem === "brands" ? null : "brands");
+	}
 
 	// Portal the mobile panel to <body> so it isn't affected by the header's
 	// scroll-hide transform (a transform on an ancestor would otherwise hijack
@@ -274,6 +268,43 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 							</li>
 						);
 					})}
+
+					{/* Shop by Brands — mobile only had the mega-menu's own category
+					    items; there was no way to reach brands from here at all short
+					    of the desktop-only header dropdown. Same accordion pattern as
+					    the category rows above (collapsed until tapped). Shows the
+					    same curated TOP_BRANDS set as the desktop dropdown and the
+					    /brands page's Trending row, not the full catalogue — "Show
+					    All" is what links to the full /brands page. */}
+					<li className="border-b border-gray-100">
+						<div className="flex items-center">
+							<button className="flex-1 flex items-center justify-between px-4 py-3 text-start" onClick={toggleMobileBrands} aria-expanded={mobileExpandedItem === "brands"}>
+								<span className="text-sm font-medium text-gray-800">{locale === "ar" ? "تسوق حسب الماركات" : "Shop by Brands"}</span>
+								<ChevronDown size={16} strokeWidth={1.5} className={`text-gray-400 transition-transform duration-200 ${mobileExpandedItem === "brands" ? "rotate-180" : ""}`} />
+							</button>
+						</div>
+						{mobileExpandedItem === "brands" && (
+							<div className="bg-gray-50 border-t border-gray-100 px-4 py-3">
+								<Link to="/brands" onClick={onMobileClose} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline mb-3">
+									{locale === "ar" ? "عرض الكل" : "Show All"}
+									<ArrowRight size={13} strokeWidth={2} className="rtl:rotate-180" />
+								</Link>
+								<div className="grid grid-cols-3 gap-2">
+									{TOP_BRANDS.map((brand) => (
+										<Link
+											key={brand.code}
+											to={`/brands/${brand.code}`}
+											onClick={onMobileClose}
+											className="flex flex-col items-center rounded-lg border border-gray-200 bg-white hover:border-primary transition-colors overflow-hidden"
+										>
+											<BrandLogo code={brand.code} name={brand.name} className="w-full h-10" rounded="rounded-none" padding="p-0" />
+											<span className="text-[11px] font-medium text-gray-700 text-center truncate w-full px-1 py-1">{brand.name}</span>
+										</Link>
+									))}
+								</div>
+							</div>
+						)}
+					</li>
 				</ul>
 			</div>
 		</div>

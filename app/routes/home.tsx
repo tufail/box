@@ -12,7 +12,7 @@ import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 // considered final customer-facing copy.
 const COPY = {
 	en: {
-		title: "Qatar's Premium Protein and Supplement Store | NutriBox Qatar",
+		title: "Qatar's Premium Protein & Supplement Store | NutriBox Qatar",
 		description: "Shop authentic protein, vitamins, and sports nutrition at NutriBox Qatar. 100% genuine products, fast delivery across Qatar.",
 	},
 	ar: {
