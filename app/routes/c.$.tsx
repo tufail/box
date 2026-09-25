@@ -175,7 +175,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     locale === "ar"
       ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
       : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
-  const description = customMetaDescription || (rawDescription ? rawDescription.slice(0, 160) : fallbackDescription);
+  const description = customMetaDescription || rawDescription || fallbackDescription;
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";
 

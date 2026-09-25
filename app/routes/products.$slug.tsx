@@ -404,7 +404,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// per variant via baseTitle.
 	const isVariantPage = (loaderData?.pageSlug ?? product.slug) !== product.slug;
 	const rawDescription = product.description.replace(/<[^>]+>/g, "").trim();
-	const description = (isVariantPage ? fallbackDescription : rawDescription || fallbackDescription).slice(0, 160);
+	const description = isVariantPage ? fallbackDescription : rawDescription || fallbackDescription;
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
