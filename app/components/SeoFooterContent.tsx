@@ -141,7 +141,7 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 				<div className="space-y-4 text-sm text-gray-500 leading-relaxed">
 					{locale === "ar" ? (
 						<>
-							<p>نوتري بوكس هي الوجهة الإلكترونية الموثوقة في قطر للتغذية الرياضية الأصلية، والمكملات الصحية، والفيتامينات، والأطعمة الصحية، ومنتجات العافية، وإكسسوارات اللياقة البدنية. نقدم منتجات مميزة من أشهر العلامات التجارية العالمية مع تسوق إلكتروني آمن، وأسعار تنافسية، وتوصيل سريع في جميع أنحاء قطر.</p>
+							<p>نوتري بوكس هي الوجهة الإلكترونية الموثوقة في قطر للتغذية الرياضية الأصلية، والمكملات الصحية، والفيتامينات، والأطعمة الصحية، ومنتجات التجميل، ومنتجات العافية، وإكسسوارات اللياقة البدنية. نقدم منتجات مميزة من أشهر العلامات التجارية العالمية مع تسوق إلكتروني آمن، وأسعار تنافسية، وتوصيل سريع في جميع أنحاء قطر.</p>
 							<p>
 								سواء كنت تبحث عن بروتين واي، أو الكرياتين، أو مكملات زيادة الوزن، أو مكملات ما قبل التمرين، أو الفيتامينات المتعددة، أو أوميغا 3، أو الكولاجين، أو ألواح البروتين، أو الوجبات الخفيفة الصحية، أو مكملات إدارة الوزن، فإن نوتري بوكس يوفر كل ما تحتاجه لدعم أهدافك في اللياقة والصحة والعافية في مكان واحد. تصفح{" "}
 								<Link to="/collections" className="text-primary font-medium hover:underline">
@@ -152,7 +152,7 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 						</>
 					) : (
 						<>
-							<p>NutriBox is Qatar's trusted online destination for authentic sports nutrition, health supplements, vitamins, healthy foods, wellness products, and fitness accessories. We offer premium products from leading international brands with secure online shopping, competitive prices, and fast delivery across Qatar.</p>
+							<p>NutriBox is Qatar's trusted online destination for authentic sports nutrition, health supplements, vitamins, healthy foods, beauty products, wellness products, and fitness accessories. We offer premium products from leading international brands with secure online shopping, competitive prices, and fast delivery across Qatar.</p>
 							<p>
 								Whether you're looking for whey protein, creatine, mass gainers, pre-workout supplements, multivitamins, omega-3, collagen, protein bars, healthy snacks, or weight management supplements, NutriBox brings everything you need to support your fitness, health, and wellness goals in one place. Browse our{" "}
 								<Link to="/collections" className="text-primary font-medium hover:underline">
@@ -198,51 +198,6 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 					</p>
 				</div>
 
-				<div className="mt-10 pt-6 border-t border-stone-100 text-sm text-gray-500 leading-relaxed">
-					{locale === "ar" ? (
-						<>
-							<p>
-								نحن نعلم أن الراحة لا تقل أهمية عن الجودة. يقدم نوتري بوكس توصيلًا سريعًا في جميع أنحاء قطر - مع خيارات توصيل سريع من ساعتين إلى نفس اليوم، وتوصيل مجاني للطلبات فوق 99 ريال قطري. يتم توفير كل منتج في{" "}
-								<Link to="/collections" className="text-primary font-medium hover:underline">
-									متجرنا الإلكتروني
-								</Link>{" "}
-								من خلال قنوات موثوقة، حتى تتمكن من التسوق بثقة.
-							</p>
-							<p className="mt-3">
-								جديد على نوتري بوكس؟{" "}
-								<Link to="/about" className="text-primary font-medium hover:underline">
-									تعرّف أكثر على من نحن
-								</Link>{" "}
-								أو انتقل مباشرة إلى{" "}
-								<Link to="/collections" className="text-primary font-medium hover:underline">
-									متجرنا
-								</Link>{" "}
-								لاستكشاف الأكثر مبيعًا، والوصولات الجديدة، والباقات الحصرية.
-							</p>
-						</>
-					) : (
-						<>
-							<p>
-								We know that convenience matters as much as quality. NutriBox offers fast delivery across Qatar - with express options in as little as two hours to same day, and free delivery on orders over QAR 99. Every product on our{" "}
-								<Link to="/collections" className="text-primary font-medium hover:underline">
-									online store
-								</Link>{" "}
-								is sourced through verified channels, so you can shop with confidence.
-							</p>
-							<p className="mt-3">
-								New to NutriBox?{" "}
-								<Link to="/about" className="text-primary font-medium hover:underline">
-									Learn more about who we are
-								</Link>{" "}
-								or head straight to our{" "}
-								<Link to="/collections" className="text-primary font-medium hover:underline">
-									shop
-								</Link>{" "}
-								to explore best-sellers, new arrivals, and exclusive bundles.
-							</p>
-						</>
-					)}
-				</div>
 				</div>
 
 				{/* Right ~40% — FAQs */}

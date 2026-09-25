@@ -20,6 +20,7 @@ import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 // considered final customer-facing copy.
 const WELCOME_COPY = {
 	en: {
+		h1: "NutriBox Qatar: Sports Nutrition, Supplements, Beauty & Vitamins Store",
 		personalizedStackAlt: "Personalized Stack",
 		buildYourStack: "Find your perfect supplement stack",
 		takeGoalQuiz: "Take a Goal Quiz",
@@ -30,6 +31,7 @@ const WELCOME_COPY = {
 		newArrivals: "New Arrivals",
 	},
 	ar: {
+		h1: "نوتري بوكس قطر: متجر التغذية الرياضية والمكملات ومستحضرات التجميل والفيتامينات",
 		personalizedStackAlt: "باقة مخصصة",
 		buildYourStack: "اعثر على باقتك المثالية من المكملات",
 		takeGoalQuiz: "خذ اختبار الأهداف",
@@ -86,6 +88,14 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 
 	return (
 		<div>
+			{/* The homepage had no H1 anywhere on it — every other page (products,
+			    collections, brands, about) has one, this was just an oversight here.
+			    sr-only rather than visible: the hero is a marketing carousel, not a
+			    place for a literal heading, and the logo already carries the brand
+			    name visually. Screen readers and search engines still get a real,
+			    correctly-placed H1 identifying the page. */}
+			<h1 className="sr-only">{t.h1}</h1>
+
 			{/* Hero: carousel + side banners */}
 			<div className="container mx-auto px-4 mt-2 md:mt-4">
 				<div className="flex flex-col lg:flex-row items-stretch">
