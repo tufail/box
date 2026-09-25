@@ -392,19 +392,14 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 	const baseTitle = variantName ?? product.name;
 	const title = `${baseTitle} - NutriBox Qatar`;
-	const fallbackDescription =
+	// Always title-based, never the long-form product.description text -- that field is
+	// shared across every variant with no per-variant equivalent in admin, so using it here
+	// would put the same description on every one of a product's distinct variant URLs, and
+	// it reads poorly as SERP copy anyway (written for the page body, not a search snippet).
+	const description =
 		locale === "ar"
 			? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.`
 			: `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
-	// description lives on the Product, shared across every variant -- there's no per-variant
-	// field in admin. Each variant still gets its own indexable canonical URL (pageSlug), so
-	// reusing that shared text there would put identical descriptions on multiple distinct
-	// URLs. Only the bare product page (pageSlug === product.slug) uses it; every
-	// variant-specific URL always gets the templated description instead, which is unique
-	// per variant via baseTitle.
-	const isVariantPage = (loaderData?.pageSlug ?? product.slug) !== product.slug;
-	const rawDescription = product.description.replace(/<[^>]+>/g, "").trim();
-	const description = isVariantPage ? fallbackDescription : rawDescription || fallbackDescription;
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
