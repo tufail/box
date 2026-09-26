@@ -42,8 +42,11 @@ function CategoryFallback({ name }: { name: string }) {
 			{/* Hidden — only here to detect via onError whether the icon file exists.
 			    The visible icon below is rendered as a CSS mask (not <img src>) since
 			    an <img>-loaded SVG's currentColor doesn't inherit the page's CSS —
-			    masking is what actually lets bg-primary tint it. */}
-			<img src={iconSrc} alt="" className="hidden" onError={() => setIconFailed(true)} />
+			    masking is what actually lets bg-primary tint it. alt={name} (not "")
+			    for the same reason as VendureImage's blur placeholder: this element
+			    is display:none so it has no real accessibility exposure either way,
+			    but a real alt avoids an automated "empty alt" false positive. */}
+			<img src={iconSrc} alt={name} className="hidden" onError={() => setIconFailed(true)} />
 			<div
 				className="w-10 h-10 bg-primary"
 				style={{

@@ -197,7 +197,7 @@ export default function Footer({ pageSections }: FooterProps) {
 							    overflow, which they do (no overflow-hidden above this). */}
 							<img
 								src="/images/healthy-smile.webp"
-								alt=""
+								alt="both smiling with supplements in hand"
 								aria-hidden="true"
 								width={420}
 								height={436}

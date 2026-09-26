@@ -155,7 +155,12 @@ export default function VendureImage({
         <img
           src={blurSrc}
           aria-hidden="true"
-          alt=""
+          // aria-hidden already makes screen readers skip this element regardless
+          // of its alt text, so reusing the real alt here costs nothing for
+          // accessibility -- but it stops crawlers that flag any alt="" as
+          // "missing alt text" without checking aria-hidden (seen in Bing
+          // Webmaster Tools' SEO report) from reporting a false positive.
+          alt={alt}
           className={`absolute inset-0 w-full h-full ${fit} scale-110 blur-xl transition-opacity duration-300 ${
             loaded ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
