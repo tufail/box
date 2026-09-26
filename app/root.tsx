@@ -20,14 +20,17 @@ import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
 // Rendered on every page — establishes NutriBox as a single consistent entity for
 // Google's Knowledge Graph and for AI systems (ChatGPT/Gemini/Claude) grounding
 // answers about the business, rather than each page describing itself in isolation.
-// "Store" (not "Organization") because NutriBox sells through a physical storefront
-// as well as online — a Google-suggested draft also proposed "HealthAndBeautyShop"
-// as a second @type, but that string isn't a real schema.org type (the closest real
-// one, HealthAndBeautyBusiness, only covers salons/spas/gyms, not retail), so it's
-// omitted here rather than shipping invalid structured data.
+// ["Store", "OnlineStore"] because NutriBox is both: a real physical storefront
+// (Al Sadd, used for pickup -- see address below) covered by "Store" (a
+// LocalBusiness subtype, which is what keeps it eligible for Maps/local-pack
+// results), plus a genuine online storefront covered by "OnlineStore" (an
+// OnlineBusiness subtype). A Google-suggested draft also proposed
+// "HealthAndBeautyShop" as a type, but that string isn't real schema.org (the
+// closest real one, HealthAndBeautyBusiness, only covers salons/spas/gyms, not
+// retail), so it's deliberately left out rather than shipping a semantic mismatch.
 const ORGANIZATION_JSON_LD = {
 	"@context": "https://schema.org",
-	"@type": "Store",
+	"@type": ["Store", "OnlineStore"],
 	name: SITE_NAME,
 	alternateName: ["NutriBox Supplements Doha", "NutriBox Qatar Protein & Beauty Store"],
 	description: "Qatar's trusted online and physical storefront destination for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty and collagen formulations.",
@@ -51,6 +54,11 @@ const ORGANIZATION_JSON_LD = {
 		addressLocality: "Doha",
 		addressCountry: "QA",
 	},
+	// "Store" is a LocalBusiness subtype -- without an explicit areaServed, the
+	// default assumption is that a local business only serves the vicinity of its
+	// listed address (Doha). Orders ship nationwide, so this states that plainly
+	// rather than letting it default to Doha-only.
+	areaServed: "QA",
 	contactPoint: {
 		"@type": "ContactPoint",
 		telephone: "+974-7015-7900",
