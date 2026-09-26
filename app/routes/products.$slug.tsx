@@ -1149,39 +1149,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		returnMethod: "https://schema.org/ReturnByMail",
 	};
 
-	// Shipping is priced per delivery zone (postalCode on the address = the Qatar
-	// zone number), not a single flat rate — matches the live pricing set on the
-	// qatar-shipping backend plugin. Represented as one OfferShippingDetails entry
-	// per price tier so the schema states real costs instead of picking one number
-	// that would misstate it for most of the country either way.
-	type ZoneSpec = number | { from: number; to: number };
-	const SHIPPING_TIERS: { rateQAR: string; zones: ZoneSpec[] }[] = [
-		{ rateQAR: "0", zones: [{ from: 1, to: 70 }] },
-		{ rateQAR: "29", zones: [{ from: 71, to: 75 }] },
-		{ rateQAR: "18", zones: [{ from: 90, to: 91 }] },
-		{ rateQAR: "40", zones: [83, 84, 86, { from: 92, to: 96 }] },
-		// Zone 0 = areas with no official zone number assigned (still priceable,
-		// see qatar-areas.ts) — falls into the same catch-all rate as the rest.
-		{ rateQAR: "49", zones: [0, { from: 76, to: 82 }, 85, { from: 87, to: 89 }, { from: 97, to: 98 }] },
-	];
-	function regionForZone(zone: ZoneSpec) {
-		return typeof zone === "number"
-			? { "@type": "DefinedRegion", addressCountry: "QA", postalCode: String(zone) }
-			: { "@type": "DefinedRegion", addressCountry: "QA", postalCodeRange: { "@type": "PostalCodeRangeSpecification", postalCodeBegin: String(zone.from), postalCodeEnd: String(zone.to) } };
-	}
-	// Same delivery estimate across every tier — zone only affects cost, not speed.
-	const deliveryTime = {
-		"@type": "ShippingDeliveryTime",
-		handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
-		transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 6, unitCode: "DAY" },
-	};
-	const shippingDetails = SHIPPING_TIERS.map((tier) => ({
-		"@type": "OfferShippingDetails",
-		shippingDestination: tier.zones.length === 1 ? regionForZone(tier.zones[0]) : tier.zones.map(regionForZone),
-		shippingRate: { "@type": "MonetaryAmount", value: tier.rateQAR, currency: "QAR" },
-		deliveryTime,
-	}));
-
 	function offerFor(v: ProductDetailVariant) {
 		return {
 			"@type": "Offer",
@@ -1192,7 +1159,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
 			itemCondition: "https://schema.org/NewCondition",
 			seller,
-			shippingDetails,
 			hasMerchantReturnPolicy,
 		};
 	}
