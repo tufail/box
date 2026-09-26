@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, ChevronDown } from "lucide-react";
 import type { ProductHighlightValue } from "~/graphql/product";
 
@@ -10,8 +10,8 @@ function formatHighlightValue(highlight: ProductHighlightValue) {
 
 // Matches a highlight's label to an icon in public/icons/ (e.g. "Fast Absorption"
 // -> "fast-absorption.svg"). There's no reliable way to know ahead of time
-// whether that file exists, so HighlightIcon just tries to load it and falls back
-// (to the given fallback node, or nothing) via the <img>'s onError if it 404s.
+// whether that file exists, so HighlightIcon just tries to load it and falls
+// back (to the given fallback node, or nothing) if it 404s.
 function slugify(label: string) {
 	return label
 		.toLowerCase()
@@ -20,22 +20,74 @@ function slugify(label: string) {
 		.replace(/^-+|-+$/g, "");
 }
 
+// The icon files use fill/stroke="currentColor" so the surrounding badge's
+// text color can recolor them -- but that only works for an inline <svg> in
+// the document, not an <img src="...svg">, which renders the file in an
+// isolated context CSS can't reach. Fetched and injected as markup instead,
+// specifically so the teal badge color below actually recolors the icon.
 function HighlightIcon({ label, fallback = null }: { label: string; fallback?: React.ReactNode }) {
-	const [iconFailed, setIconFailed] = useState(false);
+	const [svg, setSvg] = useState<string | null>(null);
+	const [failed, setFailed] = useState(false);
 
-	if (iconFailed) return fallback;
-	return <img src={`/icons/${slugify(label)}.svg`} alt="" className="w-7 h-7 shrink-0" onError={() => setIconFailed(true)} />;
+	useEffect(() => {
+		let cancelled = false;
+		setSvg(null);
+		setFailed(false);
+		fetch(`/icons/${slugify(label)}.svg`)
+			.then((r) => (r.ok ? r.text() : Promise.reject()))
+			.then((text) => {
+				if (!cancelled) setSvg(text);
+			})
+			.catch(() => {
+				if (!cancelled) setFailed(true);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [label]);
+
+	if (failed) return fallback;
+	if (!svg) return null;
+	// Some icon files hardcode fill/stroke="#000000" instead of "currentColor"
+	// (e.g. banned-substance-tested.svg) -- an SVG's own presentation attributes
+	// lose to author stylesheet rules, so these force just those hardcoded-black
+	// shapes to the surrounding badge's color instead. Targeted by attribute
+	// value (not every path/circle) so a shape deliberately left fill="none"
+	// (a hollow outline) doesn't get filled in solid.
+	return (
+		<span
+			className='w-9 h-9 [&>svg]:w-full [&>svg]:h-full [&_[fill="#000000"]]:fill-current [&_[stroke="#000000"]]:stroke-current'
+			dangerouslySetInnerHTML={{ __html: svg }}
+		/>
+	);
+}
+
+// No extra border/circle here -- the icon files already draw their own
+// outline (see fast-absorption.svg's <circle stroke="currentColor">), so
+// wrapping them in another circle would just double up the ring.
+function HighlightBadge({ children, muted = false }: { children: React.ReactNode; muted?: boolean }) {
+	return <div className={`w-9 h-9 flex items-center justify-center shrink-0 ${muted ? "text-gray-300" : "text-[#3b8578]"}`}>{children}</div>;
 }
 
 function BooleanIcon({ highlight }: { highlight: ProductHighlightValue }) {
-	if (!highlight.booleanValue) return <XCircle size={28} className="text-gray-300 shrink-0" />;
-	return <HighlightIcon label={highlight.highlightType.label} fallback={<CheckCircle size={28} className="text-green-500 shrink-0" />} />;
+	if (!highlight.booleanValue) {
+		return (
+			<HighlightBadge muted>
+				<XCircle size={32} />
+			</HighlightBadge>
+		);
+	}
+	return (
+		<HighlightBadge>
+			<HighlightIcon label={highlight.highlightType.label} fallback={<CheckCircle size={32} />} />
+		</HighlightBadge>
+	);
 }
 
 function HighlightCard({ highlight }: { highlight: ProductHighlightValue }) {
 	if (highlight.highlightType.valueType === "BOOLEAN") {
 		return (
-			<div className="flex items-center gap-2 p-3">
+			<div className="flex items-center gap-2.5 p-3">
 				<BooleanIcon highlight={highlight} />
 				<span className={`text-xs font-medium ${highlight.booleanValue ? "text-gray-900" : "text-gray-400"}`}>{highlight.highlightType.label}</span>
 			</div>
@@ -43,8 +95,10 @@ function HighlightCard({ highlight }: { highlight: ProductHighlightValue }) {
 	}
 
 	return (
-		<div className="flex items-center gap-2 p-3">
-			<HighlightIcon label={highlight.highlightType.label} />
+		<div className="flex items-center gap-2.5 p-3">
+			<HighlightBadge>
+				<HighlightIcon label={highlight.highlightType.label} />
+			</HighlightBadge>
 			<div className="flex flex-col gap-0.5">
 				<span className="text-[11px] text-gray-400 uppercase tracking-wide leading-none">{highlight.highlightType.label}</span>
 				<span className="text-xs font-medium text-gray-900">{formatHighlightValue(highlight)}</span>
@@ -99,12 +153,8 @@ export default function ProductHighlights({ highlights, title, collapsible = fal
 
 	return (
 		<div className="flex flex-col gap-3">
-			{title && (
-				<>
-					<hr className="border-gray-200" />
-					<h4 className="text-sm font-bold text-gray-900">{title}</h4>
-				</>
-			)}
+			<hr className="border-gray-200" />
+			{title && <h4 className="text-sm font-bold text-gray-900">{title}</h4>}
 			{grid}
 		</div>
 	);

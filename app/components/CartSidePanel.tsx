@@ -9,6 +9,7 @@ import { useNotification } from "~/context/NotificationContext";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 import { useFocusTrap } from "~/hooks/useFocusTrap";
+import VendureImage from "~/components/VendureImage";
 
 interface CartSidePanelProps {
 	isOpen: boolean;
@@ -296,7 +297,12 @@ export default function CartSidePanel({ isOpen, onClose }: CartSidePanelProps) {
 									const image = line.featuredAsset?.preview ?? line.productVariant.product.featuredAsset?.preview ?? null;
 									return (
 										<li key={line.id} className="flex gap-3 items-start">
-											<div className="w-20 h-20 bg-gray-100 rounded overflow-hidden shrink-0">{image ? <img src={image} alt={line.productVariant.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl font-bold">{line.productVariant.product.name[0]}</div>}</div>
+											{/* vendureBase="" is safe here -- these preview URLs come back already
+									    fully-qualified against the real asset host (assets.nutribox.qa, which
+									    differs from the shop-api host), so vendureImageUrl never falls back to
+									    it; a raw <img> here was shipping the full-resolution original for an
+									    80x80 thumbnail. */}
+									<div className="w-20 h-20 bg-gray-100 rounded overflow-hidden shrink-0">{image ? <VendureImage src={image} vendureBase="" alt={line.productVariant.name} width={80} height={80} /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl font-bold">{line.productVariant.product.name[0]}</div>}</div>
 											<div className="flex-1 min-w-0">
 												<Link to={`/products/${line.productVariant.customFields?.slug || line.productVariant.product.slug}`} onClick={onClose} className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 leading-snug">
 													{line.productVariant.name}

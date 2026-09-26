@@ -5,7 +5,7 @@ import { useFetcher, useRouteLoaderData, useLocation, redirect } from "react-rou
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw, Clock } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -34,8 +34,8 @@ import type { BannerItem } from "~/graphql/banner";
 
 const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
 
-// Fixed order matching PDP_COPY's trustBadges() output: delivery, payment, returns.
-const TRUST_BADGE_ICONS = [Truck, CreditCard, RotateCcw];
+// Fixed order matching PDP_COPY's trustBadges() output: delivery, delivery speed, payment, returns.
+const TRUST_BADGE_ICONS = [Truck, Clock, CreditCard, RotateCcw];
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
 // starting point, but worth a marketing/native review pass before this is
@@ -82,7 +82,12 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/serving`,
 		moreFrom: "More from",
 		whatsappEnquiry: "WhatsApp Enquiry",
-		trustBadges: (express: boolean) => [express ? "Quick delivery within 2 hours to same day" : "Standard delivery within Qatar in 2-6 business days", "Secure Payment (Debit/Credit Card or COD)", "Easy & Hassle-Free Returns Within 48 Hours"],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [
+			{ title: "Free Delivery in Doha", subtitle: `Orders over QAR ${freeShippingAmount}` },
+			express ? { title: "Same day delivery", subtitle: "Within 2 hours" } : { title: "Standard delivery", subtitle: "2-6 business days" },
+			{ title: "Secure payment", subtitle: "Cards & COD" },
+			{ title: "Easy returns", subtitle: "Within 48 hours" },
+		],
 		productVideo: "Product Video",
 		youMay: "You May",
 		alsoLike: "also like",
@@ -159,7 +164,12 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/حصة`,
 		moreFrom: "المزيد من",
 		whatsappEnquiry: "استفسار عبر واتساب",
-		trustBadges: (express: boolean) => [express ? "توصيل سريع من ساعتين إلى نفس اليوم" : "التوصيل القياسي داخل قطر خلال 2-6 أيام عمل", "دفع آمن (بطاقة ائتمان/خصم أو الدفع عند الاستلام)", "إرجاع سهل وميسّر خلال 48 ساعة"],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [
+			{ title: "توصيل مجاني في الدوحة", subtitle: `طلبات فوق QAR ${freeShippingAmount}` },
+			express ? { title: "توصيل في نفس اليوم", subtitle: "خلال ساعتين" } : { title: "توصيل قياسي", subtitle: "2-6 أيام عمل" },
+			{ title: "دفع آمن", subtitle: "بطاقات أو عند الاستلام" },
+			{ title: "إرجاع سهل", subtitle: "خلال 48 ساعة" },
+		],
 		productVideo: "فيديو المنتج",
 		youMay: "قد",
 		alsoLike: "يعجبك أيضًا",
@@ -212,6 +222,44 @@ function isInStock(stockLevel: string) {
 	if (stockLevel === "OUT_OF_STOCK") return false;
 	const n = Number(stockLevel);
 	return isNaN(n) ? stockLevel !== "OUT_OF_STOCK" : n > 0;
+}
+
+// Was inlined inside Gallery when the share dropdown lived there; moved here
+// (module scope) once the Wishlist/Share row moved below the Add to Cart
+// button, so the social-icon SVG paths aren't duplicated between the two.
+function buildShareLinks(shareUrl: string, name: string) {
+	return [
+		{
+			label: "WhatsApp",
+			href: `https://wa.me/?text=${encodeURIComponent(shareUrl)}`,
+			color: "text-green-600 hover:bg-green-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+				</svg>
+			),
+		},
+		{
+			label: "Facebook",
+			href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+			color: "text-blue-600 hover:bg-blue-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+				</svg>
+			),
+		},
+		{
+			label: "X (Twitter)",
+			href: `https://x.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(name)}`,
+			color: "text-gray-900 hover:bg-gray-50",
+			icon: (
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+					<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+				</svg>
+			),
+		},
+	];
 }
 
 function getOptionGroups(variants: ProductDetailVariant[]) {
@@ -546,31 +594,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 // ── Image gallery ──────────────────────────────────────────────────────────
 
-function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistItem }: { images: string[]; variantImages: string[]; vendureBase: string; name: string; shareUrl: string; wishlistItem: WishlistItem }) {
+function Gallery({ images, variantImages, vendureBase, name }: { images: string[]; variantImages: string[]; vendureBase: string; name: string }) {
 	const [active, setActive] = useState(0);
-	const [showShare, setShowShare] = useState(false);
-	const [copied, setCopied] = useState(false);
 	const [lightboxOpen, setLightboxOpen] = useState(false);
-	const shareRef = useRef<HTMLDivElement>(null);
 	const thumbStripRef = useRef<HTMLDivElement>(null);
 	const thumbRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const [canScrollThumbsPrev, setCanScrollThumbsPrev] = useState(false);
 	const [canScrollThumbsNext, setCanScrollThumbsNext] = useState(false);
-	const { toggle, isWishlisted } = useWishlist();
-	const wishlisted = isWishlisted(wishlistItem.variantId);
 	const t = PDP_COPY[getLocaleFromPathname(useLocation().pathname)];
-
-	// Close the share dropdown on outside click
-	useEffect(() => {
-		if (!showShare) return;
-		const onClickOutside = (e: MouseEvent) => {
-			if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-				setShowShare(false);
-			}
-		};
-		document.addEventListener("mousedown", onClickOutside);
-		return () => document.removeEventListener("mousedown", onClickOutside);
-	}, [showShare]);
 
 	// Merge: variant images first, then product images (dedup by url)
 	const combined = [...variantImages, ...images].filter((src, i, arr) => arr.indexOf(src) === i);
@@ -607,48 +638,6 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 		thumbRefs.current.get(currentIdx)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
 	}, [currentIdx]);
 
-	const handleCopy = () => {
-		if (typeof navigator !== "undefined") {
-			navigator.clipboard.writeText(shareUrl).then(() => {
-				setCopied(true);
-				setTimeout(() => setCopied(false), 2000);
-			});
-		}
-	};
-
-	const shareLinks = [
-		{
-			label: "WhatsApp",
-			href: `https://wa.me/?text=${encodeURIComponent(shareUrl)}`,
-			color: "text-green-600 hover:bg-green-50",
-			icon: (
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
-					<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-				</svg>
-			),
-		},
-		{
-			label: "Facebook",
-			href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-			color: "text-blue-600 hover:bg-blue-50",
-			icon: (
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
-					<path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-				</svg>
-			),
-		},
-		{
-			label: "X (Twitter)",
-			href: `https://x.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(name)}`,
-			color: "text-gray-900 hover:bg-gray-50",
-			icon: (
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
-					<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-				</svg>
-			),
-		},
-	];
-
 	return (
 		<div className="flex flex-col gap-3">
 			{/* Outer relative wrapper so action buttons sit outside the overflow-hidden image box */}
@@ -675,38 +664,16 @@ function Gallery({ images, variantImages, vendureBase, name, shareUrl, wishlistI
 					)}
 				</div>
 
-				{/* Action buttons — outside overflow-hidden so the share dropdown can overflow */}
-				<div className="absolute top-3 end-3 flex flex-col gap-2 z-10">
-					{resolved.length > 0 && (
+				{/* Action buttons — outside overflow-hidden so it never gets clipped.
+				    Wishlist/Share used to live here, moved below the Add to Cart button
+				    (see the main product page component) to match the reference layout. */}
+				{resolved.length > 0 && (
+					<div className="absolute top-3 end-3 z-10">
 						<button onClick={() => setLightboxOpen(true)} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center text-gray-600 hover:text-primary transition-colors" aria-label={t.viewFullScreen}>
 							<Maximize2 size={15} />
 						</button>
-					)}
-					<button onClick={() => toggle(wishlistItem)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${wishlisted ? "bg-white text-red-500" : "bg-white/90 text-gray-400 hover:text-red-500"}`} aria-label={wishlisted ? t.removeFromWishlist : t.addToWishlist}>
-						<Heart size={15} fill={wishlisted ? "currentColor" : "none"} />
-					</button>
-					<div className="relative" ref={shareRef}>
-						<button onClick={() => setShowShare((s) => !s)} className={`w-9 h-9 rounded-full backdrop-blur-sm shadow-sm flex items-center justify-center transition-colors ${showShare ? "bg-white text-primary" : "bg-white/90 text-gray-600 hover:text-primary"}`} aria-label={t.share}>
-							<Share2 size={15} />
-						</button>
-
-						{/* Share dropdown — absolute from the button, so it never widens the parent */}
-						{showShare && (
-							<div className="absolute end-0 top-full mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-20">
-								{shareLinks.map((link) => (
-									<a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setShowShare(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}>
-										{link.icon}
-										{link.label}
-									</a>
-								))}
-								<button onClick={handleCopy} className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100">
-									<Link2 size={15} className="flex-shrink-0" />
-									{copied ? t.copied : t.copyLink}
-								</button>
-							</div>
-						)}
 					</div>
-				</div>
+				)}
 			</div>
 
 			{/* Thumbnail strip */}
@@ -921,6 +888,26 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const [cartFeedback, setCartFeedback] = useState<"idle" | "success" | "error">("idle");
 	const cartFetcher = useFetcher<AddToCartResult & { error?: string }>();
 	const { openCart, setCartCount } = useCart();
+	const { toggle, isWishlisted } = useWishlist();
+	const [showShare, setShowShare] = useState(false);
+	const [copied, setCopied] = useState(false);
+	const shareRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (!showShare) return;
+		const onClickOutside = (e: MouseEvent) => {
+			if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShowShare(false);
+		};
+		document.addEventListener("mousedown", onClickOutside);
+		return () => document.removeEventListener("mousedown", onClickOutside);
+	}, [showShare]);
+	const handleCopy = () => {
+		if (typeof navigator !== "undefined") {
+			navigator.clipboard.writeText(canonicalUrl).then(() => {
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			});
+		}
+	};
 	const { notify } = useNotification();
 	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
 
@@ -1010,8 +997,12 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			.then((r): Promise<{ items: BannerItem[] } | null> => (r.ok ? r.json() : Promise.resolve(null)))
 			.then((data) => {
 				if (cancelled) return;
-				const item = data?.items.find((i) => /\d/.test(i.title));
-				const amount = item?.title.match(/[\d,.]+/)?.[0];
+				// Was matching the FIRST banner item containing any digit at all -- which
+				// grabbed the "Call: +974 ..." pill's "974" instead of the free-delivery
+				// pill's real "QAR 99" threshold whenever the phone pill sorted first.
+				// Anchoring on "QAR <amount>" specifically targets the delivery pill.
+				const item = data?.items.find((i) => /QAR\s*[\d,.]+/i.test(i.title));
+				const amount = item?.title.match(/QAR\s*([\d,.]+)/i)?.[1];
 				if (amount) setFreeShippingThreshold(amount);
 			})
 			.catch(() => {});
@@ -1019,6 +1010,27 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			cancelled = true;
 		};
 	}, []);
+
+	// Shipping-info popover — was CSS-hover-only (group-hover), so it never opened
+	// on touch devices at all (no hover state, and the button had no onClick).
+	// Now also toggles on tap, closing on an outside click/tap or Escape.
+	const [shippingInfoOpen, setShippingInfoOpen] = useState(false);
+	const shippingInfoRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (!shippingInfoOpen) return;
+		function handleOutside(e: MouseEvent) {
+			if (shippingInfoRef.current && !shippingInfoRef.current.contains(e.target as Node)) setShippingInfoOpen(false);
+		}
+		function handleEscape(e: KeyboardEvent) {
+			if (e.key === "Escape") setShippingInfoOpen(false);
+		}
+		document.addEventListener("mousedown", handleOutside);
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("mousedown", handleOutside);
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [shippingInfoOpen]);
 
 	// Subscribe & Save — which plans (if any) this variant is eligible for.
 	// Empty array = variant isn't enrolled in any subscription plan on the backend.
@@ -1236,6 +1248,21 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		})),
 	};
 
+	// Wishlist + Share — used to live as floating icons over the gallery image;
+	// moved here (below the Add to Cart button) to match the reference layout.
+	const wishlistItem: WishlistItem = {
+		variantId: activeVariant?.id ?? "",
+		variantSlug: activeVariant?.customFields?.slug ?? null,
+		productSlug: product.slug,
+		name: product.name,
+		price: activeVariant?.price ?? 0,
+		currencyCode: activeVariant?.currencyCode ?? "QAR",
+		image: product.featuredAsset?.preview ?? "",
+		vendureBase,
+	};
+	const wishlisted = isWishlisted(wishlistItem.variantId);
+	const shareLinks = buildShareLinks(canonicalUrl, product.name);
+
 	return (
 		<>
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -1255,61 +1282,28 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
 							vendureBase={vendureBase}
 							name={product.name}
-							shareUrl={canonicalUrl}
-							wishlistItem={{
-								variantId: activeVariant?.id ?? "",
-								variantSlug: activeVariant?.customFields?.slug ?? null,
-								productSlug: product.slug,
-								name: product.name,
-								price: activeVariant?.price ?? 0,
-								currencyCode: activeVariant?.currencyCode ?? "QAR",
-								image: product.featuredAsset?.preview ?? "",
-								vendureBase,
-							}}
 						/>
 					</div>
 
 					{/* Detail column — 2/3 */}
 					<div className="flex flex-col">
 						{/* Title — full width */}
-						<div className="mb-4">
-							<h1 className="font-heading text-xl md:text-3xl font-extrabold text-black leading-snug">{activeVariantName || product.name}</h1>
-							{brand && (
-								<p className="text-sm text-gray-500">
-									{t.moreFrom} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
-								</p>
-							)}
-							{ratingSummary && ratingSummary.totalReviews > 0 && (
-								<div className="mt-1.5">
-									<RatingSummaryBadge summary={ratingSummary} pageSlug={pageSlug} />
-								</div>
-							)}
-						</div>
-
-						{/* Inner 2-col: [stock + options] | price card */}
+						{/* Inner 2-col: [title + stock + options] | price card */}
 						<div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 items-start">
-							{/* Left — Stock + Option selectors + Quality Promise */}
+							{/* Left — Title + Stock + Option selectors + Quality Promise */}
 							<div className="flex flex-col gap-4">
-								{/* Stock status */}
-								<div className="border-t border-b border-gray-200 py-2.5 flex items-center justify-between">
-									<div className="flex items-center gap-1.5">
-										{inStock ? (
-											<>
-												<CheckCircle size={15} className="text-green-500" />
-												<span className="text-xs font-medium text-green-600">{t.inStock}</span>
-											</>
+								{/* Title moved here (was a full-width bar above this grid) so the price
+								    card on the right isn't pushed down below it -- both columns now
+								    start at the same top edge. */}
+								<div>
+									<h1 className="font-heading text-lg md:text-2xl font-extrabold text-black leading-snug">{activeVariantName || product.name}</h1>
+									<div className="flex items-center justify-between gap-3">
+										{brand ? (
+											<p className="text-sm text-gray-500">
+												{t.moreFrom} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
+											</p>
 										) : (
-											<>
-												<XCircle size={15} className="text-red-400" />
-												<span className="text-xs font-medium text-red-500">{t.outOfStock}</span>
-											</>
-										)}
-									</div>
-									<div className="inline-flex gap-2">
-										{activeVariant?.sku && (
-											<span className="text-xs text-gray-400">
-												{t.sku}: {activeVariant.sku}
-											</span>
+											<span />
 										)}
 										{sold30Days > 0 && (
 											<span className="flex items-center gap-1.5 text-xs font-normal text-red-600">
@@ -1318,6 +1312,19 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											</span>
 										)}
 									</div>
+									{ratingSummary && ratingSummary.totalReviews > 0 ? (
+										<div className="mt-1.5">
+											<RatingSummaryBadge summary={ratingSummary} pageSlug={pageSlug} />
+										</div>
+									) : (
+										<div className="mt-1.5 flex items-center gap-1.5">
+											<Stars value={0} size={14} />
+											<span className="text-sm text-gray-500 font-medium">0 {t.reviewsCap}</span>
+											<Link to={`/products/${pageSlug}/reviews#write`} className="text-sm font-semibold text-primary hover:underline">
+												{t.writeAReview}
+											</Link>
+										</div>
+									)}
 								</div>
 								{optionGroups.map((group) => {
 									const showPrice = groupHasPriceVariation(product.variants, selected, group.code, group.values);
@@ -1371,7 +1378,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								{/* Desktop/tablet only here — on mobile this section moves below the Add to
 								    Cart box instead (see the collapsible copy just after the inner 2-col). */}
 								<div className="hidden md:block">
-									<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} />
+									<ProductHighlights highlights={activeVariant?.highlights ?? []} />
 								</div>
 								{/* Product-level additional info */}
 								{additionalInfo && <div className="prose prose-sm max-w-none text-gray-600 border-t border-gray-100 pt-4" dangerouslySetInnerHTML={{ __html: additionalInfo }} />}
@@ -1394,12 +1401,34 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 							{/* Right — Price card (sticky) */}
 							<div className="md:sticky md:top-6">
 								<div className="relative bg-white border border-gray-300 rounded-2xl p-5 flex flex-col gap-4">
+									{/* Stock status + SKU */}
+									<div className="flex items-center justify-between pb-3 border-b border-gray-100">
+										<div className="flex items-center gap-1.5">
+											{inStock ? (
+												<>
+													<CheckCircle size={15} className="text-green-500" />
+													<span className="text-xs font-medium text-green-600">{t.inStock}</span>
+												</>
+											) : (
+												<>
+													<XCircle size={15} className="text-red-400" />
+													<span className="text-xs font-medium text-red-500">{t.outOfStock}</span>
+												</>
+											)}
+										</div>
+										{activeVariant?.sku && (
+											<span className="text-xs text-gray-400">
+												{t.sku}: {activeVariant.sku}
+											</span>
+										)}
+									</div>
+
 									{/* Price — hidden when Subscribe & Save is available, since that box
 									    already shows its own (crossed-out / discounted) price breakdown */}
 									{subscriptionPlans.length === 0 && (
 										<div>
 											<div className="text-2xl font-black text-black">{price !== null ? formatCurrency(price, activeVariant?.currencyCode ?? "QAR", locale) : "-"}</div>
-											{pricePerServing !== null && <div className="text-xs text-gray-400 mt-0.5">{t.perServing(formatCurrency(pricePerServing, activeVariant?.currencyCode ?? "QAR", locale))}</div>}
+											{pricePerServing !== null && <div className="text-xs text-gray-500 mt-0.5">{t.perServing(formatCurrency(pricePerServing, activeVariant?.currencyCode ?? "QAR", locale))}</div>}
 											{hasDiscount && rrp !== null && (
 												<div className="flex items-center gap-2 mt-1 flex-wrap">
 													<span className="text-sm text-gray-400 line-through">{formatCurrency(rrp, activeVariant?.currencyCode ?? "QAR", locale)}</span>
@@ -1473,13 +1502,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												</button>
 											</div>
 
-											<div className="relative group">
-												<button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors cursor-default">
+											<div className="relative group" ref={shippingInfoRef}>
+												<button
+													type="button"
+													onClick={() => setShippingInfoOpen((v) => !v)}
+													aria-expanded={shippingInfoOpen}
+													className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors"
+												>
 													<Truck size={15} />
 													{t.shippingInfo}
 													<Info size={13} className="text-gray-400" />
 												</button>
-												<div className="absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-20">
+												<div
+													className={`absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed transition-all duration-200 z-20 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 ${
+														shippingInfoOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible translate-y-1"
+													}`}
+												>
 													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR {freeShippingThreshold ?? "150"}</span>
 													{isExpressDelivery ? t.shippingInfoSuffixExpress : t.shippingInfoSuffixStandard}
 												</div>
@@ -1513,6 +1551,34 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											</span>
 										)}
 									</div>
+
+									{/* Wishlist + Share — moved here from the gallery's floating icons */}
+									<div className="flex items-center justify-between gap-6">
+										<button onClick={() => toggle(wishlistItem)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-500 transition-colors">
+											<Heart size={16} fill={wishlisted ? "currentColor" : "none"} className={wishlisted ? "text-red-500" : ""} />
+											{wishlisted ? t.removeFromWishlist : t.addToWishlist}
+										</button>
+										<div className="relative" ref={shareRef}>
+											<button onClick={() => setShowShare((s) => !s)} className={`flex items-center gap-1.5 text-sm transition-colors ${showShare ? "text-primary" : "text-gray-600 hover:text-primary"}`}>
+												<Share2 size={16} />
+												{t.share}
+											</button>
+											{showShare && (
+												<div className="absolute start-1/2 -translate-x-1/2 top-full mt-2 w-36 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-20">
+													{shareLinks.map((link) => (
+														<a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setShowShare(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${link.color}`}>
+															{link.icon}
+															{link.label}
+														</a>
+													))}
+													<button onClick={handleCopy} className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 w-full transition-colors border-t border-gray-100">
+														<Link2 size={15} className="flex-shrink-0" />
+														{copied ? t.copied : t.copyLink}
+													</button>
+												</div>
+											)}
+										</div>
+									</div>
 								</div>
 								{/* Bundle offers */}
 								<ProductBundleOffers productId={product.id} triggerVariantId={activeVariant?.id ?? ""} triggerVariantPrice={activeVariant?.priceWithTax || activeVariant?.price || 0} triggerImage={activeVariant?.featuredAsset?.preview || product.featuredAsset?.preview} placement="below" vendureBase={vendureBase} />
@@ -1526,17 +1592,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 								</a> */}
 
 								{/* Trust badges */}
-								<ul className="space-y-1.5 mt-3">
-									{t.trustBadges(isExpressDelivery).map((item, i) => {
+								<div className="grid grid-cols-2 gap-x-3 gap-y-3 mt-3 p-4 bg-white/50 border border-gray-200 rounded-2xl">
+									{t.trustBadges(isExpressDelivery, freeShippingThreshold ?? "150").map((badge, i) => {
 										const Icon = TRUST_BADGE_ICONS[i];
 										return (
-											<li key={item} className="flex items-center gap-2 text-xs text-gray-500">
-												<Icon size={14} className="text-primary flex-shrink-0" />
-												{item}
-											</li>
+											<div key={badge.title} className={`flex items-start gap-2.5 ${i < 2 ? "pb-3 border-b border-gray-100" : ""}`}>
+												<div className="w-8 h-8 rounded-full bg-[#3b8578]/10 flex items-center justify-center flex-shrink-0">
+													<Icon size={16} className="text-[#3b8578]" />
+												</div>
+												<div className="min-w-0 pt-1">
+													<div className="text-xs font-semibold text-gray-800 leading-tight">{badge.title}</div>
+													<div className="text-[11px] text-gray-500 leading-tight mt-0.5">{badge.subtitle}</div>
+												</div>
+											</div>
 										);
 									})}
-								</ul>
+								</div>
 							</div>
 						</div>
 						{/* end inner 2-col */}

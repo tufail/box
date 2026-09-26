@@ -11,10 +11,6 @@ import { useState, useRef, useEffect } from "react";
 // one ladder.
 export type ImagePreset = "tiny" | "thumb" | "small" | "medium" | "large" | "xlarge";
 
-// "blur" is a separate, dedicated preset for blur-up placeholders (20×20 crop)
-// — distinct from "tiny" (50×50) — so it's not part of the size ladder.
-type AnyPreset = ImagePreset | "blur";
-
 interface Rung {
   max: number;
   preset: ImagePreset;
@@ -72,7 +68,7 @@ function isVendureAssetPath(url: string): boolean {
 export function vendureImageUrl(
   src: string,
   vendureBase: string,
-  opts: { preset: AnyPreset; format?: "webp" | "jpg" | "png" }
+  opts: { preset: ImagePreset; format?: "webp" | "jpg" | "png" }
 ): string {
   const base = vendureBase.replace(/\/shop-api\/?$/, "");
   const resolved = src.startsWith("http") ? src : `${base}${normalizeAssetPath(src)}`;
@@ -145,7 +141,13 @@ export default function VendureImage({
 
   // No blur placeholder for eager images — they should be visible immediately,
   // and the extra request would compete with the LCP image itself.
-  const blurSrc = !eager && isVendure ? vendureImageUrl(src, vendureBase, { preset: "blur", format: "webp" }) : null;
+  // Reuses "tiny" (50x50 crop) rather than a dedicated "blur" preset -- "blur"
+  // isn't in the asset server's registered preset list (verified against
+  // Vendure's own AssetServerPlugin source: stock presets are only tiny/thumb/
+  // small/medium/large), and an unmatched preset name is silently ignored with
+  // no fallback width/height, not an error -- so it was never reliably producing
+  // a small placeholder image in the first place.
+  const blurSrc = !eager && isVendure ? vendureImageUrl(src, vendureBase, { preset: "tiny", format: "webp" }) : null;
 
   return (
     <div className={`relative w-full h-full ${className}`}>
