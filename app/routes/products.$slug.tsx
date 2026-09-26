@@ -68,7 +68,7 @@ const PDP_COPY = {
 		productRankings: "Product rankings:",
 		rankIn: (rank: number) => `#${rank} in`,
 		shippingInfo: "Shipping Info",
-		shippingInfoPrefix: "Free shipping on orders over",
+		shippingInfoPrefix: "Free shipping in Doha on orders over",
 		shippingInfoSuffixExpress: ". Quick delivery within 2 hours to same day.",
 		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2-6 business days.",
 		decrease: "Decrease",
@@ -82,12 +82,7 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/serving`,
 		moreFrom: "More from",
 		whatsappEnquiry: "WhatsApp Enquiry",
-		trustBadges: (express: boolean, freeShippingAmount: string) => [
-			{ title: "Free Delivery in Doha", subtitle: `Orders over QAR ${freeShippingAmount}` },
-			express ? { title: "Same day delivery", subtitle: "Within 2 hours" } : { title: "Standard delivery", subtitle: "2-6 business days" },
-			{ title: "Secure payment", subtitle: "Cards & COD" },
-			{ title: "Easy returns", subtitle: "Within 48 hours" },
-		],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "Free Delivery in Doha", subtitle: `Orders over QAR ${freeShippingAmount}` }, express ? { title: "Same day delivery", subtitle: "Within 2 hours" } : { title: "Standard delivery", subtitle: "2-6 business days" }, { title: "Secure payment", subtitle: "Cards & COD" }, { title: "Easy returns", subtitle: "Within 48 hours" }],
 		productVideo: "Product Video",
 		youMay: "You May",
 		alsoLike: "also like",
@@ -150,7 +145,7 @@ const PDP_COPY = {
 		productRankings: "تصنيفات المنتج:",
 		rankIn: (rank: number) => `#${rank} في`,
 		shippingInfo: "معلومات الشحن",
-		shippingInfoPrefix: "شحن مجاني للطلبات فوق",
+		shippingInfoPrefix: "شحن مجاني في الدوحة للطلبات فوق",
 		shippingInfoSuffixExpress: ". توصيل سريع من ساعتين إلى نفس اليوم.",
 		shippingInfoSuffixStandard: ". التوصيل القياسي داخل قطر خلال 2-6 أيام عمل.",
 		decrease: "إنقاص",
@@ -164,12 +159,7 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/حصة`,
 		moreFrom: "المزيد من",
 		whatsappEnquiry: "استفسار عبر واتساب",
-		trustBadges: (express: boolean, freeShippingAmount: string) => [
-			{ title: "توصيل مجاني في الدوحة", subtitle: `طلبات فوق QAR ${freeShippingAmount}` },
-			express ? { title: "توصيل في نفس اليوم", subtitle: "خلال ساعتين" } : { title: "توصيل قياسي", subtitle: "2-6 أيام عمل" },
-			{ title: "دفع آمن", subtitle: "بطاقات أو عند الاستلام" },
-			{ title: "إرجاع سهل", subtitle: "خلال 48 ساعة" },
-		],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "توصيل مجاني في الدوحة", subtitle: `طلبات فوق QAR ${freeShippingAmount}` }, express ? { title: "توصيل في نفس اليوم", subtitle: "خلال ساعتين" } : { title: "توصيل قياسي", subtitle: "2-6 أيام عمل" }, { title: "دفع آمن", subtitle: "بطاقات أو عند الاستلام" }, { title: "إرجاع سهل", subtitle: "خلال 48 ساعة" }],
 		productVideo: "فيديو المنتج",
 		youMay: "قد",
 		alsoLike: "يعجبك أيضًا",
@@ -390,16 +380,7 @@ function PlanFrequencySelect({ plans, value, onChange, disabled, locale, recomme
 
 	return (
 		<div ref={ref} className="relative">
-			<button
-				ref={triggerRef}
-				type="button"
-				disabled={disabled}
-				onClick={() => setOpen((o) => !o)}
-				onKeyDown={onTriggerKeyDown}
-				aria-haspopup="listbox"
-				aria-expanded={open}
-				className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-			>
+			<button ref={triggerRef} type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} onKeyDown={onTriggerKeyDown} aria-haspopup="listbox" aria-expanded={open} className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
 				<span>{current ? optionLabel(current, currentIndex < 0 ? 0 : currentIndex) : ""}</span>
 				<ChevronDown size={14} className={`text-gray-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
 			</button>
@@ -444,10 +425,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// shared across every variant with no per-variant equivalent in admin, so using it here
 	// would put the same description on every one of a product's distinct variant URLs, and
 	// it reads poorly as SERP copy anyway (written for the page body, not a search snippet).
-	const description =
-		locale === "ar"
-			? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.`
-			: `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
+	const description = locale === "ar" ? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.` : `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
@@ -853,13 +831,7 @@ function ProductInfoTabs({ description, warnings, productId, productSlug, initia
 			    render at all) never saw any Q&A content, ever. */}
 			{TABS.map((tab) => (
 				<div key={tab.key} hidden={tab.key !== active} className={tab.key === "qa" ? "w-full max-w-2xl mx-auto text-start" : "prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1"}>
-					{tab.key === "qa" ? (
-						<ProductQA productId={productId} productSlug={productSlug} initialQuestions={initialQuestions} initialTotalItems={initialQuestionsTotal} embedded />
-					) : tab.content ? (
-						<div dangerouslySetInnerHTML={{ __html: tab.content }} />
-					) : (
-						<p className="text-gray-400 italic text-center">{tab.emptyText}</p>
-					)}
+					{tab.key === "qa" ? <ProductQA productId={productId} productSlug={productSlug} initialQuestions={initialQuestions} initialTotalItems={initialQuestionsTotal} embedded /> : tab.content ? <div dangerouslySetInnerHTML={{ __html: tab.content }} /> : <p className="text-gray-400 italic text-center">{tab.emptyText}</p>}
 				</div>
 			))}
 		</div>
@@ -934,7 +906,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ productId: product.id }),
-		}).catch(() => {/* non-critical */});
+		}).catch(() => {
+			/* non-critical */
+		});
 	}, [product.id]);
 
 	const activeVariant = optionGroups.length > 0 ? findVariant(product.variants, selected) : (product.variants[0] ?? null);
@@ -1277,12 +1251,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-8 items-start">
 					{/* Image column — 1/3 */}
 					<div className="lg:sticky lg:top-[116px] self-start min-w-0">
-						<Gallery
-							images={allImages}
-							variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]}
-							vendureBase={vendureBase}
-							name={product.name}
-						/>
+						<Gallery images={allImages} variantImages={[...(activeVariant?.featuredAsset ? [activeVariant.featuredAsset.preview] : []), ...(activeVariant?.assets?.map((a: { preview: string }) => a.preview) ?? [])]} vendureBase={vendureBase} name={product.name} />
 					</div>
 
 					{/* Detail column — 2/3 */}
@@ -1300,7 +1269,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 									<div className="flex items-center justify-between gap-3">
 										{brand ? (
 											<p className="text-sm text-gray-500">
-												{t.moreFrom} <Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">{brand}</Link>
+												{t.moreFrom}{" "}
+												<Link to={`/brands/${brandFacetValue!.code}`} className="text-blue-600 font-medium hover:underline">
+													{brand}
+												</Link>
 											</p>
 										) : (
 											<span />
@@ -1447,11 +1419,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 												<div className="flex flex-col gap-3">
 													<div onClick={() => setPurchaseType("subscribe")} className={`relative cursor-pointer rounded-xl border p-4 transition-colors duration-150 ${purchaseType === "subscribe" ? "border-primary ring-1 ring-lime-400" : "border-gray-300"}`}>
-														{price !== null && subscribePrice !== null && (
-															<span className="absolute -top-3 end-4 bg-lime-300 text-black text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-																{t.saveAmount(formatCurrency(price - subscribePrice, activeVariant?.currencyCode ?? "QAR", locale))}
-															</span>
-														)}
+														{price !== null && subscribePrice !== null && <span className="absolute -top-3 end-4 bg-lime-300 text-black text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">{t.saveAmount(formatCurrency(price - subscribePrice, activeVariant?.currencyCode ?? "QAR", locale))}</span>}
 														<div className="flex items-start gap-3">
 															<div className="mt-1 shrink-0 flex items-center justify-center w-5 h-5 rounded-full border border-gray-400 bg-white">{purchaseType === "subscribe" && <div className="w-3 h-3 rounded-full bg-lime-500" />}</div>
 
@@ -1503,21 +1471,12 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 											</div>
 
 											<div className="relative group" ref={shippingInfoRef}>
-												<button
-													type="button"
-													onClick={() => setShippingInfoOpen((v) => !v)}
-													aria-expanded={shippingInfoOpen}
-													className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors"
-												>
+												<button type="button" onClick={() => setShippingInfoOpen((v) => !v)} aria-expanded={shippingInfoOpen} className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors">
 													<Truck size={15} />
 													{t.shippingInfo}
 													<Info size={13} className="text-gray-400" />
 												</button>
-												<div
-													className={`absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed transition-all duration-200 z-20 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 ${
-														shippingInfoOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible translate-y-1"
-													}`}
-												>
+												<div className={`absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed transition-all duration-200 z-20 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 ${shippingInfoOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible translate-y-1"}`}>
 													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR {freeShippingThreshold ?? "150"}</span>
 													{isExpressDelivery ? t.shippingInfoSuffixExpress : t.shippingInfoSuffixStandard}
 												</div>
@@ -1543,10 +1502,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										) : null}
 
 										{isExpressDelivery && (
-											<span
-												className="absolute top-0 start-4 -translate-y-1/2 z-10 bg-yellow-400 text-black text-[9px] font-extrabold italic lowercase tracking-wide ps-2.5 pe-4 py-0.5 rounded-s-sm"
-												style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 0 100%)" }}
-											>
+											<span className="absolute top-0 start-4 -translate-y-1/2 z-10 bg-yellow-400 text-black text-[9px] font-extrabold italic lowercase tracking-wide ps-2.5 pe-4 py-0.5 rounded-s-sm" style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, 0 100%)" }}>
 												{t.quickDelivery}
 											</span>
 										)}
