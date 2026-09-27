@@ -97,7 +97,7 @@ const CHECKOUT_COPY = {
 		backToCustomerInformation: "← Back to Customer Information",
 		addressLabel: "Address (Villa, Flat, Building & Block, etc.)",
 		street: "Street",
-		zone: "Area",
+		zone: "Area / Zone",
 		selectZone: "Select your area...",
 		savedAddresses: "Choose a delivery address",
 		addNewAddress: "+ Add a new address",
@@ -197,7 +197,7 @@ const CHECKOUT_COPY = {
 		backToCustomerInformation: "← الرجوع إلى معلومات العميل",
 		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
 		street: "الشارع",
-		zone: "المنطقة",
+		zone: "المنطقة / النطاق",
 		selectZone: "اختر منطقتك...",
 		savedAddresses: "اختر عنوان التوصيل",
 		addNewAddress: "+ إضافة عنوان جديد",
@@ -296,12 +296,12 @@ function resolveImg(preview: string, base: string) {
 	return preview.startsWith("http") ? preview : `${base}${preview}`;
 }
 
-// Same-day delivery cuts off at 10pm Doha time (Qatar is a fixed UTC+3, no DST) — placing
+// Same-day delivery cuts off at 9pm Doha time (Qatar is a fixed UTC+3, no DST) — placing
 // the order before that still lands today; any later and it's no longer guaranteed, so the
 // wider Today–Tomorrow range is shown instead.
 function estimatedDeliveryLabel(t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY]): string {
 	const dohaHour = new Date(Date.now() + 3 * 60 * 60 * 1000).getUTCHours();
-	return dohaHour < 22 ? t.estimatedDeliveryToday : t.estimatedDeliveryRange;
+	return dohaHour < 21 ? t.estimatedDeliveryToday : t.estimatedDeliveryRange;
 }
 
 // Maps an order shipping address or a customer address-book entry to the Shipping step's
