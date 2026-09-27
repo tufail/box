@@ -1135,6 +1135,50 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		returnMethod: "https://schema.org/ReturnByMail",
 	};
 
+	// Shipping is priced per delivery zone (postalCode on the address = the Qatar
+	// zone number), not a single flat rate — matches the live pricing set on the
+	// qatar-shipping backend plugin. Represented as one OfferShippingDetails entry
+	// per price tier so the schema states real costs instead of picking one number
+	// that would misstate it for most of the country either way.
+	//
+	// Each tier node carries its own "@id" and is emitted exactly once, as a sibling
+	// of Product in the "@graph" below — every offer's shippingDetails just holds
+	// tiny { "@id": ... } refs to those shared nodes instead of re-embedding the full
+	// ~3KB block per variant (see 64aca7a, which dropped the field entirely rather
+	// than fix the duplication; this "@id"-ref pattern is Google's own documented
+	// fix for exactly this kind of repeated sub-entity in Product structured data).
+	type ZoneSpec = number | { from: number; to: number };
+	const SHIPPING_TIERS: { rateQAR: string; zones: ZoneSpec[] }[] = [
+		{ rateQAR: "0", zones: [{ from: 1, to: 70 }] },
+		{ rateQAR: "29", zones: [{ from: 71, to: 75 }] },
+		{ rateQAR: "18", zones: [{ from: 90, to: 91 }] },
+		{ rateQAR: "40", zones: [83, 84, 86, { from: 92, to: 96 }] },
+		// Zone 0 = areas with no official zone number assigned (still priceable,
+		// see qatar-areas.ts) — falls into the same catch-all rate as the rest.
+		{ rateQAR: "49", zones: [0, { from: 76, to: 82 }, 85, { from: 87, to: 89 }, { from: 97, to: 98 }] },
+	];
+	function regionForZone(zone: ZoneSpec) {
+		return typeof zone === "number"
+			? { "@type": "DefinedRegion", addressCountry: "QA", postalCode: String(zone) }
+			: { "@type": "DefinedRegion", addressCountry: "QA", postalCodeRange: { "@type": "PostalCodeRangeSpecification", postalCodeBegin: String(zone.from), postalCodeEnd: String(zone.to) } };
+	}
+	// Same-day handling, arrives same day to next day at the latest (matches the
+	// site's actual express-delivery positioning — "Today – Tomorrow in Doha" on
+	// checkout/PDP — not a generic multi-day transit estimate).
+	const deliveryTime = {
+		"@type": "ShippingDeliveryTime",
+		handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 0, unitCode: "DAY" },
+		transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+	};
+	const shippingDetailsNodes = SHIPPING_TIERS.map((tier, i) => ({
+		"@type": "OfferShippingDetails",
+		"@id": `${canonicalUrl}#shipping-tier-${i}`,
+		shippingDestination: tier.zones.length === 1 ? regionForZone(tier.zones[0]) : tier.zones.map(regionForZone),
+		shippingRate: { "@type": "MonetaryAmount", value: tier.rateQAR, currency: "QAR" },
+		deliveryTime,
+	}));
+	const shippingDetailsRefs = shippingDetailsNodes.map((n) => ({ "@id": n["@id"] }));
+
 	function offerFor(v: ProductDetailVariant) {
 		return {
 			"@type": "Offer",
@@ -1145,6 +1189,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
 			itemCondition: "https://schema.org/NewCondition",
 			seller,
+			shippingDetails: shippingDetailsRefs,
 			hasMerchantReturnPolicy,
 		};
 	}
@@ -1174,8 +1219,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	// up without one.
 	const jsonLdImagePreview = product.featuredAsset?.preview || activeVariant?.featuredAsset?.preview || product.assets[0]?.preview || null;
 
-	const jsonLd = {
-		"@context": "https://schema.org",
+	const productJsonLd = {
 		"@type": "Product",
 		name: jsonLdName,
 		description: jsonLdDescription,
@@ -1206,6 +1250,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			})),
 		}),
 		offers: isVariantPage && activeVariant ? offerFor(activeVariant) : product.variants.map(offerFor),
+	};
+
+	// "@graph" carries the shared shipping-tier nodes alongside Product as peer
+	// entries in the same JSON-LD document — that's what makes the "@id" refs
+	// inside each offer's shippingDetails (above) resolvable at all.
+	const jsonLd = {
+		"@context": "https://schema.org",
+		"@graph": [productJsonLd, ...shippingDetailsNodes],
 	};
 
 	// Breadcrumb trail as structured data too, for the same rich-result/AI-context

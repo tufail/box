@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 export interface AreaOption {
 	id: string;
@@ -8,10 +8,14 @@ export interface AreaOption {
 	nameAr: string;
 }
 
-function labelFor(area: AreaOption, locale: "en" | "ar") {
-	const name = locale === "ar" ? area.nameAr : area.nameEn;
-	return locale === "ar" ? `المنطقة ${area.zoneNumber} - ${name}` : `Zone ${area.zoneNumber} - ${name}`;
+// Always both scripts together ("38 Al Sadd/السد"), regardless of UI locale — area
+// names in Qatar get referenced in either language interchangeably, so showing just
+// one made the other half of customers re-read the number to double check.
+function labelFor(area: AreaOption) {
+	return `${area.zoneNumber} - ${area.nameEn}/${area.nameAr}`;
 }
+
+const clearLabel = { en: "Clear selected area", ar: "مسح المنطقة المحددة" };
 
 // A zone number alone doesn't identify which named area was picked (one zone covers
 // several) — this is only ever a display fallback for a value that arrived from outside
@@ -57,7 +61,19 @@ export default function AreaSelect({
 	required?: boolean;
 	inputClassName: string;
 }) {
-	const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.nameEn.localeCompare(b.nameEn)), [areas]);
+	// Ascending by zone number (1, 2, 3, …) — zone 0 (areas with no official zone
+	// assigned, see qatar-areas.ts) is a catch-all, not really "before zone 1", so it's
+	// pinned to the end instead of sorting first the way a plain numeric sort would.
+	const sortedAreas = useMemo(
+		() =>
+			[...areas].sort((a, b) => {
+				if (a.zoneNumber === 0 && b.zoneNumber !== 0) return 1;
+				if (b.zoneNumber === 0 && a.zoneNumber !== 0) return -1;
+				if (a.zoneNumber !== b.zoneNumber) return a.zoneNumber - b.zoneNumber;
+				return a.nameEn.localeCompare(b.nameEn);
+			}),
+		[areas]
+	);
 
 	const [open, setOpen] = useState(false);
 	// The exact area last confirmed (typed selection, or a best-effort guess for a value
@@ -71,7 +87,7 @@ export default function AreaSelect({
 		const byId = initialAreaId ? sortedAreas.find((a) => a.id === initialAreaId) : undefined;
 		return byId ?? bestEffortMatch(sortedAreas, value);
 	});
-	const committedLabel = committed ? labelFor(committed, locale) : "";
+	const committedLabel = committed ? labelFor(committed) : "";
 	const [query, setQuery] = useState(committedLabel);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const ref = useRef<HTMLDivElement>(null);
@@ -86,11 +102,11 @@ export default function AreaSelect({
 		committedValueRef.current = value;
 		const area = bestEffortMatch(sortedAreas, value);
 		setCommitted(area);
-		if (!open) setQuery(area ? labelFor(area, locale) : "");
+		if (!open) setQuery(area ? labelFor(area) : "");
 		// `open` is intentionally excluded — this effect only reacts to an outside change
 		// to `value`, not to the dropdown's own open/close state.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [value, locale, sortedAreas]);
+	}, [value, sortedAreas]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -118,9 +134,19 @@ export default function AreaSelect({
 		const zoneNumber = `${area.zoneNumber}`;
 		committedValueRef.current = zoneNumber;
 		setCommitted(area);
-		setQuery(labelFor(area, locale));
+		setQuery(labelFor(area));
 		setOpen(false);
 		onChange(zoneNumber, locale === "ar" ? area.nameAr : area.nameEn, area.id);
+	}
+
+	// Lets a committed selection be deleted and a different one picked, rather than
+	// only being able to overwrite it by typing over the auto-selected text on focus.
+	function clear() {
+		committedValueRef.current = "";
+		setCommitted(null);
+		setQuery("");
+		setOpen(true);
+		onChange("", "", "");
 	}
 
 	function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -173,8 +199,23 @@ export default function AreaSelect({
 					setQuery(committedLabel);
 				}}
 				onKeyDown={onKeyDown}
-				className={`${inputClassName} pe-10`}
+				className={`${inputClassName} ${committed ? "pe-16" : "pe-10"}`}
 			/>
+			{committed && (
+				<button
+					type="button"
+					tabIndex={-1}
+					aria-label={clearLabel[locale]}
+					// Prevent-default here for the same reason as each option's onMouseDown
+					// below — without it, the input blurs (and resets query) before the
+					// click handler even runs.
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={clear}
+					className="absolute end-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+				>
+					<X size={14} />
+				</button>
+			)}
 			<ChevronDown size={16} className={`absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${open ? "rotate-180" : ""}`} />
 			{open && (
 				<ul id={`${id}-listbox`} role="listbox" aria-label={placeholder} className="absolute start-0 end-0 top-full mt-2 max-h-64 overflow-y-auto bg-white border border-gray-100 shadow-lg rounded-xl z-50 py-1">
@@ -193,7 +234,7 @@ export default function AreaSelect({
 							onClick={() => commit(area)}
 							className={`px-4 py-2 text-sm cursor-pointer ${i === activeIndex ? "bg-lime-50" : ""} ${area.id === committed?.id ? "font-semibold text-gray-900" : "text-gray-700"}`}
 						>
-							{labelFor(area, locale)}
+							{labelFor(area)}
 						</li>
 					))}
 				</ul>
