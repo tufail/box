@@ -6,7 +6,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { ACTIVE_ORDER_QUERY, type ActiveOrder, type ActiveOrderData, type OrderDiscount } from "~/graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer, type ShippingMethod, type PaymentMethod } from "~/graphql/checkout";
 import type { CustomerAddress } from "~/graphql/account";
-import { Check, ChevronDown, Truck, CreditCard, ShieldCheck, Package, Tag, X, Repeat, Store, MapPin, Banknote } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Truck, CreditCard, ShieldCheck, Package, Tag, X, Repeat, Store, MapPin, Banknote, UserRound, Minus, Plus, Leaf, HelpCircle, Lock, Mail, Eye, EyeOff, PartyPopper, Home, Phone, ShoppingBag, BadgeCheck, type LucideIcon } from "lucide-react";
 import CheckoutLayout from "~/layouts/CheckoutLayout";
 import SocialAuthButtons from "~/components/SocialAuthButtons";
 import { useCart } from "~/context/CartContext";
@@ -49,8 +49,11 @@ const CHECKOUT_COPY = {
 	en: {
 		continueShopping: "Continue Shopping",
 		customerInformation: "Customer Information",
+		customerInformationSubtitle: "Sign in or enter your email to continue",
 		shipping: "Shipping",
 		payment: "Payment",
+		paymentSubtitle: "Choose your payment method",
+		secureAndTrustedCheckout: "Secure & Trusted Checkout",
 		free: "Free",
 		processing: "Processing…",
 		byContinuing: "By continuing, I agree to the",
@@ -60,11 +63,19 @@ const CHECKOUT_COPY = {
 		emailMeOffers: "Stay up to date with exclusive offers and news. Unsubscribe anytime.",
 		forgotPassword: "Forgot password?",
 		or: "OR",
-		continueLabel: "Continue",
+		continueLabel: "Continue to Shipping",
 		emailAlreadyRegisteredNote: "This email already has an account. Enter your password to continue.",
+		welcomeBackTitle: "Welcome back! We found your account.",
+		welcomeBackSubtitle: "Please enter your password to continue.",
+		changeEmail: "Change",
+		passwordPlaceholder: "Enter your password",
+		showPassword: "Show password",
+		hidePassword: "Hide password",
 		useDifferentEmail: "Use a different email",
 		shipToAddress: "Ship to Address",
+		shipToAddressSubtitle: "Deliver to your location",
 		storePickup: "Store Pickup",
+		storePickupSubtitle: "Pick up from our store",
 		pickupFromStoreNote: "You'll collect your order from our store:",
 		pickupUnavailable: "Store pickup is currently unavailable for this order. Please choose Ship to Address.",
 		firstName: "First Name",
@@ -75,8 +86,16 @@ const CHECKOUT_COPY = {
 		loginFailed: "Login failed. Check your credentials.",
 		couldNotProceedAsGuest: "Could not proceed as guest.",
 		couldNotReopenOrder: "Could not reopen your order for editing. Please try again.",
-		loginAndContinue: "Login & Continue",
-		addressLabel: "Address (villa, flat, building & block, etc.)",
+		loginAndContinue: "Continue Securely",
+		shippingStepLabel: "Delivery Address",
+		shippingStepSubtitle: "Where should we deliver your order?",
+		firstNamePlaceholder: "Enter your first name",
+		lastNamePlaceholder: "Enter your last name",
+		addressPlaceholder: "E.g. Villa 12, Building 5, Block 3",
+		streetPlaceholder: "Street name (optional)",
+		saveAddressForFutureOrders: "Save this address for future orders",
+		backToCustomerInformation: "← Back to Customer Information",
+		addressLabel: "Address (Villa, Flat, Building & Block, etc.)",
 		street: "Street",
 		zone: "Area",
 		selectZone: "Select your area...",
@@ -115,12 +134,26 @@ const CHECKOUT_COPY = {
 		discount: "Discount",
 		subtotal: "Subtotal",
 		total: "Total",
+		calculatedAtNextStep: "Calculated at next step",
+		estimatedDelivery: "Estimated Delivery",
+		estimatedDeliveryToday: "Today",
+		estimatedDeliveryRange: "Today – Tomorrow in Doha",
+		trustAuthentic: "100% Authentic",
+		trustAuthenticSubtitle: "Genuine products only",
+		trustSecure: "Secure Payment",
+		trustSecureSubtitle: "Your data is protected",
+		trustFastDelivery: "Fast Delivery",
+		trustFastDeliverySubtitle: "Across Doha & Qatar",
+		orderSummaryTagline: "Premium Sports Nutrition, Vitamins, Supplements & beauty products in Qatar.",
 	},
 	ar: {
 		continueShopping: "متابعة التسوق",
 		customerInformation: "معلومات العميل",
+		customerInformationSubtitle: "سجّل الدخول أو أدخل بريدك الإلكتروني للمتابعة",
 		shipping: "الشحن",
 		payment: "الدفع",
+		paymentSubtitle: "اختر طريقة الدفع",
+		secureAndTrustedCheckout: "دفع آمن وموثوق",
 		free: "مجاني",
 		processing: "جارٍ المعالجة…",
 		byContinuing: "بالمتابعة، أوافق على",
@@ -130,11 +163,19 @@ const CHECKOUT_COPY = {
 		emailMeOffers: "ابق على اطلاع بأحدث العروض الحصرية والأخبار. يمكنك إلغاء الاشتراك في أي وقت.",
 		forgotPassword: "نسيت كلمة المرور؟",
 		or: "أو",
-		continueLabel: "متابعة",
+		continueLabel: "المتابعة إلى الشحن",
 		emailAlreadyRegisteredNote: "هذا البريد الإلكتروني مسجّل بحساب بالفعل. أدخل كلمة المرور للمتابعة.",
+		welcomeBackTitle: "أهلاً بعودتك! وجدنا حسابك.",
+		welcomeBackSubtitle: "يرجى إدخال كلمة المرور للمتابعة.",
+		changeEmail: "تغيير",
+		passwordPlaceholder: "أدخل كلمة المرور",
+		showPassword: "إظهار كلمة المرور",
+		hidePassword: "إخفاء كلمة المرور",
 		useDifferentEmail: "استخدام بريد إلكتروني مختلف",
 		shipToAddress: "التوصيل إلى عنوان",
+		shipToAddressSubtitle: "التوصيل إلى موقعك",
 		storePickup: "الاستلام من المتجر",
+		storePickupSubtitle: "استلم طلبك من متجرنا",
 		pickupFromStoreNote: "ستستلم طلبك من متجرنا:",
 		pickupUnavailable: "خدمة الاستلام من المتجر غير متاحة حاليًا لهذا الطلب. يرجى اختيار التوصيل إلى عنوان.",
 		firstName: "الاسم الأول",
@@ -145,7 +186,15 @@ const CHECKOUT_COPY = {
 		loginFailed: "فشل تسجيل الدخول. تحقق من بيانات الاعتماد الخاصة بك.",
 		couldNotProceedAsGuest: "تعذّرت المتابعة كزائر.",
 		couldNotReopenOrder: "تعذّر إعادة فتح طلبك للتعديل. يرجى المحاولة مرة أخرى.",
-		loginAndContinue: "تسجيل الدخول والمتابعة",
+		loginAndContinue: "المتابعة بأمان",
+		shippingStepLabel: "عنوان التوصيل",
+		shippingStepSubtitle: "أين يجب أن نوصل طلبك؟",
+		firstNamePlaceholder: "أدخل اسمك الأول",
+		lastNamePlaceholder: "أدخل اسم عائلتك",
+		addressPlaceholder: "مثال: فيلا 12، مبنى 5، بلوك 3",
+		streetPlaceholder: "اسم الشارع (اختياري)",
+		saveAddressForFutureOrders: "حفظ هذا العنوان للطلبات المستقبلية",
+		backToCustomerInformation: "← الرجوع إلى معلومات العميل",
 		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
 		street: "الشارع",
 		zone: "المنطقة",
@@ -185,6 +234,17 @@ const CHECKOUT_COPY = {
 		discount: "خصم",
 		subtotal: "المجموع الفرعي",
 		total: "الإجمالي",
+		calculatedAtNextStep: "يُحتسب في الخطوة التالية",
+		estimatedDelivery: "التوصيل المتوقع",
+		estimatedDeliveryToday: "اليوم",
+		estimatedDeliveryRange: "اليوم – غدًا في الدوحة",
+		trustAuthentic: "أصلي 100%",
+		trustAuthenticSubtitle: "منتجات أصلية فقط",
+		trustSecure: "دفع آمن",
+		trustSecureSubtitle: "بياناتك محمية",
+		trustFastDelivery: "توصيل سريع",
+		trustFastDeliverySubtitle: "في الدوحة وجميع أنحاء قطر",
+		orderSummaryTagline: "تغذية رياضية وفيتامينات ومكملات غذائية ومنتجات تجميل مميزة في قطر.",
 	},
 } as const;
 
@@ -234,6 +294,14 @@ function fmt(cents: number, currency: string, locale: Locale) {
 
 function resolveImg(preview: string, base: string) {
 	return preview.startsWith("http") ? preview : `${base}${preview}`;
+}
+
+// Same-day delivery cuts off at 10pm Doha time (Qatar is a fixed UTC+3, no DST) — placing
+// the order before that still lands today; any later and it's no longer guaranteed, so the
+// wider Today–Tomorrow range is shown instead.
+function estimatedDeliveryLabel(t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY]): string {
+	const dohaHour = new Date(Date.now() + 3 * 60 * 60 * 1000).getUTCHours();
+	return dohaHour < 22 ? t.estimatedDeliveryToday : t.estimatedDeliveryRange;
 }
 
 // Maps an order shipping address or a customer address-book entry to the Shipping step's
@@ -293,17 +361,40 @@ function deriveCheckoutState(order: ActiveOrder, activeCustomer: ActiveCustomer 
 
 // ── Step section (numbered header + collapsible content, one per step) ────────
 
-function StepSection({ num, label, active, completed, onNavigate, children }: { num: number; label: string; active: boolean; completed: boolean; onNavigate: () => void; children: React.ReactNode }) {
+function StepSection({
+	num,
+	label,
+	subtitle,
+	icon: Icon,
+	active,
+	completed,
+	onNavigate,
+	children,
+}: {
+	num: number;
+	label: string;
+	subtitle: string;
+	icon: React.ComponentType<{ size?: number; className?: string }>;
+	active: boolean;
+	completed: boolean;
+	onNavigate: () => void;
+	children: React.ReactNode;
+}) {
 	const clickable = completed && !active;
 	const dim = !active && !completed;
 	return (
-		<div className={`py-6 ${num > 1 ? "border-t border-gray-200" : ""}`}>
-			<button type="button" onClick={clickable ? onNavigate : undefined} className={`flex items-center gap-3 w-full text-start ${clickable ? "cursor-pointer" : "cursor-default"}`}>
-				<div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${dim ? "bg-gray-200 text-gray-500" : "bg-primary text-white"}`}>{num}</div>
-				<span className={`text-lg font-bold ${dim ? "text-gray-400" : "text-gray-900"}`}>{label}</span>
-				{!dim && <ChevronDown size={20} className={`ms-auto flex-shrink-0 text-gray-400 transition-transform ${active ? "rotate-180" : ""}`} />}
+		<div className={`bg-white rounded-2xl border shadow-sm p-5 sm:p-6 transition-colors ${active ? "border-primary/40" : "border-gray-100"}`}>
+			<button type="button" onClick={clickable ? onNavigate : undefined} className={`flex items-center gap-3.5 w-full text-start ${clickable ? "cursor-pointer" : "cursor-default"}`}>
+				<div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${dim ? "bg-gray-100" : "bg-primary/10"}`}>
+					<Icon size={18} className={dim ? "text-gray-400" : "text-primary"} />
+				</div>
+				<div className="flex-1 min-w-0">
+					<span className={`block text-lg font-bold ${dim ? "text-gray-400" : "text-gray-900"}`}>{label}</span>
+					<span className={`block text-sm ${dim ? "text-gray-300" : "text-gray-500"}`}>{subtitle}</span>
+				</div>
+				{!active && <ChevronRight size={18} className={`flex-shrink-0 rtl:rotate-180 ${dim ? "text-gray-300" : "text-gray-400"}`} />}
 			</button>
-			{active && <div className="mt-5 ps-10">{children}</div>}
+			{active && <div className="mt-5 ps-0 sm:ps-[52px]">{children}</div>}
 		</div>
 	);
 }
@@ -314,27 +405,65 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 	return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>;
 }
 
-function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2", defaultValue, readOnly }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string; defaultValue?: string; readOnly?: boolean }) {
+function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2", defaultValue, readOnly, icon: Icon }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string; defaultValue?: string; readOnly?: boolean; icon?: LucideIcon }) {
 	return (
 		<div className={className}>
 			<label htmlFor={`checkout-${name}`} className="block text-sm font-medium text-gray-700 mb-1">
 				{label}
 				{required && <span className="text-red-500 ms-1">*</span>}
 			</label>
-			<input
-				id={`checkout-${name}`}
-				name={name}
-				type={type}
-				required={required}
-				placeholder={placeholder}
-				defaultValue={defaultValue}
-				readOnly={readOnly}
-				className={`w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${readOnly ? "bg-gray-50 text-gray-500" : ""}`}
-			/>
+			<div className={Icon ? "relative flex items-center" : undefined}>
+				{Icon && <Icon size={16} className="absolute start-4 text-gray-400 pointer-events-none flex-shrink-0" />}
+				<input
+					id={`checkout-${name}`}
+					name={name}
+					type={type}
+					required={required}
+					placeholder={placeholder}
+					defaultValue={defaultValue}
+					readOnly={readOnly}
+					className={`w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${Icon ? "ps-9" : ""} ${readOnly ? "bg-gray-50 text-gray-500" : ""}`}
+				/>
+			</div>
 		</div>
 	);
 }
 
+// Qatar is the only market this checkout ships to (countryCode is hardcoded "QA"
+// throughout) -- the flag+code prefix is a fixed display, not a real country picker.
+const QATAR_COUNTRY_CODE = "+974";
+
+function PhoneField({ label, required, defaultValue, className = "sm:col-span-1", onFieldBlur }: { label: string; required?: boolean; defaultValue?: string; className?: string; onFieldBlur?: () => void }) {
+	const [local, setLocal] = useState(() => (defaultValue ? defaultValue.replace(QATAR_COUNTRY_CODE, "").trim() : ""));
+	const combined = local.trim() ? `${QATAR_COUNTRY_CODE} ${local.trim()}` : "";
+	return (
+		<div className={className}>
+			<label htmlFor="checkout-phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+				{label}
+				{required && <span className="text-red-500 ms-1">*</span>}
+			</label>
+			<div className="flex items-center border border-gray-300 rounded-full focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent">
+				<Phone size={16} className="ms-4 text-gray-400 flex-shrink-0 pointer-events-none" />
+				<div className="flex items-center gap-1.5 ps-2 pe-2 border-e border-gray-200 flex-shrink-0">
+					<span className="w-3.5 h-2.5 rounded-[2px] bg-[#8a1538] flex-shrink-0" aria-hidden="true" />
+					<span className="text-sm text-gray-700">{QATAR_COUNTRY_CODE}</span>
+					<ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
+				</div>
+				<input
+					id="checkout-phoneNumber"
+					type="tel"
+					required={required}
+					placeholder="XXXX XXXX"
+					value={local}
+					onChange={(e) => setLocal(e.target.value)}
+					onBlur={onFieldBlur}
+					className="flex-1 min-w-0 ps-2 pe-4 py-2.5 text-sm focus:outline-none rounded-e-full"
+				/>
+			</div>
+			<input type="hidden" name="phoneNumber" value={combined} />
+		</div>
+	);
+}
 
 function TermsHint({ t }: { t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
 	return (
@@ -355,9 +484,16 @@ function TermsHint({ t }: { t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY
 function NewsletterConsent({ checked, onChange, t }: { checked: boolean; onChange: (v: boolean) => void; t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
 	return (
 		<div className="mt-4">
-			<label htmlFor="checkout-newsletter" className="flex items-start gap-2.5 cursor-pointer select-none">
-				<input id="checkout-newsletter" type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
-				<div className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors bg-white border-gray-300 peer-checked:border-green-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1">{checked && <Check size={12} strokeWidth={3} className="text-green-500" />}</div>
+			<label className="flex items-center gap-3 cursor-pointer select-none">
+				<button
+					type="button"
+					role="switch"
+					aria-checked={checked}
+					onClick={() => onChange(!checked)}
+					className={`relative w-10 h-6 rounded-full flex-shrink-0 transition-colors ${checked ? "bg-primary" : "bg-gray-300"}`}
+				>
+					<span className={`absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4 rtl:-translate-x-4" : "translate-x-0"}`} />
+				</button>
 				<input type="hidden" name="emailOffers" value={checked ? "true" : "false"} />
 				<span className="text-sm text-gray-700">{t.emailMeOffers}</span>
 			</label>
@@ -369,10 +505,34 @@ function ErrorBox({ message }: { message: string }) {
 	return <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-3 text-sm mt-4">{message}</div>;
 }
 
-function SubmitBtn({ label, loading, disabled, t }: { label: string; loading: boolean; disabled?: boolean; t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
+function SubmitBtn({
+	label,
+	loading,
+	disabled,
+	t,
+	icon: Icon,
+}: {
+	label: string;
+	loading: boolean;
+	disabled?: boolean;
+	t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY];
+	icon?: React.ComponentType<{ size?: number; className?: string }>;
+}) {
 	return (
-		<button type="submit" disabled={loading || disabled} className="mt-5 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-			{loading ? t.processing : label}
+		<button
+			type="submit"
+			disabled={loading || disabled}
+			className="mt-5 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+		>
+			{loading ? (
+				t.processing
+			) : (
+				<>
+					{Icon && <Icon size={16} className="flex-shrink-0" />}
+					{label}
+					<ChevronRight size={18} className="rtl:rotate-180" />
+				</>
+			)}
 		</button>
 	);
 }
@@ -398,6 +558,7 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 	// returns EmailAddressConflictError and a password field appears in place, no separate
 	// "are you new or returning" choice required up front.
 	const [needsPassword, setNeedsPassword] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
 	const [newsletterChecked, setNewsletterChecked] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const fetcher = useFetcher<{
@@ -464,6 +625,12 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 		fetcher.load(`/api/checkout?intent=activeCustomer&lang=${locale}`);
 	}
 
+	function resetEmail() {
+		setNeedsPassword(false);
+		setShowPassword(false);
+		setError(null);
+	}
+
 	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		const fd = new FormData(e.currentTarget);
@@ -480,45 +647,113 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 
 	return (
 		<div className="pt-2">
-			<SocialAuthButtons dividerLabel={t.or} onSuccess={handleSocialSuccess} emailOffers={newsletterChecked} />
+			<SocialAuthButtons dividerLabel={t.or} onSuccess={handleSocialSuccess} emailOffers={newsletterChecked} mode="signin" />
 			<form onSubmit={handleSubmit}>
 				<FieldGroup>
-					<Field label={t.emailAddress} name="email" type="email" required defaultValue={initialValues?.emailAddress} readOnly={needsPassword} />
+					<div className="sm:col-span-2">
+						<label htmlFor="checkout-email" className="block text-sm font-medium text-gray-700 mb-1">
+							{t.emailAddress}
+							<span className="text-red-500 ms-1">*</span>
+						</label>
+						<div className={`relative flex items-center rounded-full border ${needsPassword ? "bg-gray-50 border-gray-200" : "border-gray-300"}`}>
+							<Mail size={16} className="absolute start-4 text-gray-400 pointer-events-none flex-shrink-0" />
+							<input
+								id="checkout-email"
+								name="email"
+								type="email"
+								required
+								defaultValue={initialValues?.emailAddress}
+								readOnly={needsPassword}
+								className={`w-full bg-transparent rounded-full ps-10 py-2.5 text-sm ${needsPassword ? "pe-24" : "pe-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"}`}
+							/>
+							{needsPassword && (
+								<div className="absolute end-3 flex items-center gap-2">
+									<span className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+										<Check size={12} className="text-white" />
+									</span>
+									<span className="w-px h-4 bg-gray-300" />
+									<button type="button" onClick={resetEmail} className="text-sm font-medium text-primary hover:underline whitespace-nowrap">
+										{t.changeEmail}
+									</button>
+								</div>
+							)}
+						</div>
+					</div>
+
+					{needsPassword && (
+						<div className="sm:col-span-2 flex items-start gap-3 rounded-2xl bg-primary/5 p-4">
+							<span className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+								<PartyPopper size={18} className="text-primary" />
+							</span>
+							<div>
+								<p className="text-sm font-bold text-gray-900">{t.welcomeBackTitle}</p>
+								<p className="text-sm text-gray-500 mt-0.5">{t.welcomeBackSubtitle}</p>
+							</div>
+						</div>
+					)}
+
 					{needsPassword && (
 						<div className="sm:col-span-2">
-							<div className="flex items-center justify-between mb-1">
-								<label htmlFor="checkout-password" className="block text-sm font-medium text-gray-700">
-									{t.password}
-									<span className="text-red-500 ms-1">*</span>
-								</label>
+							<label htmlFor="checkout-password" className="block text-sm font-medium text-gray-700 mb-1">
+								{t.password}
+								<span className="text-red-500 ms-1">*</span>
+							</label>
+							<div className="relative flex items-center">
+								<Lock size={16} className="absolute start-4 text-gray-400 pointer-events-none flex-shrink-0" />
+								{/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+								<input
+									id="checkout-password"
+									name="password"
+									type={showPassword ? "text" : "password"}
+									required
+									autoFocus
+									placeholder={t.passwordPlaceholder}
+									className="w-full border border-gray-300 rounded-full ps-10 pe-11 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPassword((v) => !v)}
+									aria-label={showPassword ? t.hidePassword : t.showPassword}
+									className="absolute end-4 text-gray-400 hover:text-gray-600 transition-colors"
+								>
+									{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+								</button>
+							</div>
+							<div className="text-end mt-1.5">
 								<Link to="/forgot-password?redirect=/checkout" className="text-xs text-primary hover:underline">
 									{t.forgotPassword}
 								</Link>
 							</div>
-							{/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-							<input id="checkout-password" name="password" type="password" required autoFocus className="w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
 						</div>
 					)}
 				</FieldGroup>
 
-				{needsPassword ? <p className="text-xs text-gray-500 -mt-2 mb-3">{t.emailAlreadyRegisteredNote}</p> : <NewsletterConsent checked={newsletterChecked} onChange={setNewsletterChecked} t={t} />}
+				{!needsPassword && <NewsletterConsent checked={newsletterChecked} onChange={setNewsletterChecked} t={t} />}
 
 				{error && <ErrorBox message={error} />}
-				<SubmitBtn label={needsPassword ? t.loginAndContinue : t.continueLabel} loading={busy} t={t} />
+				<SubmitBtn label={needsPassword ? t.loginAndContinue : t.continueLabel} loading={busy} t={t} icon={needsPassword ? Lock : undefined} />
 				<TermsHint t={t} />
 
 				{needsPassword && (
-					<button
-						type="button"
-						onClick={() => {
-							setNeedsPassword(false);
-							setError(null);
-						}}
-						className="block mx-auto mt-3 text-xs text-gray-500 hover:text-gray-700 underline"
-					>
-						{t.useDifferentEmail}
-					</button>
+					<>
+						<hr className="border-gray-100 mt-4" />
+						<button type="button" onClick={resetEmail} className="block mx-auto mt-3 text-xs text-gray-500 hover:text-gray-700 underline">
+							{t.useDifferentEmail}
+						</button>
+					</>
 				)}
+
+				<div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+					<span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+						<ShieldCheck size={14} className="text-primary flex-shrink-0" />
+						{t.secureAndTrustedCheckout}
+					</span>
+					<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
+						{PAYMENT_ICON_IDS.map((id) => (
+							<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain rounded-md" style={{ height: "22px", width: "34px" }} width={34} height={22} />
+						))}
+					</div>
+				</div>
 			</form>
 		</div>
 	);
@@ -555,6 +790,7 @@ function ShippingStep({
 	onMethodChange,
 	onComplete,
 	onAddressSavedToAccount,
+	onBack,
 }: {
 	currency: string;
 	areas: AreaOption[];
@@ -568,6 +804,7 @@ function ShippingStep({
 	onMethodChange?: (methodId: string) => void;
 	onComplete: (summary: string, method: ShippingMethod, totals: UpdatedOrderTotals) => void;
 	onAddressSavedToAccount?: (address: CustomerAddress) => void;
+	onBack?: () => void;
 }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
@@ -594,6 +831,7 @@ function ShippingStep({
 	// alongside postalCode (zone number) which keeps flowing exactly as before.
 	const [areaId, setAreaId] = useState<string>(initialValues?.qatarAreaId ?? "");
 	const [addressSaved, setAddressSaved] = useState(false);
+	const [saveAddressChecked, setSaveAddressChecked] = useState(true);
 	// A saved-address picker only makes sense for a logged-in customer who actually has
 	// addresses on file, and only when the order doesn't already have one confirmed
 	// (initialValues truthy = resuming a checkout that already picked/saved an address --
@@ -961,7 +1199,8 @@ function ShippingStep({
 				mode === "address" &&
 				addressMode === "new" &&
 				methodToUse.code !== STORE_PICKUP_METHOD_CODE &&
-				!customerName?.isGuest
+				!customerName?.isGuest &&
+				saveAddressChecked
 			) {
 				fetch("/api/checkout", {
 					method: "POST",
@@ -1016,12 +1255,14 @@ function ShippingStep({
 	// Safety net: if the zone was picked before the other required fields were filled in
 	// (so the auto-save on zone change had nothing to submit), retry once those fields are
 	// blurred — keeps rate-fetching fully automatic without a manual "Get Rates" step.
-	// Only relevant in address mode — pickup has no zone gate.
+	// Only relevant in address mode — pickup has no zone gate. phoneNumber isn't listed here —
+	// its real input isn't the one carrying name="phoneNumber" (see PhoneField), so it can't
+	// reach this delegated handler and instead calls saveAddress() via its own onFieldBlur.
 	function handleFieldBlur(e: React.FocusEvent<HTMLFormElement>) {
 		if (mode !== "address") return;
 		const name = (e.target as unknown as { name?: string }).name;
 		if (!name) return;
-		if (!["firstName", "lastName", "streetLine1", "phoneNumber"].includes(name)) return;
+		if (!["firstName", "lastName", "streetLine1"].includes(name)) return;
 		// No addressSaved guard: phoneNumber sits after the zone field in the form, so the
 		// zone-change auto-save typically fires before phone is even filled in, and yet that
 		// first save flips addressSaved permanently true — a guard here would mean nothing
@@ -1046,11 +1287,19 @@ function ShippingStep({
 
 			{/* Ship to Address / Store Pickup toggle */}
 			<div className="grid grid-cols-2 gap-3 mb-6">
-				<button type="button" onClick={() => handleModeChange("address")} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-medium text-sm transition-colors ${mode === "address" ? "border-primary bg-primary/5 text-primary" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-					<Truck size={18} /> {t.shipToAddress}
+				<button type="button" onClick={() => handleModeChange("address")} className={`flex items-center gap-3 p-4 rounded-xl border-2 text-start transition-colors ${mode === "address" ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
+					<Truck size={22} className={`flex-shrink-0 ${mode === "address" ? "text-primary" : "text-gray-400"}`} />
+					<div className="min-w-0">
+						<span className={`block text-sm font-semibold ${mode === "address" ? "text-primary" : "text-gray-900"}`}>{t.shipToAddress}</span>
+						<span className="block text-xs text-gray-500 mt-0.5">{t.shipToAddressSubtitle}</span>
+					</div>
 				</button>
-				<button type="button" onClick={() => handleModeChange("pickup")} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-medium text-sm transition-colors ${mode === "pickup" ? "border-primary bg-primary/5 text-primary" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-					<Store size={18} /> {t.storePickup}
+				<button type="button" onClick={() => handleModeChange("pickup")} className={`flex items-center gap-3 p-4 rounded-xl border-2 text-start transition-colors ${mode === "pickup" ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
+					<Store size={22} className={`flex-shrink-0 ${mode === "pickup" ? "text-primary" : "text-gray-400"}`} />
+					<div className="min-w-0">
+						<span className={`block text-sm font-semibold ${mode === "pickup" ? "text-primary" : "text-gray-900"}`}>{t.storePickup}</span>
+						<span className="block text-xs text-gray-500 mt-0.5">{t.storePickupSubtitle}</span>
+					</div>
 				</button>
 			</div>
 
@@ -1095,30 +1344,33 @@ function ShippingStep({
 							</button>
 						</div>
 					)}
-					<Field label={t.firstName} name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName || customerName?.firstName} />
-					<Field label={t.lastName} name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName || customerName?.lastName} />
+					<Field label={t.firstName} name="firstName" required className="sm:col-span-1" defaultValue={initialValues?.firstName || customerName?.firstName} placeholder={t.firstNamePlaceholder} icon={UserRound} />
+					<Field label={t.lastName} name="lastName" required className="sm:col-span-1" defaultValue={initialValues?.lastName || customerName?.lastName} placeholder={t.lastNamePlaceholder} icon={UserRound} />
 
 					{mode === "address" ? (
 						<>
-							<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} />
-							<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} />
-							<div className="sm:col-span-2">
+							<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} placeholder={t.addressPlaceholder} icon={Home} />
+							<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} placeholder={t.streetPlaceholder} icon={MapPin} />
+							<div className="sm:col-span-1">
 								<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
 									{t.zone}
 									<span className="text-red-500 ms-1">*</span>
 								</label>
-								<AreaSelect
-									id="checkout-postalCode"
-									name="postalCode"
-									areas={areas}
-									locale={locale}
-									placeholder={t.selectZone}
-									required
-									value={zone}
-									initialAreaId={initialValues?.qatarAreaId}
-									onChange={handleZoneChange}
-									inputClassName="w-full border border-gray-300 rounded-full ps-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-								/>
+								<div className="relative">
+									<MapPin size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+									<AreaSelect
+										id="checkout-postalCode"
+										name="postalCode"
+										areas={areas}
+										locale={locale}
+										placeholder={t.selectZone}
+										required
+										value={zone}
+										initialAreaId={initialValues?.qatarAreaId}
+										onChange={handleZoneChange}
+										inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+									/>
+								</div>
 							</div>
 						</>
 					) : (
@@ -1133,8 +1385,15 @@ function ShippingStep({
 						</div>
 					)}
 
-					<Field label={t.phoneNumber} name="phoneNumber" type="tel" placeholder="+974 xxxx xxxx" className="sm:col-span-2" required defaultValue={initialValues?.phoneNumber} />
+					<PhoneField label={t.phoneNumber} required defaultValue={initialValues?.phoneNumber} onFieldBlur={() => { if (mode === "address" && !busy && zone) saveAddress(); }} />
 				</FieldGroup>
+			)}
+
+			{mode === "address" && !customerName?.isGuest && (
+				<label className="flex items-center gap-2.5 mt-4 cursor-pointer select-none">
+					<input type="checkbox" checked={saveAddressChecked} onChange={(e) => setSaveAddressChecked(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+					<span className="text-sm text-gray-600">{t.saveAddressForFutureOrders}</span>
+				</label>
 			)}
 
 			{/* Shipping rates — address mode only; pickup selects its method implicitly */}
@@ -1192,8 +1451,6 @@ function ShippingStep({
 
 			{error && <ErrorBox message={error} />}
 
-			{mode === "address" && !addressSaved && !savingAddress && <p className="text-center text-xs text-gray-400 mt-4">{t.selectZonePrompt}</p>}
-
 			{/* Not gated on selectedMethod/addressSaved already being set -- handleSubmit does its
 		    own save-address -> fetch-methods -> confirm sequence on click, so the customer
 		    is never stuck on a disabled button just because a background auto-save (zone
@@ -1201,6 +1458,11 @@ function ShippingStep({
 		    real, already-known information (a prior attempt found zero methods for this
 		    zone), so it's still worth blocking on. */}
 		<SubmitBtn label={t.continueToPayment} loading={busy} disabled={noMethodsAvailable} t={t} />
+		{onBack && (
+			<button type="button" onClick={onBack} className="block mx-auto mt-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
+				{t.backToCustomerInformation}
+			</button>
+		)}
 		</form>
 	);
 }
@@ -1349,6 +1611,57 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 	);
 }
 
+// ── Line quantity stepper ─────────────────────────────────────────────────────
+
+type OrderLine = ActiveOrder["lines"][number];
+
+// Only the fields adjustOrderLine's response actually returns for a line --
+// merged into the matching line in place (see mergeLineQuantityUpdate below)
+// rather than replacing order.lines wholesale, since the mutation doesn't
+// request bundle/subscription fields the rest of this panel also reads.
+interface LineQuantityResponse {
+	totalQuantity: number;
+	subTotalWithTax: number;
+	shippingWithTax: number;
+	totalWithTax: number;
+	lines: { id: string; quantity: number; unitPriceWithTax: number; linePriceWithTax: number; discountedLinePriceWithTax: number }[];
+}
+
+function LineQtyStepper({ line, onUpdated, locked }: { line: OrderLine; onUpdated: (response: LineQuantityResponse) => void; locked?: boolean }) {
+	const { notify } = useNotification();
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = CHECKOUT_COPY[locale];
+	const fetcher = useFetcher<{ adjustOrderLine?: ({ __typename: "Order" } & LineQuantityResponse) | { __typename: string; message?: string }; error?: string }>();
+	const busy = fetcher.state !== "idle" || locked;
+
+	useEffect(() => {
+		if (fetcher.state !== "idle" || !fetcher.data) return;
+		const r = fetcher.data.adjustOrderLine;
+		if (r && r.__typename === "Order") {
+			onUpdated(r as LineQuantityResponse);
+		} else if (r) {
+			notify((r as { message?: string }).message ?? t.couldNotSetShippingMethod, "error");
+		}
+	}, [fetcher.state, fetcher.data]);
+
+	function adjust(newQty: number) {
+		if (newQty < 1 || busy) return;
+		fetcher.submit({ _intent: "adjust", orderLineId: line.id, quantity: newQty }, { method: "POST", action: "/api/cart", encType: "application/json" });
+	}
+
+	return (
+		<div className="inline-flex items-center border border-gray-300 rounded-full overflow-hidden">
+			<button type="button" onClick={() => adjust(line.quantity - 1)} disabled={busy || line.quantity <= 1} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition-colors">
+				<Minus size={11} />
+			</button>
+			<span className="w-6 text-center text-xs font-semibold select-none">{line.quantity}</span>
+			<button type="button" onClick={() => adjust(line.quantity + 1)} disabled={busy} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition-colors">
+				<Plus size={11} />
+			</button>
+		</div>
+	);
+}
+
 // ── Coupon Form ───────────────────────────────────────────────────────────────
 
 type CouponUpdate = Pick<ActiveOrder, "totalWithTax" | "subTotalWithTax" | "discounts" | "couponCodes">;
@@ -1415,7 +1728,7 @@ function CouponForm({ orderState, onApplied }: { orderState: string; onApplied: 
 					<Tag size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
 					<input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder={t.couponCode} className="w-full border border-gray-300 rounded-full ps-9 pe-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase placeholder:normal-case" />
 				</div>
-				<button type="submit" disabled={!code.trim() || isBusy} className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+				<button type="submit" disabled={!code.trim() || isBusy} className="bg-[#e08670] text-white text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity whitespace-nowrap">
 					{isBusy ? "…" : t.apply}
 				</button>
 			</form>
@@ -1425,18 +1738,33 @@ function CouponForm({ orderState, onApplied }: { orderState: string; onApplied: 
 
 // ── Order Summary Panel ───────────────────────────────────────────────────────
 
-function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: ActiveOrder; vendureBase: string; onOrderUpdate: (updates: CouponUpdate) => void }) {
+function OrderSummaryPanel({
+	order,
+	vendureBase,
+	onOrderUpdate,
+	onLineQuantityChange,
+}: {
+	order: ActiveOrder;
+	vendureBase: string;
+	onOrderUpdate: (updates: CouponUpdate) => void;
+	onLineQuantityChange: (response: LineQuantityResponse) => void;
+}) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
 	const discounts = order.discounts?.filter((d) => d.amountWithTax < 0) ?? [];
+	// A shipping method isn't chosen until step 2, so shippingWithTax is 0 both
+	// before that (nothing to show yet) and after it (a genuinely free method) --
+	// shippingLines.length is what actually distinguishes "not calculated yet"
+	// from "calculated, and it's free".
+	const shippingDisplay = order.shippingLines.length === 0 ? t.calculatedAtNextStep : order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : t.free;
 	// Collapsed by default on mobile — only the header + shipping/total show until
 	// tapped open. Always fully expanded on desktop regardless of this state.
 	const [expanded, setExpanded] = useState(false);
 
 	return (
-		<div className="lg:sticky lg:top-6">
+		<div className="lg:sticky lg:top-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 			<button type="button" onClick={() => setExpanded((e) => !e)} className="w-full text-start px-5 py-4 border-b border-gray-200 flex items-center gap-2">
-				<Package size={18} className="text-gray-500" />
+				<ShoppingBag size={18} className="text-gray-500" />
 				<h2 className="font-semibold text-gray-900">{t.orderSummary}</h2>
 				<span className="ms-auto text-sm text-gray-500">{itemsCountLabel(order.totalQuantity, locale)}</span>
 				<ChevronDown size={18} className={`text-gray-400 lg:hidden flex-shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} />
@@ -1445,7 +1773,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 			{/* Coupon form stays out of the collapse — applying a code shouldn't require
 			    expanding the full item list first. Rendered once here (not duplicated
 			    inside the expanded section below) for both the collapsed and open states. */}
-			<div className="lg:hidden px-5 py-3 border-b border-gray-200">
+			<div className="lg:hidden py-3 border-b border-gray-200">
 				<CouponForm orderState={order.state} onApplied={onOrderUpdate} />
 			</div>
 
@@ -1477,7 +1805,7 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 					<div className="space-y-1.5">
 						<div className="flex justify-between text-sm text-gray-600">
 							<span>{t.shipping}</span>
-							<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
+							<span>{shippingDisplay}</span>
 						</div>
 						<div className="flex justify-between font-bold text-gray-900 text-base">
 							<span>{t.total}</span>
@@ -1509,7 +1837,9 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 										)}
 									</div>
 								)}
-								<p className="text-xs text-gray-400 mt-0.5">{t.qty}: {line.quantity}</p>
+								<div className="mt-1.5">
+									<LineQtyStepper line={line} onUpdated={onLineQuantityChange} locked={order.state === "ArrangingPayment"} />
+								</div>
 							</div>
 							<div className="flex flex-col items-end flex-shrink-0">
 								{line.discountedLinePriceWithTax < line.linePriceWithTax ? (
@@ -1551,15 +1881,89 @@ function OrderSummaryPanel({ order, vendureBase, onOrderUpdate }: { order: Activ
 				</div>
 
 				<div className="flex justify-between text-sm text-gray-600">
-					<span>{t.shipping}</span>
-					<span>{order.shippingWithTax > 0 ? fmt(order.shippingWithTax, order.currencyCode, locale) : "-"}</span>
+					<span className="flex items-center gap-1.5">
+						{t.shipping}
+						<span title={t.calculatedAtNextStep}>
+							<HelpCircle size={13} className="text-gray-300" />
+						</span>
+					</span>
+					<span>{shippingDisplay}</span>
 				</div>
 				<div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-200">
 					<span>{t.total}</span>
-					<span>{fmt(order.totalWithTax, order.currencyCode, locale)}</span>
+					<span className="text-primary">{fmt(order.totalWithTax, order.currencyCode, locale)}</span>
+				</div>
+			</div>
+
+			{/* Estimated delivery */}
+			<div className="mx-5 mb-5 flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+				<Truck size={20} className="text-primary flex-shrink-0" />
+				<div className="flex-1 min-w-0">
+					<p className="text-sm font-semibold text-gray-900">{t.estimatedDelivery}</p>
+					<p className="text-xs text-gray-500">{estimatedDeliveryLabel(t)}</p>
+				</div>
+				<ChevronRight size={16} className="text-gray-400 flex-shrink-0 rtl:rotate-180" />
+			</div>
+
+			{/* Trust icons */}
+			<div className="mx-5 mb-5 grid grid-cols-3 gap-3 text-center">
+				{[
+					{ Icon: BadgeCheck, title: t.trustAuthentic, subtitle: t.trustAuthenticSubtitle },
+					{ Icon: Lock, title: t.trustSecure, subtitle: t.trustSecureSubtitle },
+					{ Icon: Truck, title: t.trustFastDelivery, subtitle: t.trustFastDeliverySubtitle },
+				].map(({ Icon, title, subtitle }) => (
+					<div key={title} className="flex flex-col items-center gap-1.5">
+						<div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+							<Icon size={16} className="text-white" />
+						</div>
+						<p className="text-xs font-semibold text-gray-900 leading-tight">{title}</p>
+						<p className="text-[11px] text-gray-500 leading-tight">{subtitle}</p>
+					</div>
+				))}
+			</div>
+
+			{/* Decorative footer — same wave/leaf treatment as the reference, using the
+			    brand's own coral accent (matches the Apply button above) rather than
+			    introducing a third color. The parent panel's own rounded-2xl +
+			    overflow-hidden clips this cleanly, no extra rounding needed here. */}
+			<div className="relative overflow-hidden">
+				<div className="absolute inset-0 bg-gradient-to-br from-[#e08670]/25 to-[#e08670]/5" style={{ clipPath: "ellipse(75% 100% at 50% 100%)" }} />
+				<div className="relative flex items-center gap-3 px-5 py-5">
+					<Leaf size={20} className="text-primary flex-shrink-0" />
+					<p className="text-xs text-gray-600 leading-snug">{t.orderSummaryTagline}</p>
 				</div>
 			</div>
 			</div>
+		</div>
+	);
+}
+
+// ── Top step-progress bar ──────────────────────────────────────────────────────
+
+function StepProgressBar({ step, completed, t }: { step: number; completed: number[]; t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_COPY] }) {
+	const steps = [
+		{ num: 1, label: t.customerInformation },
+		{ num: 2, label: t.shipping },
+		{ num: 3, label: t.payment },
+	];
+	return (
+		<div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 flex-wrap">
+			{steps.map((s, i) => {
+				const isDone = completed.includes(s.num);
+				const isActive = step === s.num;
+				const lit = isDone || isActive;
+				return (
+					<div key={s.num} className="flex items-center gap-2 sm:gap-3">
+						<div className="flex items-center gap-2">
+							<div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${lit ? "bg-primary text-white" : "bg-gray-200 text-gray-500"}`}>
+								{isDone ? <Check size={16} /> : s.num}
+							</div>
+							<span className={`text-base font-semibold hidden sm:inline whitespace-nowrap ${lit ? "text-gray-900" : "text-gray-400"}`}>{s.label}</span>
+						</div>
+						{i < steps.length - 1 && <div className="w-8 sm:w-16 h-px bg-gray-300 flex-shrink-0" />}
+					</div>
+				);
+			})}
 		</div>
 	);
 }
@@ -1636,38 +2040,28 @@ export default function CheckoutPage() {
 		setStep(n);
 	}
 
-	// Breaks out of CheckoutLayout's centered `container mx-auto` so the background
-	// reaches the true viewport edges — but only the background. The actual content
-	// (form + order summary) is re-contained right below at the exact same width as
-	// the header (logo/language toggle), so its left/right edges line up with them
-	// instead of floating wider than the rest of the page.
-	const fullBleed = "w-screen ml-[calc(-50vw+50%)] mr-[calc(-50vw+50%)]";
-
 	return (
 		<CheckoutLayout>
-			{/* Cancels <main>'s py-8 for this page only, so the two-tone split runs flush
-			    against the header and into the trust-badges bar / footer below, with no
-			    visible gray gap. */}
+			{/* Cancels <main>'s py-8 for this page only, so the cream background runs flush
+			    against the header and into the trust-badges bar / footer below. */}
 			<div className="-mt-8 -mb-8">
-			{/* White is the base layer across the full viewport width; the order summary
-			    column paints gray only from its own (container-aligned) edge outward via
-			    the bleed strip below, rather than the 70/30 split being computed against
-			    the full viewport like the white/gray boundary used to be. */}
-			<div className={`${fullBleed} bg-white`}>
-				<div className="container mx-auto">
-				<div className="flex flex-col lg:flex-row">
+				<div>
+				<div className="flex flex-col lg:flex-row gap-4 py-8">
 				<div className="lg:w-[65%]">
 					{/* All three steps render in sequence (Casper-style) — only the active
 					    step's form is expanded; completed steps collapse to a clickable
-					    numbered header, upcoming ones stay dimmed and inert. Centered within
-					    the white panel rather than pinned to either edge. */}
-					<div className="max-w-2xl mx-auto px-4 py-8">
+					    card, upcoming ones stay dimmed and inert. Centered within the
+					    column rather than pinned to either edge. */}
+					<div className="max-w-2xl lg:max-w-none mx-auto lg:mx-0">
 						<Link to="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors mb-6">
 							<ChevronDown size={14} className="rotate-90 rtl:-rotate-90" />
 							{t.continueShopping}
 						</Link>
 
-						<StepSection num={1} label={t.customerInformation} active={step === 1} completed={completed.includes(1)} onNavigate={() => goTo(1)}>
+						<StepProgressBar step={step} completed={completed} t={t} />
+
+						<div className="flex flex-col gap-4">
+						<StepSection num={1} label={t.customerInformation} subtitle={t.customerInformationSubtitle} icon={UserRound} active={step === 1} completed={completed.includes(1)} onNavigate={() => goTo(1)}>
 							<CustomerStep
 								initialValues={initialState.orderCustomer}
 								onComplete={(s) => {
@@ -1678,7 +2072,7 @@ export default function CheckoutPage() {
 							/>
 						</StepSection>
 
-						<StepSection num={2} label={t.shipping} active={step === 2} completed={completed.includes(2)} onNavigate={() => goTo(2)}>
+						<StepSection num={2} label={t.shippingStepLabel} subtitle={t.shippingStepSubtitle} icon={Truck} active={step === 2} completed={completed.includes(2)} onNavigate={() => goTo(2)}>
 							<ShippingStep
 								currency={order.currencyCode}
 								areas={qatarAreas}
@@ -1694,10 +2088,11 @@ export default function CheckoutPage() {
 									setOrder((prev) => ({ ...prev, ...totals }));
 									complete(2);
 								}}
+								onBack={() => goTo(1)}
 							/>
 						</StepSection>
 
-						<StepSection num={3} label={t.payment} active={step === 3} completed={completed.includes(3)} onNavigate={() => goTo(3)}>
+						<StepSection num={3} label={t.payment} subtitle={t.paymentSubtitle} icon={CreditCard} active={step === 3} completed={completed.includes(3)} onNavigate={() => goTo(3)}>
 							<PaymentStep
 								isActive={step === 3}
 								total={order.totalWithTax}
@@ -1710,19 +2105,35 @@ export default function CheckoutPage() {
 								}}
 							/>
 						</StepSection>
+						</div>
 					</div>
 				</div>
 
 				{/* Order Summary — stays on top on mobile, collapsed to just the total by default */}
-				<div className="order-first lg:order-last lg:w-[35%] bg-gray-50 relative">
-					{/* Extends the gray background from this column's own (container-aligned)
-					    outer edge out to the true viewport edge — mirrors automatically since
-					    "end" means right in LTR and left in RTL. */}
-					<div className="hidden lg:block absolute inset-y-0 start-full w-[50vw] bg-gray-50" />
-					<div className="px-4 py-8 lg:sticky lg:top-6">
-						<OrderSummaryPanel order={order} vendureBase={vendureBase} onOrderUpdate={(updates) => setOrder((prev) => ({ ...prev, ...updates }))} />
+				<div className="order-first lg:order-last lg:w-[35%]">
+					<div className="lg:sticky lg:top-6">
+						<OrderSummaryPanel
+						order={order}
+						vendureBase={vendureBase}
+						onOrderUpdate={(updates) => setOrder((prev) => ({ ...prev, ...updates }))}
+						onLineQuantityChange={(response) =>
+							setOrder((prev) => {
+								const updatedById = new Map(response.lines.map((l) => [l.id, l]));
+								return {
+									...prev,
+									totalQuantity: response.totalQuantity,
+									subTotalWithTax: response.subTotalWithTax,
+									shippingWithTax: response.shippingWithTax,
+									totalWithTax: response.totalWithTax,
+									lines: prev.lines.map((line) => {
+										const u = updatedById.get(line.id);
+										return u ? { ...line, quantity: u.quantity, unitPriceWithTax: u.unitPriceWithTax, linePriceWithTax: u.linePriceWithTax, discountedLinePriceWithTax: u.discountedLinePriceWithTax } : line;
+									}),
+								};
+							})
+						}
+					/>
 					</div>
-				</div>
 				</div>
 				</div>
 			</div>

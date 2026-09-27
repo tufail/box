@@ -43,9 +43,16 @@ interface Props {
   emailOffers?: boolean;
   /** Pass "white" when the divider sits on a non-white background */
   bg?: "white" | "gray";
+  /**
+   * Button label context: "signin" -> "Sign In with X" (checkout, login --
+   * both are really "get me an authenticated session", not account creation
+   * specifically), "signup" -> "Sign Up with X" (register page). Defaults to
+   * "signin" since that's the more common case among current callers.
+   */
+  mode?: "signin" | "signup";
 }
 
-export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers = false, bg = "white" }: Props) {
+export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers = false, bg = "white", mode = "signin" }: Props) {
   const [active, setActive] = useState<"google" | "facebook" | null>(null);
   const [socialError, setSocialError] = useState<string | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
@@ -172,7 +179,7 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers
             className={`${btnCls} w-full`}
           >
             {googleBusy ? <Loader2 size={16} className="animate-spin shrink-0" /> : <GoogleIcon />}
-            <span>{googleBusy ? "Signing in…" : "Google"}</span>
+            <span>{googleBusy ? "Signing in…" : mode === "signup" ? "Sign Up with Google" : "Sign In with Google"}</span>
           </button>
           {/* Google's real button, rendered invisibly on top -- see socialAuth.ts */}
           <div
@@ -186,7 +193,7 @@ export default function SocialAuthButtons({ dividerLabel, onSuccess, emailOffers
 
         <button type="button" onClick={handleFacebook} disabled={busy} className={btnCls}>
           {facebookBusy ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FacebookIcon />}
-          <span>{facebookBusy ? "Signing in…" : "Facebook"}</span>
+          <span>{facebookBusy ? "Signing in…" : mode === "signup" ? "Sign Up with Facebook" : "Sign In with Facebook"}</span>
         </button>
       </div>
 

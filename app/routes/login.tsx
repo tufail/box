@@ -109,6 +109,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
           <SocialAuthButtons
             dividerLabel={t.orSignInWithEmail}
             onSuccess={() => { window.location.href = safeReturn; }}
+            mode="signin"
           />
 
           <form onSubmit={handleSubmit} className="space-y-4">

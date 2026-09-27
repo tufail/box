@@ -151,9 +151,13 @@ const SHOP_LINKS: { to: string; en: string; ar: string }[] = [
 
 interface FooterProps {
 	pageSections: PageSection[];
+	// Checkout is the one place this doesn't belong -- a customer mid-payment
+	// shouldn't be invited to sign up for a newsletter. Every other page keeps
+	// showing it (default false).
+	hideNewsletter?: boolean;
 }
 
-export default function Footer({ pageSections }: FooterProps) {
+export default function Footer({ pageSections, hideNewsletter = false }: FooterProps) {
 	const [email, setEmail] = useState("");
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = FOOTER_COPY[locale];
@@ -189,6 +193,7 @@ export default function Footer({ pageSections }: FooterProps) {
 
 				{/* Newsletter banner — the one embossed/raised element; everything else in the
 				    footer matches the page body's own background instead of its own block color. */}
+				{!hideNewsletter && (
 				<div className="bg-stone-100 pt-6 md:pt-12 pb-6 md:pb-10">
 					<div className="container mx-auto px-4">
 						<div className="relative rounded-3xl bg-gradient-to-br from-primary to-[#08191c] shadow-[0_25px_60px_-15px_rgba(34,77,83,0.45)] ps-6 pe-6 md:ps-[210px] md:pe-12 lg:ps-[270px] py-8 md:py-10">
@@ -249,6 +254,7 @@ export default function Footer({ pageSections }: FooterProps) {
 						</div>
 					</div>
 				</div>
+				)}
 
 				{/* Main footer section — matches the page body background (bg-stone-100), not
 				    its own dark block; the newsletter banner above is the only raised/colored
@@ -276,7 +282,7 @@ export default function Footer({ pageSections }: FooterProps) {
 							<nav aria-label={t.shop}>
 								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.shop}</h3>
 								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
-								<ul className="space-y-2.5">
+								<ul>
 									{SHOP_LINKS.map((link) => (
 										<li key={link.to}>
 											<Link to={link.to} className="text-xs text-gray-600 hover:text-primary transition-colors">
@@ -295,7 +301,7 @@ export default function Footer({ pageSections }: FooterProps) {
 										<nav key={section.id} aria-label={label}>
 											<h3 className="font-bold text-gray-900 mb-2 text-sm">{label}</h3>
 											<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
-											<ul className="space-y-2.5">
+											<ul>
 												{section.pages.map((page) => {
 													const url = page.externalUrl?.trim();
 													const isExternal = !!url;

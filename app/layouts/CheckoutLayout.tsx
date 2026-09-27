@@ -9,8 +9,8 @@ import { getLocaleFromPathname, toggleLocalePath } from "~/lib/i18n";
 // starting point, but worth a marketing/native review pass before this is
 // considered final customer-facing copy.
 const COPY = {
-	en: { secureCheckout: "Secure Checkout", skipToContent: "Skip to content" },
-	ar: { secureCheckout: "الدفع الآمن", skipToContent: "التخطي إلى المحتوى" },
+	en: { secureCheckout: "Secure Checkout", secureCheckoutSubtitle: "Your information is safe with us", skipToContent: "Skip to content" },
+	ar: { secureCheckout: "الدفع الآمن", secureCheckoutSubtitle: "معلوماتك آمنة معنا", skipToContent: "التخطي إلى المحتوى" },
 } as const;
 
 export default function CheckoutLayout({ children }: { children?: React.ReactNode }) {
@@ -34,19 +34,25 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 				{t.skipToContent}
 			</a>
 			<header className="bg-white border-b border-gray-200">
-				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
+				<div className="max-w-[1440px] mx-auto px-4 py-4 flex items-center justify-between">
 					<Link to="/" className="font-bold text-xl">
 						<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-10 md:h-14 w-auto inline-block" />
 					</Link>
 					<div className="flex items-center gap-4">
-						<div className="flex items-center gap-2 text-sm text-gray-500">
-							<Lock size={14} />
+						<div className="flex items-center gap-2.5 text-sm text-gray-500">
+							<span className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+								<Lock size={15} className="text-white" />
+							</span>
 							{/* The bigger logo (matched to the home header's size) leaves less room
 							    on narrow screens, so this wraps to two lines there -- the icon alone
 							    still reads as "secure" at a glance; the label returns once there's
 							    space for it. */}
-							<span className="hidden sm:inline">{t.secureCheckout}</span>
+							<span className="hidden sm:block leading-tight">
+								<span className="block font-semibold text-gray-800">{t.secureCheckout}</span>
+								<span className="block text-xs text-gray-400">{t.secureCheckoutSubtitle}</span>
+							</span>
 						</div>
+						<div className="hidden sm:block w-px h-8 bg-gray-200" />
 						<button
 							onClick={toggleLanguage}
 							translate="no"
@@ -65,9 +71,9 @@ export default function CheckoutLayout({ children }: { children?: React.ReactNod
 				</div>
 			</header>
 
-			<main id="main-content" tabIndex={-1} className="flex-1 container mx-auto px-4 py-8">{children}</main>
+			<main id="main-content" tabIndex={-1} className="flex-1 max-w-[1440px] mx-auto w-full px-4 py-8">{children}</main>
 
-			<Footer pageSections={rootData?.pageSections ?? []} />
+			<Footer pageSections={rootData?.pageSections ?? []} hideNewsletter />
 		</div>
 	);
 }

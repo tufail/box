@@ -211,7 +211,7 @@ export default function RegisterPage({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
 
-          <SocialAuthButtons dividerLabel={t.orSignUpWithEmail} emailOffers={newsletter} />
+          <SocialAuthButtons dividerLabel={t.orSignUpWithEmail} emailOffers={newsletter} mode="signup" />
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">

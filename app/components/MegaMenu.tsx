@@ -364,24 +364,24 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 											.map((col, ci) => (
 												<div key={ci} className="flex flex-col gap-4 ps-8 first:ps-0">
 													{col.sections.length > 0 && (
-														<div className="flex flex-col gap-4">
+														<div className="flex flex-col gap-2">
 															{col.sections.map((section, si) => {
 																const headerHref = sectionHref(section);
 																return (
 																	<div key={si}>
 																		{section.title &&
 																			(headerHref ? (
-																				<Link to={headerHref} className="block text-sm font-bold text-primary hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors mb-2" onClick={() => setDesktopOpen(null)}>
+																				<Link to={headerHref} className="block text-sm font-bold text-primary hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors mb-1" onClick={() => setDesktopOpen(null)}>
 																					{section.title}
 																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
 																				</Link>
 																			) : (
-																				<p className="text-sm font-bold text-primary mb-2">
+																				<p className="text-sm font-bold text-primary mb-1">
 																					{section.title}
 																					<ChevronRight size={14} strokeWidth={2.5} className="inline-block align-middle ms-0.5 rtl:rotate-180" />
 																				</p>
 																			))}
-																		<ul className="space-y-1">
+																		<ul>
 																			{section.links.map((link, li) => (
 																				<li key={li}>
 																					<Link to={linkHref(link)} className="text-sm text-gray-700 hover:text-black hover:underline decoration-lime-300 decoration-2 underline-offset-2 transition-colors block py-0.5" onClick={() => setDesktopOpen(null)}>
@@ -403,23 +403,6 @@ export default function MegaMenu({ megaMenu, mobileOpen = false, onMobileClose }
 													)}
 												</div>
 											))}
-									</div>
-
-									{/* Brand logos — full-width row along the bottom, replacing what would
-									    otherwise be a 5th column of the same grid. */}
-									<div className="border-t border-gray-100 bg-white/40 px-6 py-4 flex items-center justify-center flex-wrap gap-x-8 gap-y-3">
-										{TOP_BRANDS.map((brand) => (
-											<Link key={brand.code} to={`/brands/${brand.code}`} onClick={() => setDesktopOpen(null)} title={brand.name} className="opacity-70 hover:opacity-100 transition-opacity">
-												<img
-													src={`/images/brands/${brand.code}.jpg`}
-													alt={brand.name}
-													className="h-6 w-auto object-contain"
-													onError={(e) => {
-														e.currentTarget.style.display = "none";
-													}}
-												/>
-											</Link>
-										))}
 									</div>
 								</div>
 							)}
