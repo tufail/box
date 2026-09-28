@@ -36,7 +36,7 @@ export interface ProductDetailVariant {
   // (isInStock() below still uses stockLevel, since untracked variants should
   // stay purchasable).
   stockQty: number;
-  featuredAsset: { preview: string } | null;
+  featuredAsset: { source: string; width: number; height: number; preview: string } | null;
   assets: { preview: string }[];
   customFields: { rrp: number | null; keyInfo: string | null; additionalInfo: string | null; slug: string | null; gtin12: string | null; sizeSpecifications: string | null } | null;
   options: { code: string; name: string; group: { code: string; name: string } }[];
@@ -67,7 +67,7 @@ export interface ProductDetailItem {
   name: string;
   slug: string;
   description: string;
-  featuredAsset: { preview: string } | null;
+  featuredAsset: { source: string; width: number; height: number; preview: string } | null;
   assets: { preview: string }[];
   customFields: {
     isFeatured: boolean | null;
@@ -98,7 +98,7 @@ const PRODUCT_DETAIL_FIELDS = `
   name
   slug
   description
-  featuredAsset { preview }
+  featuredAsset { source width height preview }
   assets { preview }
   customFields {
     isFeatured
@@ -121,7 +121,7 @@ const PRODUCT_DETAIL_FIELDS = `
     currencyCode
     stockLevel
     stockQty
-    featuredAsset { preview }
+    featuredAsset { source width height preview }
     assets { preview }
     customFields { rrp keyInfo additionalInfo slug gtin12 sizeSpecifications }
     options { code name group { code name } }

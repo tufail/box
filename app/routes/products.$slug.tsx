@@ -428,9 +428,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const description = locale === "ar" ? `تسوق ${baseTitle} من ${SITE_NAME}. 🚚 توصيل سريع للدوحة ✓ تسوق آمن ✓ أفضل سعر ✓ جودة ممتازة.` : `Shop ${baseTitle} at ${SITE_NAME}. 🚚 Quick Doha Delivery ✓ Secure Shopping ✓ Best Price ✓ Premium Quality.`;
 	// Prefer the specific variant's own image (e.g. the flavor being viewed) — only
 	// fall back to the product's generic image when the variant has none of its own.
+	// Requests the "xlarge" AssetServerPlugin preset explicitly, rather than the bare
+	// `preview` (measured at 500x500 -- far under Google's 1200x1200+ guidance) or
+	// `source` (measured identical to preview despite Asset.width/height claiming
+	// 1200x1200, a stale/wrong DB field, not something this frontend can fix).
+	// xlarge itself verified at a real, consistent 2000x2000 (see og:image:width/height
+	// below) by downloading and measuring the actual bytes, not trusting any metadata.
 	const activeVariant = loaderData?.selectedVariantId ? product.variants.find((v) => v.id === loaderData.selectedVariantId) : null;
-	const imagePreview = activeVariant?.featuredAsset?.preview ?? product.featuredAsset?.preview;
-	const image = imagePreview ? resolveImage(imagePreview, vendureBase) : "";
+	const featuredAsset = activeVariant?.featuredAsset ?? product.featuredAsset;
+	const image = featuredAsset?.preview ? `${resolveImage(featuredAsset.preview, vendureBase)}?preset=xlarge` : "";
 	const brand = product.facetValues.find((f) => f.facet.code === "brands")?.name ?? null;
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 
@@ -438,6 +444,9 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ title },
 		{ name: "description", content: description },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
+		// Allows Google to show a full-size image thumbnail in search results
+		// instead of the small default — meaningful for a catalog this image-heavy.
+		{ name: "robots", content: "index, follow, max-image-preview:large" },
 		...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
 		// Open Graph
 		{ property: "og:type", content: "product" },
@@ -446,6 +455,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:url", content: canonicalUrl },
 		{ property: "og:site_name", content: "NutriBox Qatar" },
 		...(image ? [{ property: "og:image", content: image }] : []),
+		...(image ? [{ property: "og:image:width", content: "2000" }, { property: "og:image:height", content: "2000" }] : []),
 		// Twitter
 		{ name: "twitter:card", content: "summary_large_image" },
 		{ name: "twitter:title", content: title },
@@ -622,9 +632,9 @@ function Gallery({ images, variantImages, vendureBase, name }: { images: string[
 			<div className="relative">
 				<div className="relative aspect-square rounded-2xl overflow-hidden bg-white">
 					{resolved[currentIdx] ? (
-						// medium (not xlarge) — the full-resolution asset is reserved for the
+						// large (not xlarge) — the full-resolution asset is reserved for the
 						// zoom lightbox below, which is the only view that actually needs it.
-						<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={500} height={500} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
+						<VendureImage key={resolved[currentIdx]} src={resolved[currentIdx]} vendureBase={vendureBase} alt={name} width={800} height={800} objectFit="contain" eager={currentIdx === 0} imgClassName="mix-blend-multiply" />
 					) : (
 						<div className="w-full h-full flex items-center justify-center text-gray-300 text-6xl font-bold bg-gray-50">{name[0]}</div>
 					)}
@@ -1216,15 +1226,17 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	// set even though the product had other real images (a variant's own featured
 	// shot, or just something in the general assets list). Falls through to those
 	// before giving up, so only a product with literally zero images anywhere ends
-	// up without one.
+	// up without one. The "xlarge" preset (see the `image` const above, same reasoning)
+	// beats the bare `preview` rendition for Google's 1200x1200+ guidance.
 	const jsonLdImagePreview = product.featuredAsset?.preview || activeVariant?.featuredAsset?.preview || product.assets[0]?.preview || null;
+	const jsonLdImage = jsonLdImagePreview ? `${resolveImage(jsonLdImagePreview, vendureBase)}?preset=xlarge` : null;
 
 	const productJsonLd = {
 		"@type": "Product",
 		name: jsonLdName,
 		description: jsonLdDescription,
 		url: canonicalUrl,
-		...(jsonLdImagePreview && { image: resolveImage(jsonLdImagePreview, vendureBase) }),
+		...(jsonLdImage && { image: jsonLdImage }),
 		...(activeVariant?.sku && { sku: activeVariant.sku, mpn: activeVariant.sku }),
 		...(activeVariant?.customFields?.gtin12 && { gtin12: activeVariant.customFields.gtin12 }),
 		...(activeVariant?.customFields?.sizeSpecifications && { size: activeVariant.customFields.sizeSpecifications }),
@@ -1344,7 +1356,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 										<div className="mt-1.5 flex items-center gap-1.5">
 											<Stars value={0} size={14} />
 											<span className="text-sm text-gray-500 font-medium">0 {t.reviewsCap}</span>
-											<Link to={`/products/${pageSlug}/reviews#write`} className="text-sm font-semibold text-primary hover:underline">
+											<Link to={`/products/${pageSlug}/reviews#write`} className="text-sm font-semibold text-primary underline">
 												{t.writeAReview}
 											</Link>
 										</div>
@@ -1849,7 +1861,7 @@ function NoReviews({ pageSlug }: { pageSlug: string }) {
 					))}
 				</div>
 				<p className="text-gray-500 text-sm">{t.noOneReviewedYet}</p>
-				<Link to={`/products/${pageSlug}/reviews#write`} className="bg-black hover:bg-gray-800 text-white font-semibold text-sm px-8 py-2.5 rounded-full transition-colors">
+				<Link to={`/products/${pageSlug}/reviews#write`} className="text-primary underline font-semibold text-sm hover:text-primary/80 transition-colors">
 					{t.writeAReview}
 				</Link>
 			</div>
