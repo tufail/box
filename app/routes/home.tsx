@@ -12,8 +12,8 @@ import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 // considered final customer-facing copy.
 const COPY = {
 	en: {
-		title: "Qatar's Premium Protein & Supplement Store | NutriBox Qatar",
-		description: "Premium protein, vitamins & sports nutrition delivered fast across Doha and all of Qatar. Trusted quality, unbeatable prices — shop NutriBox Qatar today.",
+		title: "Qatar's Premium Protein & Supplements Store | NutriBox Qatar",
+		description: "Premium protein, vitamins & sports nutrition delivered fast across Doha and all of Qatar. Buy whey protein, mass gainers & beauty products from NutriBox Qatar today.",
 	},
 	ar: {
 		title: "متجر المكملات الغذائية والبروتين الفاخر في قطر | نوتري بوكس قطر",
