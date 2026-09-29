@@ -28,7 +28,7 @@ export default function AddToCartButton({ inStock = true, state = "idle", onClic
 		return (
 			<Link
 				to={`${notifyHref}#notify-me`}
-				className="w-full flex items-center justify-center gap-1.5 border border-[#3b8578] text-[#3b8578] hover:bg-[#3b8578] hover:text-white font-bold text-sm py-2.5 rounded-full transition-colors"
+				className="w-full flex items-center justify-center gap-1.5 border border-[#e08670] text-[#e08670] hover:bg-[#e08670] hover:text-white font-bold text-sm py-2.5 rounded-full transition-colors"
 			>
 				<Bell size={14} />
 				{t.notifyMe}

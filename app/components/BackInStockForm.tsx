@@ -146,7 +146,7 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 				<button
 					type="button"
 					onClick={() => setOpen(true)}
-					className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#3b8578] py-4 text-base font-bold text-white transition-colors hover:bg-[#2e6b61]"
+					className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#e08670] py-4 text-base font-bold text-white transition-opacity hover:opacity-90"
 				>
 					<Bell size={18} />
 					{t.notifyMe}
@@ -186,7 +186,7 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 						<button
 							type="submit"
 							disabled={sending || waitingForTurnstile}
-							className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#3b8578] py-4 text-base font-bold text-white transition-colors hover:bg-[#2e6b61] disabled:cursor-not-allowed disabled:opacity-70"
+							className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#e08670] py-4 text-base font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
 						>
 							{sending ? t.sending : t.submit}
 						</button>
