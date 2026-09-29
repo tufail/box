@@ -73,7 +73,11 @@ export function urlEntryLocale(siteUrl: string, path: string, locale: "en" | "ar
 }
 
 export function urlset(entries: string[]): string {
-	return `${SITEMAP_XML_HEADER}<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.sitemaps.org/schemas/sitemap-image/1.1">\n${entries.join("\n")}\n</urlset>`;
+	// The image sitemap extension is a Google-specific extension, not part of the
+	// sitemaps.org core protocol -- its namespace lives under google.com. Using
+	// sitemaps.org here (as the base/xhtml namespaces correctly do) is exactly
+	// the "incorrect namespace" error Search Console flags on the <image> tag.
+	return `${SITEMAP_XML_HEADER}<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${entries.join("\n")}\n</urlset>`;
 }
 
 export function sitemapIndex(siteUrl: string, sitemapPaths: string[]): string {
