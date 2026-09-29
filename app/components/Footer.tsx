@@ -320,6 +320,16 @@ export default function Footer({ pageSections, hideNewsletter = false }: FooterP
 														</li>
 													);
 												})}
+												{/* Not a CMS-managed page like its siblings above -- this is the one
+												    static link this list always gets, so Contact Us shows up in Help
+												    regardless of what's authored in the CMS pages plugin. */}
+												{section.slug === "help" && (
+													<li>
+														<Link to="/contact-us" className="text-xs text-gray-600 hover:text-primary transition-colors">
+															{t.contactUs}
+														</Link>
+													</li>
+												)}
 											</ul>
 										</nav>
 										);
