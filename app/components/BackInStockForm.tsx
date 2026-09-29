@@ -146,7 +146,7 @@ export default function BackInStockForm({ productVariantId, locale, defaultEmail
 				<button
 					type="button"
 					onClick={() => setOpen(true)}
-					className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-gray-500 py-4 text-base font-bold text-white transition-colors hover:bg-gray-600"
+					className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-gray-400 text-gray-500 py-4 text-base font-bold transition-colors hover:bg-gray-500 hover:text-white"
 				>
 					<Bell size={18} />
 					{t.notifyMe}
