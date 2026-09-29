@@ -1,17 +1,20 @@
-import type { Route } from "./+types/sitemap-products.xml";
-import { graphqlRequest, fetchInPages, urlEntry, urlset, xmlResponse } from "~/lib/sitemap";
+// Shared logic behind sitemap-products-en.xml and sitemap-products-ar.xml --
+// split into one file per locale (rather than one file emitting both EN and AR
+// <url> tags per product) so each page's <url> count is simple to reason about:
+// PRODUCTS_PER_SITEMAP_PAGE products in, that many <url> tags out, no doubling.
+import { graphqlRequest, fetchInPages, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
 import { SITE_URL } from "~/lib/seo";
 import { vendureImageUrl } from "~/components/VendureImage";
 
-// Registered at "sitemap-products.xml" (a static path, paginated via a
-// ?page= query param) — see app/routes.ts. A dynamic path segment was tried
-// first ("sitemap-products-:page.xml") and reverted: confirmed live that
-// React Router's router doesn't match a param embedded inside a segment with
-// a literal prefix/suffix ("No route matches URL /sitemap-products-1.xml"),
-// only a param occupying a whole segment on its own. Query-param pagination
-// sidesteps that entirely. Page numbers are 1-based to match how they're
-// listed from sitemap.xml (the index).
-export const PRODUCTS_PER_SITEMAP_PAGE = 2000;
+// Registered at static paths ("sitemap-products-en.xml" / "-ar.xml"), paginated
+// via a ?page= query param — see app/routes.ts. A dynamic path segment for the
+// page number was tried first ("sitemap-products-:page.xml") and reverted:
+// confirmed live that React Router's router doesn't match a param embedded
+// inside a segment with a literal prefix/suffix ("No route matches URL
+// /sitemap-products-1.xml"), only a param occupying a whole segment on its
+// own. Query-param pagination sidesteps that entirely. Page numbers are
+// 1-based to match how they're listed from sitemap.xml (the index).
+export const PRODUCTS_PER_SITEMAP_PAGE = 50;
 
 type SitemapProductItem = {
 	slug: string;
@@ -46,8 +49,7 @@ const SITEMAP_PRODUCTS_QUERY = `
 	}
 `;
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-	const env = context.cloudflare.env;
+export async function loadProductsSitemapPage(env: VendureEnv, request: Request, locale: "en" | "ar"): Promise<Response> {
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
 	const page = Math.max(1, Number(new URL(request.url).searchParams.get("page")) || 1);
@@ -87,7 +89,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		.map((p) => ({ resolvedSlug: p.customProductVariantMappings?.slug || p.slug, title: p.productVariantName || p.productName, image: p.productAsset?.preview }))
 		.filter((p) => (seenSlugs.has(p.resolvedSlug) ? false : (seenSlugs.add(p.resolvedSlug), true)))
 		.map((p) =>
-			urlEntry(SITE_URL, `/products/${p.resolvedSlug}`, undefined, p.image ? [{ src: vendureImageUrl(p.image, vendureBase, { preset: "xlarge", format: "jpg" }), title: p.title }] : []),
+			urlEntryLocale(SITE_URL, `/products/${p.resolvedSlug}`, locale, undefined, p.image ? [{ src: vendureImageUrl(p.image, vendureBase, { preset: "xlarge", format: "jpg" }), title: p.title }] : []),
 		);
 
 	return xmlResponse(urlset(entries));

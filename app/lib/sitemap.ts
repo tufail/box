@@ -53,6 +53,25 @@ export function urlEntry(siteUrl: string, path: string, lastmod?: string | null,
 	return `<url><loc>${enHref}</loc>${lastmodTag}${alternates}${imageTags}</url>\n<url><loc>${arHref}</loc>${lastmodTag}${alternates}${imageTags}</url>`;
 }
 
+// Single-locale variant of urlEntry() — one <url> tag, not the EN+AR pair —
+// for sitemaps that are themselves split per locale (see sitemap-products-en.xml
+// / sitemap-products-ar.xml). Still carries hreflang alternates to the other
+// locale's URL even though that URL isn't listed in *this* file: Google's own
+// docs confirm hreflang annotations don't need to live in the same sitemap as
+// the URL they point at, only be reciprocally discoverable somewhere.
+export function urlEntryLocale(siteUrl: string, path: string, locale: "en" | "ar", lastmod?: string | null, images?: SitemapImage[]): string {
+	const enHref = escapeXml(`${siteUrl}${localizePath(path, "en")}`);
+	const arHref = escapeXml(`${siteUrl}${localizePath(path, "ar")}`);
+	const alternates = `<xhtml:link rel="alternate" hreflang="en" href="${enHref}"/><xhtml:link rel="alternate" hreflang="ar" href="${arHref}"/><xhtml:link rel="alternate" hreflang="x-default" href="${enHref}"/>`;
+	const lastmodTag = lastmod ? `<lastmod>${lastmod.slice(0, 10)}</lastmod>` : "";
+	const imageTags = (images ?? [])
+		.map((img) => (typeof img === "string" ? { src: img, title: undefined } : img))
+		.map((img) => `<image:image><image:loc>${escapeXml(img.src)}</image:loc>${img.title ? `<image:title>${escapeXml(img.title)}</image:title>` : ""}</image:image>`)
+		.join("");
+	const href = locale === "ar" ? arHref : enHref;
+	return `<url><loc>${href}</loc>${lastmodTag}${alternates}${imageTags}</url>`;
+}
+
 export function urlset(entries: string[]): string {
 	return `${SITEMAP_XML_HEADER}<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.sitemaps.org/schemas/sitemap-image/1.1">\n${entries.join("\n")}\n</urlset>`;
 }

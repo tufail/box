@@ -6,7 +6,7 @@ import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import { getLocaleFromPathname } from "~/lib/i18n";
 
 export function meta(): ReturnType<Route.MetaFunction> {
-	return [{ title: "Forgot Password | NutriBox" }, { name: "description", content: "Reset your NutriBox account password." }];
+	return [{ title: "Forgot Password | NutriBox" }, { name: "description", content: "Reset your NutriBox account password." }, { name: "robots", content: "noindex" }];
 }
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a

@@ -15,6 +15,7 @@ export function meta(): ReturnType<Route.MetaFunction> {
   return [
     { title: "Create Account | NutriBox" },
     { name: "description", content: "Join NutriBox and enjoy exclusive offers, fast checkout, and order tracking." },
+    { name: "robots", content: "noindex" },
   ];
 }
 

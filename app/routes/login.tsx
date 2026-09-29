@@ -10,6 +10,7 @@ export function meta(): ReturnType<Route.MetaFunction> {
   return [
     { title: "Sign In | NutriBox" },
     { name: "description", content: "Sign in to your NutriBox account to track orders, manage your wishlist and write reviews." },
+    { name: "robots", content: "noindex" },
   ];
 }
 

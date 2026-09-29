@@ -1,5 +1,7 @@
-import type { Route } from "./+types/sitemap-collections.xml";
-import { graphqlRequest, fetchInPages, urlEntry, urlset, xmlResponse } from "~/lib/sitemap";
+// Shared logic behind sitemap-collections-en.xml and sitemap-collections-ar.xml
+// -- split into one file per locale (rather than one file emitting both EN and
+// AR <url> tags per collection), matching the same reasoning as sitemapProducts.ts.
+import { graphqlRequest, fetchInPages, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
 import { SITE_URL } from "~/lib/seo";
 import { buildCollectionPath } from "~/graphql/collection";
 import { vendureImageUrl } from "~/components/VendureImage";
@@ -29,8 +31,7 @@ const SITEMAP_COLLECTIONS_QUERY = `
 	}
 `;
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-	const env = context.cloudflare.env;
+export async function loadCollectionsSitemapPage(env: VendureEnv, request: Request, locale: "en" | "ar"): Promise<Response> {
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 
 	// Degrades to an empty (still valid) sitemap on a backend failure, matching
@@ -46,9 +47,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	).catch(() => []);
 
 	const entries = collections.map((c) =>
-		urlEntry(
+		urlEntryLocale(
 			SITE_URL,
 			buildCollectionPath(c.breadcrumbs),
+			locale,
 			c.updatedAt,
 			c.featuredAsset?.preview ? [vendureImageUrl(c.featuredAsset.preview, vendureBase, { preset: "xlarge", format: "jpg" })] : [],
 		),
