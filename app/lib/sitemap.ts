@@ -39,12 +39,17 @@ function escapeXml(value: string): string {
 // entirely when there's no real modification date for a path (Google treats an
 // inaccurate/fabricated lastmod as a signal to trust the sitemap less, so this
 // only ever reflects a genuine value from the backend).
-export function urlEntry(siteUrl: string, path: string, lastmod?: string | null, images?: string[]): string {
+export type SitemapImage = string | { src: string; title?: string };
+
+export function urlEntry(siteUrl: string, path: string, lastmod?: string | null, images?: SitemapImage[]): string {
 	const enHref = escapeXml(`${siteUrl}${localizePath(path, "en")}`);
 	const arHref = escapeXml(`${siteUrl}${localizePath(path, "ar")}`);
 	const alternates = `<xhtml:link rel="alternate" hreflang="en" href="${enHref}"/><xhtml:link rel="alternate" hreflang="ar" href="${arHref}"/><xhtml:link rel="alternate" hreflang="x-default" href="${enHref}"/>`;
 	const lastmodTag = lastmod ? `<lastmod>${lastmod.slice(0, 10)}</lastmod>` : "";
-	const imageTags = (images ?? []).map((src) => `<image:image><image:loc>${escapeXml(src)}</image:loc></image:image>`).join("");
+	const imageTags = (images ?? [])
+		.map((img) => (typeof img === "string" ? { src: img, title: undefined } : img))
+		.map((img) => `<image:image><image:loc>${escapeXml(img.src)}</image:loc>${img.title ? `<image:title>${escapeXml(img.title)}</image:title>` : ""}</image:image>`)
+		.join("");
 	return `<url><loc>${enHref}</loc>${lastmodTag}${alternates}${imageTags}</url>\n<url><loc>${arHref}</loc>${lastmodTag}${alternates}${imageTags}</url>`;
 }
 
