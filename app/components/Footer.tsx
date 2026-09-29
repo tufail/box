@@ -328,7 +328,11 @@ export default function Footer({ pageSections, hideNewsletter = false }: FooterP
 
 							{/* Col 5 — Contact Us */}
 							<address className="not-italic">
-								<h3 className="font-bold text-gray-900 mb-2 text-sm">{t.contactUs}</h3>
+								<h3 className="font-bold text-gray-900 mb-2 text-sm">
+									<Link to="/contact-us" className="hover:text-primary transition-colors">
+										{t.contactUs}
+									</Link>
+								</h3>
 								<div className="h-1 w-18 rounded-full bg-gradient-to-r from-lime-400 to-transparent mb-4" />
 								<div className="space-y-3 text-xs">
 									<a href="https://maps.app.goo.gl/5mGR6br5M2dZexCR7" target="_blank" rel="noopener noreferrer" className="group flex items-start gap-2">
