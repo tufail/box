@@ -7,10 +7,16 @@ import ProductCard from "~/components/ProductCard";
 import { vendureImageUrl } from "~/components/VendureImage";
 import Breadcrumb from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
+import Pagination from "~/components/Pagination";
+import BrandNavBar from "~/components/BrandNavBar";
 import {
 	GET_BRAND_FACET_QUERY,
 	BRAND_PRODUCTS_QUERY,
 	GET_BRAND_PAGE_CONTENT_QUERY,
+	BRAND_CATEGORIES_QUERY,
+	brandCategoryPath,
+	topBrandCategories,
+	type BrandCategoriesData,
 	type BrandFacetData,
 	type BrandPageData,
 	type BrandPageVariables,
@@ -80,6 +86,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const brandName = loaderData?.brandName ?? "Brand";
 	const locale = loaderData?.locale ?? "en";
 	const brandContent = loaderData?.brandContent ?? null;
+	const categoryNames = (loaderData?.categories ?? []).slice(0, 3).map((c) => c.collection.name);
 	// Editorial metaTitle/metaDescription (admin-authored, per brand) win when
 	// set; the generic template is the fallback for the many brands that don't
 	// have this content filled in yet, not an error case.
@@ -88,13 +95,14 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		brandContent?.metaDescription ||
 		(locale === "ar"
 			? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-			: `Shop authentic ${brandName} products at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`);
+			: `Shop authentic ${brandName}${categoryNames.length ? ` ${categoryNames.join(", ")} & more` : " products"} at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`);
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 	const image = loaderData?.brandImage ?? "";
 
 	return [
 		{ title },
+		...(loaderData && (loaderData.totalItems === 0 || loaderData.items.length === 0) ? [{ name: "robots", content: "noindex, follow" }] : []),
 		{ name: "description", content: description },
 		{ tagName: "link" as const, rel: "canonical", href: canonicalUrl },
 		...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
@@ -123,7 +131,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
 	const locale = getLocaleFromPathname(url.pathname);
-	const canonicalUrl = `${url.origin}${localizePath(`/brands/${slug}`, locale)}`;
+	const canonicalUrl = `${url.origin}${localizePath(`/brands/${slug}`, locale)}${page > 1 ? `?page=${page}` : ""}`;
 
 	try {
 		const { data: facetData } = await graphqlRequest<BrandFacetData>(env, GET_BRAND_FACET_QUERY, undefined, {
@@ -152,18 +160,22 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		// collapses as filters are picked.
 		const facetsInput = { facetValueIds: [brand.id], groupByProduct: true, take: 0 };
 
-		const [mainResult, facetsResult, contentResult] = await Promise.allSettled([
+		const [mainResult, facetsResult, contentResult, categoriesResult] = await Promise.allSettled([
 			graphqlRequest<BrandPageData, BrandPageVariables>(env, BRAND_PRODUCTS_QUERY, { input }, { request }),
 			graphqlRequest<CollectionFacetsData>(env, COLLECTION_FACETS_QUERY, { input: facetsInput }, { request }),
 			// Editorial content is optional per brand (most don't have it set up
 			// yet) — a rejected/empty result just means "nothing to show", not a
 			// page-load failure, so it's never awaited via mainResult's throw path.
 			graphqlRequest<BrandPageContentData>(env, GET_BRAND_PAGE_CONTENT_QUERY, { facetValueCode: slug, languageCode: locale }, { request }),
+			graphqlRequest<BrandCategoriesData>(env, BRAND_CATEGORIES_QUERY, { input: { facetValueIds: [brand.id], groupByProduct: true, take: 0 } }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
 		]);
 
 		if (mainResult.status === "rejected") throw mainResult.reason;
 		const { data } = mainResult.value;
 		const allFacetValues = facetsResult.status === "fulfilled" ? facetsResult.value.data.search.facetValues : [];
+		const categories = categoriesResult.status === "fulfilled" ? topBrandCategories(categoriesResult.value.data.search.collections ?? [], 40) : [];
+		// Every brand, for the Brand dropdown (switching brands is plain navigation).
+		const brandLinks = (facetData.facets.items[0]?.values ?? []).map((v) => ({ key: v.code, label: v.name, href: `/brands/${v.code}` }));
 		const brandContent: BrandPageContent | null = contentResult.status === "fulfilled" ? contentResult.value.data.brandPageContent : null;
 		// Social-preview image prefers the mobile crop — link previews (WhatsApp,
 		// Facebook, Twitter) are almost always viewed on a phone, and fall back to
@@ -173,10 +185,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const brandPreviewAsset = brandContent?.mobileAssetPreview || brandContent?.assetPreview;
 		const brandImage = brandPreviewAsset ? vendureImageUrl(brandPreviewAsset, vendureBase, { preset: "xlarge", format: "jpg" }) : null;
 
-		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, brandImage, canonicalUrl, locale };
+		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, brandImage, canonicalUrl, locale, brandCode: slug, categories, brandLinks };
 	} catch (e) {
 		if (e instanceof Response) throw e;
-		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, brandImage: null, canonicalUrl, locale };
+		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, brandImage: null, canonicalUrl, locale, brandCode: slug, categories: [], brandLinks: [] };
 	}
 }
 
@@ -290,7 +302,7 @@ function demoteHeadingLevels(html: string): string {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BrandPage({ loaderData }: Route.ComponentProps) {
-	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale } = loaderData;
+	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale, categories, brandLinks } = loaderData;
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -471,6 +483,13 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 
 					{hasBanner && countAndFiltersBar}
 
+					<BrandNavBar
+						brandName={brandName}
+						brands={brandLinks}
+						collections={categories.map((c) => ({ key: c.collection.id, label: c.collection.name, href: brandCategoryPath(loaderData.brandCode, c.collection.slug), count: c.count }))}
+						locale={locale}
+					/>
+
 					{items.length === 0 ? (
 						<div className="text-center py-24 text-gray-400">
 							<p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>
@@ -485,25 +504,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 					)}
 
 					{/* Pagination */}
-					{totalPages > 1 && (
-						<div className="flex justify-center items-center gap-3 mt-10">
-							<button
-								disabled={page === 1}
-								onClick={() => updateParam("page", String((page as number) - 1))}
-								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								{t.prev}
-							</button>
-							<span className="text-sm text-gray-600">{t.pageOf(page as number, totalPages)}</span>
-							<button
-								disabled={page === totalPages}
-								onClick={() => updateParam("page", String((page as number) + 1))}
-								className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								{t.next}
-							</button>
-						</div>
-					)}
+					<Pagination page={page as number} totalPages={totalPages} locale={locale} />
 
 					{/* Editorial brand content — optional per brand (most don't have this
 					    filled in yet), so the whole block just doesn't render rather than

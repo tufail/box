@@ -20,6 +20,7 @@ const CONTENT_ROUTES: [path: string, file: string][] = [
 	["c/*", "routes/c.$.tsx"],
 	["brands", "routes/brands.tsx"],
 	["brands/:slug", "routes/brands.$slug.tsx"],
+	["brands/:slug/:category", "routes/brands.$slug.$category.tsx"],
 	["products/:slug", "routes/products.$slug.tsx"],
 	["products/:slug/reviews", "routes/products.$slug.reviews.tsx"],
 	["wishlist", "routes/wishlist.tsx"],

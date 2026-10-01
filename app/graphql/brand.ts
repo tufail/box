@@ -157,3 +157,42 @@ export const GET_BRAND_PRODUCT_COUNT_QUERY = `
 		}
 	}
 `;
+
+// Which collections (categories) a brand's products fall into, with counts --
+// drives the brand page's category chips, the /brands/:slug/:category landing
+// pages, and which of those combinations get listed in the sitemap.
+export interface BrandCategory {
+	count: number;
+	collection: { id: string; name: string; slug: string; breadcrumbs: { name: string; slug: string }[] };
+}
+
+export interface BrandCategoriesData {
+	search: { collections: BrandCategory[] };
+}
+
+export const BRAND_CATEGORIES_QUERY = `
+	query BrandCategories($input: SearchInput!) {
+		search(input: $input) {
+			collections {
+				count
+				collection { id name slug breadcrumbs { name slug } }
+			}
+		}
+	}
+`;
+
+// Below this many products a brand x category page is too thin to be worth
+// indexing (or listing in the sitemap) -- it still renders for users.
+export const MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS = 3;
+
+export function brandCategoryPath(brandCode: string, collectionSlug: string): string {
+	return `/brands/${brandCode}/${collectionSlug}`;
+}
+
+// Most specific first is not useful for chips; show the biggest categories.
+export function topBrandCategories(categories: BrandCategory[], limit = 12): BrandCategory[] {
+	return categories
+		.filter((c) => c.collection.name !== "__root_collection__" && c.count > 0)
+		.sort((a, b) => b.count - a.count)
+		.slice(0, limit);
+}

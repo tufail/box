@@ -7,6 +7,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
+import Pagination from "~/components/Pagination";
 import {
   COLLECTION_PAGE_QUERY,
   COLLECTION_FACETS_QUERY,
@@ -185,6 +186,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
   return [
     { title },
+    ...(loaderData && loaderData.items.length === 0 && loaderData.fv.length === 0 ? [{ name: "robots", content: "noindex, follow" }] : []),
     { name: "description", content: description },
     { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
     ...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
@@ -529,25 +531,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-3 mt-10">
-              <button
-                disabled={page === 1}
-                onClick={() => updateParam("page", String((page as number) - 1))}
-                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t.prev}
-              </button>
-              <span className="text-sm text-gray-600">{t.pageOf(page as number, totalPages)}</span>
-              <button
-                disabled={page === totalPages}
-                onClick={() => updateParam("page", String((page as number) + 1))}
-                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t.next}
-              </button>
-            </div>
-          )}
+          <Pagination page={page as number} totalPages={totalPages} locale={locale} />
         </div>
       </div>
 

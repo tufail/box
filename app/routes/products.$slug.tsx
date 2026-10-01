@@ -1652,6 +1652,32 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					);
 				})()}
 
+				{/* ── More from this brand: every collection this product is in, as a brand x category
+				    landing page link. Plain text links (no extra query -- product.collections is
+				    already loaded), server-rendered so crawlers see them. ── */}
+				{brandFacetValue && (() => {
+					const seen = new Set<string>();
+					const links = product.collections.filter((c) => c.name !== "__root_collection__" && !seen.has(c.slug) && seen.add(c.slug));
+					if (links.length === 0) return null;
+					const heading = locale === "ar" ? `المزيد من ${brandFacetValue.name}` : `More from ${brandFacetValue.name}`;
+					return (
+						<section className="mt-10" aria-label={heading}>
+							<h2 className="font-heading text-lg font-extrabold text-black mb-3">
+								<Link to={`/brands/${brandFacetValue.code}`} className="hover:underline">{heading}</Link>
+							</h2>
+							<ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+								{links.map((c) => (
+									<li key={c.id}>
+										<Link to={`/brands/${brandFacetValue.code}/${c.slug}`} className="text-blue-600 hover:underline">
+											{brandFacetValue.name} {c.name}
+										</Link>
+									</li>
+								))}
+							</ul>
+						</section>
+					);
+				})()}
+
 				{/* ── Product video ── */}
 				{videoUrl && (
 					<div className="mt-12">
