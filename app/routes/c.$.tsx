@@ -60,31 +60,6 @@ interface FacetGroup {
   values: { id: string; name: string; count: number }[];
 }
 
-// ── Marquee hero (shown when the collection has no banner image) ────────────
-
-function CollectionMarqueeHero({ title }: { title: string }) {
-  const REPEAT = 4;
-  const track = Array.from({ length: REPEAT * 2 }, (_, i) => (
-    <span key={i} className="flex items-center gap-6 flex-shrink-0">
-      <span className="font-heading text-2xl sm:text-4xl font-black uppercase bg-gradient-to-r from-lime-600 via-gray-900 to-[#224d53] bg-clip-text text-transparent">
-        {title}
-      </span>
-      <span className="w-2 h-2 rounded-full bg-lime-300 flex-shrink-0" />
-    </span>
-  ));
-
-  return (
-    <div className="relative w-full h-14 sm:h-20 rounded-2xl overflow-hidden mb-4" aria-hidden="true">
-      <div className="absolute -top-8 left-1/4 w-28 h-28 rounded-full bg-lime-400/25 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 right-1/4 w-32 h-32 rounded-full bg-[#3b8578]/30 blur-3xl pointer-events-none" />
-
-      <div className="absolute inset-0 flex items-center">
-        <div className="flex items-center gap-6 w-max animate-marquee">{track}</div>
-      </div>
-    </div>
-  );
-}
-
 function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
   const map = new Map<string, FacetGroup>();
   for (const { facetValue, count } of facetValues) {
@@ -413,10 +388,8 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
                 fetchPriority="high"
               />
             </div>
-          ) : (
-            <CollectionMarqueeHero title={collection.name} />
-          )}
-          <h1 className={`text-2xl font-bold text-gray-900 ${collection.customFields?.banner?.source ? "" : "sr-only"}`}>{collection.name}</h1>
+          ) : null}
+          <h1 className="text-2xl font-bold text-gray-900">{collection.name}</h1>
         </div>
       )}
 
