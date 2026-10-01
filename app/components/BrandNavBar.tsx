@@ -19,7 +19,8 @@ export interface BrandNavLink {
 }
 
 interface BrandNavBarProps {
-	brandName: string;
+	// Omit on pages with no selected brand (e.g. a collection page): no chip is shown.
+	brandName?: string;
 	brands: BrandNavLink[];
 	collections: BrandNavLink[];
 	locale: Locale;
@@ -80,53 +81,59 @@ export default function BrandNavBar({ brandName, brands, collections, locale }: 
 	return (
 		<div className="flex items-center gap-2 mb-6">
 			<div ref={rootRef} className="relative flex-shrink-0 flex items-center gap-2">
-				<button
-					type="button"
-					onClick={() => setOpen((v) => !v)}
-					aria-expanded={open}
-					className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-primary/40 bg-primary/10 text-primary text-sm font-medium"
-				>
-					{copy.brand}
-					<ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-				</button>
+				{brands.length > 0 && (
+					<>
+					<button
+						type="button"
+						onClick={() => setOpen((v) => !v)}
+						aria-expanded={open}
+						className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-primary/40 bg-primary/10 text-primary text-sm font-medium"
+					>
+						{copy.brand}
+						<ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+					</button>
 
-				<div hidden={!open} className="absolute start-0 top-full mt-2 z-30 w-72 max-w-[85vw] bg-white rounded-xl border border-gray-200 shadow-lg p-3">
-					<div className="relative mb-2">
-						<Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
-						<input
-							type="text"
-							value={query}
-							onChange={(e) => setQuery(e.target.value)}
-							placeholder={copy.search}
-							className="w-full ps-9 pe-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-						/>
+					<div hidden={!open} className="absolute start-0 top-full mt-2 z-30 w-72 max-w-[85vw] bg-white rounded-xl border border-gray-200 shadow-lg p-3">
+						<div className="relative mb-2">
+							<Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								value={query}
+								onChange={(e) => setQuery(e.target.value)}
+								placeholder={copy.search}
+								className="w-full ps-9 pe-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+							/>
+						</div>
+						<ul className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin">
+							{brands
+								.filter((b) => !q || b.label.toLowerCase().includes(q))
+								.map((b) => (
+									<li key={b.key}>
+										<Link
+											to={b.href}
+											onClick={() => setOpen(false)}
+											className={`block px-2 py-2 rounded-md text-sm hover:bg-gray-100 hover:text-black ${b.label === brandName ? "font-semibold text-gray-900" : "text-gray-700"}`}
+										>
+											{b.label}
+										</Link>
+									</li>
+								))}
+						</ul>
 					</div>
-					<ul className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin">
-						{brands
-							.filter((b) => !q || b.label.toLowerCase().includes(q))
-							.map((b) => (
-								<li key={b.key}>
-									<Link
-										to={b.href}
-										onClick={() => setOpen(false)}
-										className={`block px-2 py-2 rounded-md text-sm hover:bg-gray-100 hover:text-black ${b.label === brandName ? "font-semibold text-gray-900" : "text-gray-700"}`}
-									>
-										{b.label}
-									</Link>
-								</li>
-							))}
-					</ul>
-				</div>
+					</>
+				)}
 
 				{/* Current brand; the X goes back to the all-brands page. */}
-				<Link
-					to="/brands"
-					aria-label={copy.clear}
-					className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/20 transition-colors whitespace-nowrap"
-				>
-					{brandName}
-					<X size={14} />
-				</Link>
+				{brandName && (
+					<Link
+						to="/brands"
+						aria-label={copy.clear}
+						className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/20 transition-colors whitespace-nowrap"
+					>
+						{brandName}
+						<X size={14} />
+					</Link>
+				)}
 			</div>
 
 			{collections.length > 0 && (

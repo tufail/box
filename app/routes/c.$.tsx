@@ -1,13 +1,13 @@
 import type { Route } from "./+types/c.$";
 import { useSearchParams, redirect } from "react-router";
-import Link from "~/components/LocaleLink";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { SlidersHorizontal, X, Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { SlidersHorizontal, X, Check, ChevronDown } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
 import Pagination from "~/components/Pagination";
+import BrandNavBar from "~/components/BrandNavBar";
 import {
   COLLECTION_PAGE_QUERY,
   COLLECTION_FACETS_QUERY,
@@ -81,73 +81,6 @@ function CollectionMarqueeHero({ title }: { title: string }) {
       <div className="absolute inset-0 flex items-center">
         <div className="flex items-center gap-6 w-max animate-marquee">{track}</div>
       </div>
-    </div>
-  );
-}
-
-// ── Sub-collection nav (1st-level children as scrollable link buttons) ──────
-
-function SubCollectionNav({ children, basePath, vendureBase, locale }: { children: { id: string; name: string; slug: string; featuredAsset: { preview: string } | null }[]; basePath: string; vendureBase: string; locale: Locale }) {
-  const scrollLeftLabel = locale === "ar" ? "التمرير لليسار" : "Scroll left";
-  const scrollRightLabel = locale === "ar" ? "التمرير لليمين" : "Scroll right";
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollState = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateScrollState();
-    window.addEventListener("resize", updateScrollState);
-    return () => window.removeEventListener("resize", updateScrollState);
-  }, [updateScrollState, children.length]);
-
-  function scrollByAmount(direction: "left" | "right") {
-    scrollRef.current?.scrollBy({ left: direction === "left" ? -240 : 240, behavior: "smooth" });
-  }
-
-  if (children.length === 0) return null;
-
-  return (
-    <div className="relative mb-6">
-      <div ref={scrollRef} onScroll={updateScrollState} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {children.map((child) => (
-          <Link
-            key={child.id}
-            to={`${basePath}/${child.slug}`}
-            className="flex-shrink-0 flex items-center gap-2 ps-1.5 pe-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:border-black hover:shadow-md transition-all text-sm font-semibold text-gray-700 hover:text-black"
-          >
-            {child.featuredAsset ? (
-              <img src={vendureImageUrl(child.featuredAsset.preview, vendureBase, { preset: "thumb", format: "webp" })} alt={child.name} className="w-7 h-7 rounded-full object-cover bg-stone-100 flex-shrink-0" loading="lazy" />
-            ) : (
-              <span className="w-7 h-7 rounded-full bg-stone-100 flex-shrink-0" />
-            )}
-            {child.name}
-          </Link>
-        ))}
-      </div>
-
-      {canScrollLeft && (
-        <>
-          <div className="absolute start-0 top-0 bottom-2 w-10 bg-gradient-to-r from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-l" />
-          <button onClick={() => scrollByAmount("left")} aria-label={scrollLeftLabel} className="absolute start-0 top-1/2 -translate-y-1/2 -translate-x-2 rtl:translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <ChevronLeft size={14} className="rtl:rotate-180" />
-          </button>
-        </>
-      )}
-      {canScrollRight && (
-        <>
-          <div className="absolute end-0 top-0 bottom-2 w-10 bg-gradient-to-l from-stone-100 to-transparent pointer-events-none rtl:bg-gradient-to-r" />
-          <button onClick={() => scrollByAmount("right")} aria-label={scrollRightLabel} className="absolute end-0 top-1/2 -translate-y-1/2 translate-x-2 rtl:-translate-x-2 z-20 w-7 h-7 rounded-full bg-white text-gray-800 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <ChevronRight size={14} className="rtl:rotate-180" />
-          </button>
-        </>
-      )}
     </div>
   );
 }
@@ -378,6 +311,18 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   // Build sidebar from the unfiltered facet list so nothing disappears on selection
   const facetGroups = groupFacets(allFacetValues ?? facetValues);
+  // Brand dropdown (links to the brand x category landing pages) + this collection's
+  // sub-collections, shown just above the grid. No extra query: brands come from the
+  // facets already fetched, children from the collection itself.
+  const brandLinks = collection
+    ? allFacetValues
+        .filter((f) => f.facetValue.facet.code === "brands" && f.facetValue.code)
+        .sort((a, b) => b.count - a.count)
+        .map((f) => ({ key: f.facetValue.id, label: f.facetValue.name, href: `/brands/${f.facetValue.code}/${collection.slug}`, count: f.count }))
+    : [];
+  const childLinks = collection
+    ? collection.children.map((c) => ({ key: c.id, label: c.name, href: `${buildCollectionPath(collection.breadcrumbs)}/${c.slug}` }))
+    : [];
   // IDs present in the current filtered result — used to dim unavailable options
   const filteredIds = new Set((facetValues ?? []).map((f) => f.facetValue.id));
 
@@ -475,9 +420,6 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
-      {/* ── Sub-collections (1st-level children) ── */}
-      {collection && <SubCollectionNav children={collection.children} basePath={buildCollectionPath(collection.breadcrumbs)} vendureBase={vendureBase} locale={locale} />}
-
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
@@ -517,6 +459,8 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
 
         {/* Product grid */}
         <div className="flex-1 min-w-0">
+          {(brandLinks.length > 0 || childLinks.length > 0) && <BrandNavBar brands={brandLinks} collections={childLinks} locale={locale} />}
+
           {items.length === 0 ? (
             <div className="text-center py-24 text-gray-400">
               <p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>

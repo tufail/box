@@ -76,7 +76,7 @@ export interface CollectionDetail {
 
 export interface CollectionPageFacetValue {
   count: number;
-  facetValue: { id: string; name: string; facet: { id: string; name: string } };
+  facetValue: { id: string; code?: string; name: string; facet: { id: string; code?: string; name: string } };
 }
 
 export interface CollectionPageData {
@@ -146,7 +146,7 @@ export const COLLECTION_FACETS_QUERY = `
     search(input: $input) {
       facetValues {
         count
-        facetValue { id name facet { id name } }
+        facetValue { id code name facet { id code name } }
       }
     }
   }
