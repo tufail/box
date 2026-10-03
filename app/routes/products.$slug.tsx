@@ -1101,7 +1101,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		const col = product.collections[product.collections.length - 1];
 		breadcrumbs.push({ label: col.name, href: buildCollectionPath(col.breadcrumbs) });
 	}
-	breadcrumbs.push({ label: product.name });
+	// On a per-variant page the H1 and Product schema use the variant's full title, so the
+	// last crumb (and BreadcrumbList schema) must too, or the page names itself two ways.
+	breadcrumbs.push({ label: (activeVariant?.customFields?.slug && variantDisplayTitle(activeVariant)) || product.name });
 
 	// variantRankings (below, "Sales & Rankings") is a separate custom query that
 	// only returns a flat collectionSlug, not breadcrumbs — deep-link it via this
