@@ -16,8 +16,8 @@ export interface ProductQuestionsData {
 }
 
 export const PRODUCT_QUESTIONS_QUERY = `
-	query ProductQuestionsBySlug($slug: String!, $options: ProductQuestionListOptions) {
-		productQuestionsBySlug(slug: $slug, options: $options) {
+	query ProductQuestionsBySlug($slug: String!, $productVariantId: ID, $options: ProductQuestionListOptions) {
+		productQuestionsBySlug(slug: $slug, productVariantId: $productVariantId, options: $options) {
 			items {
 				id
 				createdAt

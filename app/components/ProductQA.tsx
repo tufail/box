@@ -174,7 +174,7 @@ function AskQuestionForm({ productId, isLoggedIn, productSlug, onSubmitted, t }:
 	);
 }
 
-export default function ProductQA({ productId, productSlug, initialQuestions, initialTotalItems, embedded = false }: { productId: string; productSlug: string; initialQuestions: ProductQuestionItem[]; initialTotalItems: number; embedded?: boolean }) {
+export default function ProductQA({ productId, productSlug, productVariantId, initialQuestions, initialTotalItems, embedded = false }: { productId: string; productSlug: string; productVariantId: string | null; initialQuestions: ProductQuestionItem[]; initialTotalItems: number; embedded?: boolean }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = QA_COPY[locale];
 	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
@@ -194,7 +194,8 @@ export default function ProductQA({ productId, productSlug, initialQuestions, in
 	// invisible to a crawler that doesn't simulate that click). This fetcher is
 	// only used for "load more" from here on.
 	function handleLoadMore() {
-		fetcher.load(`/api/questions?slug=${productSlug}&take=${questions.length + 10}`);
+		const variantParam = productVariantId ? `&productVariantId=${encodeURIComponent(productVariantId)}` : "";
+		fetcher.load(`/api/questions?slug=${productSlug}&take=${questions.length + 10}${variantParam}`);
 	}
 
 	return (

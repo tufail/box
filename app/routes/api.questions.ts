@@ -17,6 +17,7 @@ function extractApiError(e: unknown, fallback: string): string {
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const url = new URL(request.url);
 	const slug = url.searchParams.get("slug") ?? "";
+	const productVariantId = url.searchParams.get("productVariantId") || undefined;
 	const take = Math.min(Number(url.searchParams.get("take") ?? "10"), 50);
 	const skip = Math.max(Number(url.searchParams.get("skip") ?? "0"), 0);
 
@@ -26,7 +27,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	try {
 		const { data } = await graphqlRequest<ProductQuestionsData>(
 			env, PRODUCT_QUESTIONS_QUERY,
-			{ slug, options: { take, skip } },
+			{ slug, productVariantId, options: { take, skip } },
 			{ request }
 		);
 		return Response.json({

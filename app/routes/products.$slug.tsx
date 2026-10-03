@@ -544,7 +544,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			// fetch on mount — RatingPanel/ProductQA still own re-fetching for sort
 			// changes and "load more", this just seeds their first render.
 			graphqlRequest<ProductReviewsData>(env, PRODUCT_REVIEWS_QUERY, { slug: product.slug, take: 5, skip: 0, sort: "MOST_RELEVANT" }, { request }),
-			graphqlRequest<ProductQuestionsData>(env, PRODUCT_QUESTIONS_QUERY, { slug: product.slug, options: { take: 10 } }, { request }),
+			graphqlRequest<ProductQuestionsData>(env, PRODUCT_QUESTIONS_QUERY, { slug: product.slug, productVariantId: activeVariant?.id, options: { take: 10 } }, { request }),
 		]);
 
 		// Find current product in the dedicated search result (term: product.name)
@@ -808,7 +808,7 @@ function GalleryLightbox({ images, vendureBase, name, initialIndex, onClose }: {
 
 // ── Product info tabs (Description / Full Specs / Warnings) ────────────────
 
-function ProductInfoTabs({ description, warnings, productId, productSlug, initialQuestions, initialQuestionsTotal }: { description: string; warnings: string; productId: string; productSlug: string; initialQuestions: ProductQuestionItem[]; initialQuestionsTotal: number }) {
+function ProductInfoTabs({ description, warnings, productId, productSlug, productVariantId, initialQuestions, initialQuestionsTotal }: { description: string; warnings: string; productId: string; productSlug: string; productVariantId: string | null; initialQuestions: ProductQuestionItem[]; initialQuestionsTotal: number }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = PDP_COPY[locale];
 	const TABS = [
@@ -841,7 +841,7 @@ function ProductInfoTabs({ description, warnings, productId, productSlug, initia
 			    render at all) never saw any Q&A content, ever. */}
 			{TABS.map((tab) => (
 				<div key={tab.key} hidden={tab.key !== active} className={tab.key === "qa" ? "w-full max-w-2xl mx-auto text-start" : "prose prose-sm max-w-2xl w-full mx-auto text-start text-gray-600 prose-ul:ps-5 prose-ol:ps-5 prose-li:my-1"}>
-					{tab.key === "qa" ? <ProductQA productId={productId} productSlug={productSlug} initialQuestions={initialQuestions} initialTotalItems={initialQuestionsTotal} embedded /> : tab.content ? <div dangerouslySetInnerHTML={{ __html: tab.content }} /> : <p className="text-gray-400 italic text-center">{tab.emptyText}</p>}
+					{tab.key === "qa" ? <ProductQA productId={productId} productSlug={productSlug} productVariantId={productVariantId} initialQuestions={initialQuestions} initialTotalItems={initialQuestionsTotal} embedded /> : tab.content ? <div dangerouslySetInnerHTML={{ __html: tab.content }} /> : <p className="text-gray-400 italic text-center">{tab.emptyText}</p>}
 				</div>
 			))}
 		</div>
@@ -1641,7 +1641,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					return (
 						<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
 							<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} initialQuestions={initialQuestions} initialQuestionsTotal={initialQuestionsTotal} />
+								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} productVariantId={activeVariant?.id ?? null} initialQuestions={initialQuestions} initialQuestionsTotal={initialQuestionsTotal} />
 							</div>
 
 							{/* Nutrition Facts */}
