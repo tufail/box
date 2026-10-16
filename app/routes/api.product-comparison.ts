@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.product-comparison";
 import { graphqlRequest } from "workers/graphqlClient";
+import { parseServings } from "~/lib/shopCopy";
 import {
 	PRODUCTS_BY_COMPARISON_GROUP_QUERY,
 	COMPARE_VARIANT_HIGHLIGHTS_QUERY,
@@ -33,6 +34,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		for (const p of groupProducts) {
 			const variant = pickMatchingVariant(p, flavorOption);
 			if (!variant) continue;
+			const servings = parseServings(variant.customFields?.sizeSpecifications);
 			entries.push({
 				id: p.id,
 				name: p.name,
@@ -42,6 +44,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 				variantName: variant.name,
 				variantSlug: variant.customFields?.slug ?? null,
 				variantFeaturedAsset: variant.featuredAsset,
+				price: variant.priceWithTax,
+				currencyCode: variant.currencyCode,
+				pricePerServing: servings ? variant.priceWithTax / servings : null,
+				servings,
 			});
 			variantInputs.push({ variantId: variant.id, productId: p.id });
 		}

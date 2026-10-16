@@ -1360,9 +1360,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												{group.label}: <span className="font-semibold text-gray-900">{selected[group.code]}</span>
 											</div>
 											<div className="flex flex-wrap gap-2">
-												{group.values.map((val) => {
-													const matchedVariant = findVariantForValue(product.variants, selected, group.code, val);
-													const available = matchedVariant ? isInStock(matchedVariant.stockLevel) : false;
+												{/* Alphabetical, with out-of-stock options pushed to the end */}
+												{group.values
+													.map((val) => {
+														const matchedVariant = findVariantForValue(product.variants, selected, group.code, val);
+														return { val, matchedVariant, available: matchedVariant ? isInStock(matchedVariant.stockLevel) : false };
+													})
+													.sort((a, b) => Number(b.available) - Number(a.available) || a.val.localeCompare(b.val, locale, { numeric: true, sensitivity: "base" }))
+													.map(({ val, matchedVariant, available }) => {
 													const isActive = selected[group.code] === val;
 													const variantHref = `/products/${matchedVariant?.customFields?.slug || product.slug}`;
 													// Tiny per-option thumbnail — only for products the merchandising team

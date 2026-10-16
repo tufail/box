@@ -4,6 +4,7 @@ import { useLocation } from "react-router";
 import Link from "~/components/LocaleLink";
 import VendureImage from "~/components/VendureImage";
 import { getLocaleFromPathname } from "~/lib/i18n";
+import { formatPrice } from "~/lib/currency";
 import type { ComparisonProductEntry, ComparisonHighlightType, ComparisonRow } from "~/graphql/product";
 
 const COPY = {
@@ -13,7 +14,10 @@ const COPY = {
 		searchPlaceholder: "Search products to add…",
 		noMatches: "No matching products",
 		maxReached: (n: number) => `You can compare up to ${n} products at a time`,
-		loadMore: (n: number) => `Show ${n} more details`,
+		price: "Price",
+		pricePerServing: "Price per serving",
+		totalServings: "Total servings",
+		showAll: "Show all details",
 		showLess: "Show less",
 		remove: "Remove from comparison",
 	},
@@ -23,18 +27,20 @@ const COPY = {
 		searchPlaceholder: "ابحث عن منتجات لإضافتها…",
 		noMatches: "لا توجد منتجات مطابقة",
 		maxReached: (n: number) => `يمكنك مقارنة حتى ${n} منتجات في المرة الواحدة`,
-		loadMore: (n: number) => `عرض ${n} تفاصيل إضافية`,
+		price: "السعر",
+		pricePerServing: "السعر لكل حصة",
+		totalServings: "إجمالي الحصص",
+		showAll: "عرض كل التفاصيل",
 		showLess: "عرض أقل",
 		remove: "إزالة من المقارنة",
 	},
 } as const;
 
 const MAX_COLUMNS = 5;
-const DEFAULT_ROWS = 5;
 // Fixed widths so the sticky attribute + current-product columns have a
 // predictable offset to stick at, regardless of content.
-const LABEL_COL = "w-28";
-const CURRENT_COL = "w-36";
+const LABEL_COL = "w-20 min-w-20 sm:w-28 sm:min-w-28";
+const PRODUCT_COL = "min-w-[110px] sm:min-w-[140px]";
 
 function formatCell(type: ComparisonHighlightType, value: { booleanValue: boolean | null; textValue: string | null } | undefined) {
 	if (!value) return null;
@@ -131,8 +137,9 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 	// build a lookup from productId to that aligned array once, up front.
 	const highlightsByProductId = new Map(rows.map((r) => [r.productId, r.highlights]));
 
-	const visibleTypes = rowsExpanded ? highlightTypes : highlightTypes.slice(0, DEFAULT_ROWS);
-	const hiddenCount = highlightTypes.length - visibleTypes.length;
+	// Image, title, price and price-per-serving always show; every attribute
+	// row stays hidden until "Show all details" is clicked.
+	const visibleTypes = rowsExpanded ? highlightTypes : [];
 
 	// Group attribute rows by highlightType.group, same contiguous-chunk approach
 	// as ProductHighlights (the API pre-sorts by group then type sortOrder).
@@ -224,7 +231,7 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 								return (
 									<th
 										key={p.id}
-										className={`relative p-3 text-center bg-white ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : "min-w-[140px]"}`}
+										className={`relative p-2 sm:p-3 text-center bg-white ${PRODUCT_COL}`}
 									>
 										{!isCurrent && (
 											<button
@@ -254,6 +261,28 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 						</tr>
 					</thead>
 					<tbody>
+						{[
+							{ key: "price", label: t.price, render: (p: ComparisonProductEntry) => <span className="font-bold text-gray-900">{formatPrice(p.price, p.currencyCode, locale)}</span> },
+							{
+								key: "pps",
+								label: t.pricePerServing,
+								render: (p: ComparisonProductEntry) => (p.pricePerServing !== null ? <span>{formatPrice(p.pricePerServing, p.currencyCode, locale)}</span> : <span className="text-gray-300">-</span>),
+							},
+							{
+								key: "servings",
+								label: t.totalServings,
+								render: (p: ComparisonProductEntry) => (p.servings !== null ? <span>{p.servings}</span> : <span className="text-gray-300">-</span>),
+							},
+						].map((row) => (
+							<tr key={row.key}>
+								<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white border-t border-gray-100 p-3 text-xs font-medium text-gray-600`}>{row.label}</td>
+								{visibleProducts.map((p) => (
+									<td key={p.id} className="p-2 sm:p-3 text-center text-gray-700 bg-white border-t border-gray-100">
+										{row.render(p)}
+									</td>
+								))}
+							</tr>
+						))}
 						{groups.map((group, gi) => (
 							<Fragment key={group.label ?? gi}>
 								{group.label && groups.length > 1 && (
@@ -270,10 +299,9 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 										<tr key={type.id}>
 											<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white border-t border-gray-100 p-3 text-xs font-medium text-gray-600`}>{type.label}</td>
 											{visibleProducts.map((p) => {
-												const isCurrent = p.id === currentProductId;
 												const value = highlightsByProductId.get(p.id)?.[typeIndex];
 												return (
-													<td key={p.id} className={`p-3 text-start text-gray-700 bg-white border-t border-gray-100 ${isCurrent ? `sticky start-28 z-10 ${CURRENT_COL} shadow-[0_0_16px_rgba(0,0,0,0.18)]` : ""}`}>
+													<td key={p.id} className="p-2 sm:p-3 text-center text-gray-700 bg-white border-t border-gray-100">
 														{formatCell(type, value)}
 													</td>
 												);
@@ -287,13 +315,13 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 				</table>
 			</div>
 
-			{highlightTypes.length > DEFAULT_ROWS && (
+			{highlightTypes.length > 0 && (
 				<button
 					type="button"
 					onClick={() => setRowsExpanded((e) => !e)}
 					className="self-center inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
 				>
-					{rowsExpanded ? t.showLess : t.loadMore(hiddenCount)}
+					{rowsExpanded ? t.showLess : t.showAll}
 					<ChevronDown size={14} className={`transition-transform ${rowsExpanded ? "rotate-180" : ""}`} />
 				</button>
 			)}
