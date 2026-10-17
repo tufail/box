@@ -22,6 +22,11 @@
 		"LISTMONK_URL": "https://lists.nutribox.qa",
 		"LISTMONK_LIST_UUID": "280f87be-c1b4-42bc-907a-a7d3d16d7fb6"
 	},
+	// Create once with `npx wrangler kv namespace create GOOGLE_REVIEWS_KV`, then paste the
+	// returned id here. Holds the single daily-cached Google reviews payload (see
+	// app/routes/api.google-reviews.ts); the route works without it, just calls Google
+	// more often.
+	// "kv_namespaces": [{ "binding": "GOOGLE_REVIEWS_KV", "id": "<id from the command above>" }],
 	"observability": {
 		"enabled": true,
 	},

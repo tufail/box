@@ -5,6 +5,7 @@ import type { MegaMenuData } from "~/graphql/megamenu";
 import type { PopularSearchTerm } from "~/graphql/search";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { FAQS } from "~/lib/faqData";
+import GoogleReviewsWidget from "~/components/GoogleReviewsWidget";
 
 // Static SEO content block, shown below the footer sitewide — mirrors the pattern used
 // by health/wellness marketplaces (a keyword-rich brand description + internal links).
@@ -110,6 +111,7 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 	return (
 		<div className="bg-white border-t border-stone-200">
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+			<GoogleReviewsWidget />
 			<div className="container mx-auto px-4 py-10">
 				{/* fr units, not percentages — percentage columns plus `gap` push the total
 			    past 100% of the container, overflowing the right column off-screen. */}

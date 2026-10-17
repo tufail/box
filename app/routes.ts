@@ -86,6 +86,7 @@ export default [
 	route("api/variant-rankings", "routes/api.variant-rankings.ts"),
 	route("api/concern-products", "routes/api.concern-products.ts"),
 	route("api/product-comparison", "routes/api.product-comparison.ts"),
+	route("api/google-reviews", "routes/api.google-reviews.ts"),
 	route("api/subscription-plans", "routes/api.subscription-plans.ts"),
 	route("api/subscriptions", "routes/api.subscriptions.ts"),
 	route("api/questions", "routes/api.questions.ts"),
