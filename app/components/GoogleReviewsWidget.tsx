@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { getLocaleFromPathname } from "~/lib/i18n";
 import type { GoogleReviewsPayload } from "~/routes/api.google-reviews";
 
-const GOOGLE_PROFILE_URL = "https://share.google/m4uyBRqwEYe654INv";
+// Google Maps listing (opens Maps with the reviews), not the share.google short link, which lands on a search results page.
+const GOOGLE_PROFILE_URL = "https://www.google.com/maps/search/?api=1&query=NutriBox&query_place_id=ChIJR-0KkFrbRT4ROl7oGZkLYMg";
 
 // Opens Google's review form for our listing directly (same target the QR encodes).
 const WRITE_REVIEW_URL = "https://search.google.com/local/writereview?placeid=ChIJR-0KkFrbRT4ROl7oGZkLYMg";
