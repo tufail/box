@@ -26,7 +26,7 @@ import {
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -93,7 +93,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const baseTitle = brandContent?.metaTitle || brandContent?.title || `${brandName} - ${SITE_NAME}`;
 	const page = loaderData?.page ?? 1;
 	// Page 2+ list different products but would otherwise share page 1's exact title.
-	const title = page > 1 ? `${baseTitle} - ${locale === "ar" ? "صفحة" : "Page"} ${page}` : baseTitle;
+	const title = withPageSuffix(baseTitle, page, locale);
 	const description =
 		brandContent?.metaDescription ||
 		(locale === "ar"
