@@ -167,12 +167,13 @@ export interface BrandCategory {
 }
 
 export interface BrandCategoriesData {
-	search: { collections: BrandCategory[] };
+	search: { totalItems: number; collections: BrandCategory[] };
 }
 
 export const BRAND_CATEGORIES_QUERY = `
 	query BrandCategories($input: SearchInput!) {
 		search(input: $input) {
+			totalItems
 			collections {
 				count
 				collection { id name slug breadcrumbs { name slug } }

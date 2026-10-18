@@ -7,6 +7,7 @@ import { buildCollectionPath } from "~/graphql/collection";
 import { vendureImageUrl } from "~/components/VendureImage";
 
 interface SitemapCollection {
+	id: string;
 	slug: string;
 	breadcrumbs: { name: string; slug: string }[];
 	updatedAt: string;
@@ -22,10 +23,30 @@ const SITEMAP_COLLECTIONS_QUERY = `
 		collections(options: $options) {
 			totalItems
 			items {
+				id
 				slug
 				breadcrumbs { name slug }
 				updatedAt
 				featuredAsset { preview }
+			}
+		}
+	}
+`;
+
+// Collections that actually have products, from the same search index the collection
+// page itself reads (groupByProduct: false, same as the page) -- so "listed here" and
+// "indexable there" can't disagree. Empty collections render noindex, so they stay out
+// of the sitemap.
+interface SitemapCollectionCountsData {
+	search: { collections: { count: number; collection: { id: string } }[] };
+}
+
+const SITEMAP_COLLECTION_COUNTS_QUERY = `
+	query SitemapCollectionCounts($input: SearchInput!) {
+		search(input: $input) {
+			collections {
+				count
+				collection { id }
 			}
 		}
 	}
@@ -46,7 +67,12 @@ export async function loadCollectionsSitemapPage(env: VendureEnv, request: Reque
 		10000,
 	).catch(() => []);
 
-	const entries = collections.map((c) =>
+	// If the count lookup fails we can't tell which are empty, so keep everything rather than
+	// emptying the sitemap on a transient backend blip.
+	const counts = await graphqlRequest<SitemapCollectionCountsData>(env, SITEMAP_COLLECTION_COUNTS_QUERY, { input: { groupByProduct: false, take: 0 } }, { request }).catch(() => null);
+	const nonEmptyIds = counts ? new Set(counts.data.search.collections.filter((c) => c.count > 0).map((c) => c.collection.id)) : null;
+
+	const entries = collections.filter((c) => !nonEmptyIds || nonEmptyIds.has(c.id)).map((c) =>
 		urlEntryLocale(
 			SITE_URL,
 			buildCollectionPath(c.breadcrumbs),

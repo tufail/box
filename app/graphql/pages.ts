@@ -8,6 +8,7 @@ export interface Page {
   assetPreview: string | null;
   active: boolean;
   externalUrl: string | null;
+  noIndex: boolean;
 }
 
 export interface PageSection {
@@ -73,6 +74,7 @@ export const GET_PAGE_SECTIONS = `
           orderId
           active
           externalUrl
+          noIndex
         }
       }
       totalItems
