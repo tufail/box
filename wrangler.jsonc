@@ -22,11 +22,6 @@
 		"LISTMONK_URL": "https://lists.nutribox.qa",
 		"LISTMONK_LIST_UUID": "280f87be-c1b4-42bc-907a-a7d3d16d7fb6"
 	},
-	// Create once with `npx wrangler kv namespace create GOOGLE_REVIEWS_KV`, then paste the
-	// returned id here. Holds the single daily-cached Google reviews payload (see
-	// app/routes/api.google-reviews.ts); the route works without it, just calls Google
-	// more often.
-	// "kv_namespaces": [{ "binding": "GOOGLE_REVIEWS_KV", "id": "<id from the command above>" }],
 	"observability": {
 		"enabled": true,
 	},
@@ -39,8 +34,19 @@
 	// since, including this revert itself needing to ship before anything else does.
 	// The original 503s still need a real fix; it just can't be this one, at least
 	// not without upgrading the plan first.
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	// Smart Placement: routes each request to the datacenter closest to your
 	// Vendure backend, reducing round-trip latency by 50-200 ms in production.
-	"placement": { "mode": "smart" },
+	"placement": {
+		"mode": "smart"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "GOOGLE_REVIEWS_KV",
+			"id": "24a56101a27e41d79327e8b4233bae36",
+			"remote": true
+		}
+	],
 }
