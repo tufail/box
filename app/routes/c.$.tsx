@@ -77,7 +77,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const locale = loaderData?.locale ?? "en";
   const name = collection?.name ?? (locale === "ar" ? "قسم" : "Collection");
   const customMetaTitle = collection?.customFields?.metaTitle?.trim();
-  const title = customMetaTitle || `${name} - ${SITE_NAME}`;
+  const baseTitle = customMetaTitle || `${name} - ${SITE_NAME}`;
+  const page = loaderData?.page ?? 1;
+  // Page 2+ list different products but would otherwise share page 1's exact title.
+  const title = page > 1 ? `${baseTitle} - ${locale === "ar" ? "صفحة" : "Page"} ${page}` : baseTitle;
   const customMetaDescription = collection?.customFields?.metaDescription?.trim();
   const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
   const fallbackDescription =
@@ -174,9 +177,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // Self-referencing with ?page=N for N>1 fixes that while leaving page 1 unchanged.
     const canonicalPath = data.collection ? localizePath(buildCollectionPath(data.collection.breadcrumbs), locale) : localizePath("/c/" + path, locale);
     const canonicalUrl = `${url.origin}${canonicalPath}${page > 1 ? `?page=${page}` : ""}`;
-    const collectionImage = data.collection?.featuredAsset?.preview
-      ? vendureImageUrl(data.collection.featuredAsset.preview, vendureBase, { preset: "xlarge", format: "jpg" })
-      : null;
+    // Social/structured-data image: the collection's own image, else the first product's
+    // photo (so collections without a featured image still get a real preview), else the
+    // admin banner.
+    const firstItem = data.search.items[0];
+    const imagePreview = data.collection?.featuredAsset?.preview ?? firstItem?.productVariantAsset?.preview ?? firstItem?.productAsset?.preview ?? null;
+    const collectionImage = imagePreview
+      ? vendureImageUrl(imagePreview, vendureBase, { preset: "xlarge", format: "jpg" })
+      : (data.collection?.customFields?.banner?.source ?? null);
 
     return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, collectionImage, locale };
   } catch (e) {
@@ -357,11 +365,16 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       mainEntity: {
         "@type": "ItemList",
         numberOfItems: totalItems,
-        itemListElement: items.slice(0, 24).map((item, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          url: `${SITE_URL}${localizePath(`/products/${item.customProductVariantMappings?.slug || item.slug}`, locale)}`,
-        })),
+        itemListElement: items.slice(0, 24).map((item, i) => {
+          const preview = item.productVariantAsset?.preview ?? item.productAsset?.preview;
+          return {
+            "@type": "ListItem",
+            position: i + 1,
+            url: `${SITE_URL}${localizePath(`/products/${item.customProductVariantMappings?.slug || item.slug}`, locale)}`,
+            name: item.productVariantName || item.productName,
+            ...(preview && { image: vendureImageUrl(preview, vendureBase, { preset: "large", format: "jpg" }) }),
+          };
+        }),
       },
     },
   ];

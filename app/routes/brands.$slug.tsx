@@ -90,7 +90,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// Editorial metaTitle/metaDescription (admin-authored, per brand) win when
 	// set; the generic template is the fallback for the many brands that don't
 	// have this content filled in yet, not an error case.
-	const title = brandContent?.metaTitle || brandContent?.title || `${brandName} - ${SITE_NAME}`;
+	const baseTitle = brandContent?.metaTitle || brandContent?.title || `${brandName} - ${SITE_NAME}`;
+	const page = loaderData?.page ?? 1;
+	// Page 2+ list different products but would otherwise share page 1's exact title.
+	const title = page > 1 ? `${baseTitle} - ${locale === "ar" ? "صفحة" : "Page"} ${page}` : baseTitle;
 	const description =
 		brandContent?.metaDescription ||
 		(locale === "ar"

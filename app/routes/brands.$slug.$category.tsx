@@ -60,7 +60,10 @@ function sortToInput(sort: SortKey): CollectionPageVariables["input"]["sort"] {
 export function meta({ loaderData }: Route.MetaArgs) {
 	if (!loaderData) return [{ title: SITE_NAME }, { name: "robots", content: "noindex, follow" }];
 	const { brandName, categoryName, locale, canonicalUrl, totalItems, items } = loaderData;
-	const title = `${brandName} ${categoryName} - ${SITE_NAME}`;
+	const page = loaderData.page ?? 1;
+	// Page 2+ list different products but would otherwise share page 1's exact title.
+	const baseTitle = `${brandName} ${categoryName} - ${SITE_NAME}`;
+	const title = page > 1 ? `${baseTitle} - ${locale === "ar" ? "صفحة" : "Page"} ${page}` : baseTitle;
 	const description =
 		locale === "ar"
 			? `تسوق ${categoryName} من ${brandName} الأصلي من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
