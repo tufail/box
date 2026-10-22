@@ -1,7 +1,7 @@
 // Shared logic behind sitemap-collections-en.xml and sitemap-collections-ar.xml
 // -- split into one file per locale (rather than one file emitting both EN and
 // AR <url> tags per collection), matching the same reasoning as sitemapProducts.ts.
-import { graphqlRequest, fetchInPages, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
+import { graphqlRequest, fetchInPages, filterInBatches, listingHasProducts, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
 import { SITE_URL } from "~/lib/seo";
 import { buildCollectionPath } from "~/graphql/collection";
 import { vendureImageUrl } from "~/components/VendureImage";
@@ -72,7 +72,12 @@ export async function loadCollectionsSitemapPage(env: VendureEnv, request: Reque
 	const counts = await graphqlRequest<SitemapCollectionCountsData>(env, SITEMAP_COLLECTION_COUNTS_QUERY, { input: { groupByProduct: false, take: 0 } }, { request }).catch(() => null);
 	const nonEmptyIds = counts ? new Set(counts.data.search.collections.filter((c) => c.count > 0).map((c) => c.collection.id)) : null;
 
-	const entries = collections.filter((c) => !nonEmptyIds || nonEmptyIds.has(c.id)).map((c) =>
+	let listed = collections.filter((c) => !nonEmptyIds || nonEmptyIds.has(c.id));
+	// The Arabic page resolves its products by slug in Arabic, which can come back empty even
+	// when the aggregate above says otherwise -- confirm each against what that page will show.
+	if (locale === "ar") listed = await filterInBatches(listed, 8, (c) => listingHasProducts(env, request, "ar", { collectionSlug: c.slug }));
+
+	const entries = listed.map((c) =>
 		urlEntryLocale(
 			SITE_URL,
 			buildCollectionPath(c.breadcrumbs),

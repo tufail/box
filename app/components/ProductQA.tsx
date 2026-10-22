@@ -207,7 +207,13 @@ export default function ProductQA({ productId, productSlug, productVariantId, in
 						{t.title}
 					</h2>
 				)}
-				<button onClick={() => setShowForm((s) => !s)} className={`text-sm font-semibold text-primary hover:underline ${embedded ? "mx-auto" : ""}`}>
+				<button
+					type="button"
+					onClick={() => setShowForm((s) => !s)}
+					aria-expanded={showForm}
+					className={`inline-flex items-center gap-2 rounded-full border border-primary px-5 py-2 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors ${embedded ? "mx-auto" : ""}`}
+				>
+					<MessageCircleQuestion size={16} aria-hidden="true" />
 					{t.askQuestion}
 				</button>
 			</div>

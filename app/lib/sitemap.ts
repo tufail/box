@@ -114,3 +114,50 @@ export async function fetchInPages<TItem>(
 
 export type { VendureEnv };
 export { graphqlRequest };
+
+// ── Per-locale "does this listing page actually have products?" check ─────────
+// The listing pages look products up by collection *slug* under the page's own
+// language (?languageCode=ar for /ar/...). That can come back empty for a locale
+// even when the language-neutral aggregates say otherwise (seen on the Arabic
+// Herbal Supplements collection), which makes the page render noindex/404. The
+// sitemap must not list such URLs, so for the Arabic sitemaps we ask the same
+// question the page asks, in the page's language.
+const SITEMAP_PAGE_COUNT_QUERY = `
+	query SitemapPageCount($input: SearchInput!) {
+		search(input: $input) {
+			totalItems
+		}
+	}
+`;
+
+// True when the page would show at least `min` products. A failed lookup returns true:
+// not being able to tell shouldn't silently drop a URL (or empty the sitemap) on a blip.
+export async function listingHasProducts(
+	env: VendureEnv,
+	request: Request,
+	locale: "en" | "ar",
+	input: Record<string, unknown>,
+	min = 1,
+): Promise<boolean> {
+	try {
+		const result = await graphqlRequest<{ search: { totalItems: number } }>(
+			env,
+			SITEMAP_PAGE_COUNT_QUERY,
+			{ input: { groupByProduct: false, take: 0, ...input } },
+			{ request, locale },
+		);
+		return result.data.search.totalItems >= min;
+	} catch {
+		return true;
+	}
+}
+
+// Runs `check` over `items` a few at a time (bounded concurrency) and keeps the
+// ones it approves, preserving order.
+export async function filterInBatches<T>(items: T[], size: number, check: (item: T) => Promise<boolean>): Promise<T[]> {
+	const keep: boolean[] = [];
+	for (let i = 0; i < items.length; i += size) {
+		keep.push(...(await Promise.all(items.slice(i, i + size).map(check))));
+	}
+	return items.filter((_, i) => keep[i]);
+}

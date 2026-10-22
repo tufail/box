@@ -4,7 +4,7 @@
 // used to live bundled inside sitemap-pages.xml alongside static paths/CMS
 // pages/blog posts; pulled out on its own so it can be locale-split like
 // products and collections are.
-import { graphqlRequest, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
+import { graphqlRequest, filterInBatches, listingHasProducts, urlEntryLocale, urlset, xmlResponse, type VendureEnv } from "~/lib/sitemap";
 import {
 	GET_BRAND_FACET_QUERY,
 	BRAND_CATEGORIES_QUERY,
@@ -46,16 +46,27 @@ export async function loadBrandsSitemapPage(env: VendureEnv, request: Request, l
 	}
 
 	const entries: ReturnType<typeof urlEntryLocale>[] = [];
+	// Brand x category landing pages (/brands/:slug/:category) -- only the
+	// combinations with enough products to be worth indexing.
+	let categoryPages: { brandId: string; brandCode: string; slug: string }[] = [];
 	brands.forEach((b, i) => {
 		const data = perBrand[i];
 		if (data && data.search.totalItems === 0) return;
 		entries.push(urlEntryLocale(SITE_URL, `/brands/${b.code}`, locale));
-		// Brand x category landing pages (/brands/:slug/:category) -- only the
-		// combinations with enough products to be worth indexing.
 		for (const c of data?.search.collections ?? []) {
 			if (c.collection.name === "__root_collection__" || c.count < MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS) continue;
-			entries.push(urlEntryLocale(SITE_URL, brandCategoryPath(b.code, c.collection.slug), locale));
+			categoryPages.push({ brandId: b.id, brandCode: b.code, slug: c.collection.slug });
 		}
 	});
+
+	// The Arabic page resolves its products by collection slug in Arabic, which can come
+	// back empty (-> 404/noindex) even when the aggregate above says otherwise -- confirm
+	// each combination against what that page will actually show.
+	if (locale === "ar") {
+		categoryPages = await filterInBatches(categoryPages, CONCURRENCY, (c) =>
+			listingHasProducts(env, request, "ar", { collectionSlug: c.slug, facetValueIds: [c.brandId] }, MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS),
+		);
+	}
+	for (const c of categoryPages) entries.push(urlEntryLocale(SITE_URL, brandCategoryPath(c.brandCode, c.slug), locale));
 	return xmlResponse(urlset(entries));
 }
