@@ -20,6 +20,10 @@ import type { SkipCashCheckoutResult } from "~/graphql/checkout";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
+// Which checkout customers get by default: true = the one-page checkout, false = the original
+// multi-step flow (kept intact in this file; reachable at /checkout?classic=1 either way).
+const DEFAULT_ONE_STEP = true;
+
 // Must match the `code` the SkipCash PaymentMethod is created with in the
 // Vendure admin (see SKIPCASH_METHOD_CODE in api.checkout.ts).
 const SKIPCASH_METHOD_CODE = "skipcash-payment";
@@ -2007,6 +2011,16 @@ const ONESTEP_COPY = {
 		deliveryMethodTitle: "Delivery method",
 		selectAreaForOptions: "Select your area to see delivery options and fees.",
 		paymentMethodTitle: "Payment method",
+		paymentAfterDelivery: "Payment options appear once your delivery details are set.",
+		notListed: "My area isn't listed",
+		selectZoneFallback: "Select your zone",
+		zoneWord: "Zone",
+		zoneOther: "Other area (no zone number)",
+		fallbackAreaLabel: "Your area / neighbourhood name",
+		fallbackAreaPlaceholder: "e.g. compound, tower or neighbourhood name",
+		fallbackNote: "If you know your zone number, select it above for the exact delivery fee. Tell us your area name so the driver can find you.",
+		backToSearch: "← Search the area list instead",
+		areaPrefix: "Area",
 		finalOrderTotal: "Final order total",
 		plusDelivery: "+ delivery",
 		placeOrder: "Place order",
@@ -2042,6 +2056,16 @@ const ONESTEP_COPY = {
 		deliveryMethodTitle: "طريقة التوصيل",
 		selectAreaForOptions: "اختر منطقتك لعرض خيارات التوصيل والرسوم.",
 		paymentMethodTitle: "طريقة الدفع",
+		paymentAfterDelivery: "تظهر خيارات الدفع بعد إدخال بيانات التوصيل.",
+		notListed: "منطقتي غير موجودة في القائمة",
+		selectZoneFallback: "اختر رقم منطقتك",
+		zoneWord: "المنطقة",
+		zoneOther: "منطقة أخرى (بدون رقم منطقة)",
+		fallbackAreaLabel: "اسم منطقتك / حيّك",
+		fallbackAreaPlaceholder: "مثال: اسم المجمع أو البرج أو الحي",
+		fallbackNote: "إذا كنت تعرف رقم منطقتك فاخترها أعلاه لمعرفة رسوم التوصيل الدقيقة. أخبرنا باسم منطقتك ليتمكن السائق من الوصول إليك.",
+		backToSearch: "← البحث في قائمة المناطق",
+		areaPrefix: "المنطقة",
 		finalOrderTotal: "إجمالي الطلب النهائي",
 		plusDelivery: "+ التوصيل",
 		placeOrder: "إتمام الطلب",
@@ -2112,6 +2136,9 @@ function OneStepCheckout({
 		return initialDraft?.postalCode ? areaLabelForZone(Number(initialDraft.postalCode), locale) : "";
 	});
 	const [saveAddressChecked, setSaveAddressChecked] = useState(true);
+	// "My area isn't listed": the customer picks a ZONE instead (every zone has a single delivery
+	// price, so the fee stays exact) and names their area, which is added to the address for the driver.
+	const [notListed, setNotListed] = useState(false);
 	const [methods, setMethods] = useState<ShippingMethod[]>([]);
 	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId);
 	const selectedMethodRef = useRef(selectedMethod);
@@ -2183,7 +2210,7 @@ function OneStepCheckout({
 				firstName: readField("firstName"),
 				lastName: readField("lastName"),
 				streetLine1: readField("streetLine1"),
-				streetLine2: readField("streetLine2") || undefined,
+				streetLine2: [readField("streetLine2"), notListed && readField("fallbackArea") ? `${o.areaPrefix}: ${readField("fallbackArea")}` : ""].filter(Boolean).join(" · ") || undefined,
 				city: municipalityForZone(Number(postalCode), locale),
 				postalCode,
 				phoneNumber: readField("phoneNumber") || undefined,
@@ -2285,6 +2312,49 @@ function OneStepCheckout({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// One entry per delivery zone (representative area = the zone's first listed area, which carries
+	// the zone's price), for the "area isn't listed" selector. Zone 0 = areas with no zone number.
+	const zoneOptions = (() => {
+		const byZone = new Map<number, AreaOption[]>();
+		for (const a of areas) {
+			if (!a.id) continue;
+			const list = byZone.get(a.zoneNumber);
+			if (list) list.push(a);
+			else byZone.set(a.zoneNumber, [a]);
+		}
+		return [...byZone.entries()]
+			.sort(([x], [y]) => (x === 0 ? 1 : y === 0 ? -1 : x - y))
+			.map(([zoneNumber, list]) => ({
+				zoneNumber,
+				rep: list[0],
+				label: zoneNumber === 0 ? o.zoneOther : `${zoneNumber} · ${municipalityForZone(zoneNumber, locale)} — ${list.slice(0, 3).map((a) => (locale === "ar" ? a.nameAr : a.nameEn)).join(", ")}`,
+			}));
+	})();
+
+	function resetAreaChoice() {
+		setZone("");
+		setAreaId("");
+		setAreaName("");
+		setMethods([]);
+		setSelectedMethod(null);
+	}
+	function openNotListed() {
+		setNotListed(true);
+		// Starts on "Other area (no zone number)" so the customer can carry on straight away;
+		// picking their real zone from the selector swaps in that zone's own fee.
+		resetAreaChoice();
+		handleFallbackZone("0");
+	}
+	function closeNotListed() {
+		setNotListed(false);
+		resetAreaChoice();
+	}
+	function handleFallbackZone(value: string) {
+		const opt = zoneOptions.find((z) => String(z.zoneNumber) === value);
+		if (!opt) return resetAreaChoice();
+		handleZoneChange(String(opt.zoneNumber), opt.zoneNumber === 0 ? o.zoneOther : `${o.zoneWord} ${opt.zoneNumber}`, opt.rep.id);
+	}
+
 	// "Is there a usable delivery address yet?" -- the form's fields are uncontrolled, so this is
 	// recomputed from the DOM on every input event (and when the mode / saved choice / area changes).
 	const [addressComplete, setAddressComplete] = useState(false);
@@ -2292,12 +2362,12 @@ function OneStepCheckout({
 		const hasNames = !!readField("firstName") && !!readField("lastName") && !!readField("phoneNumber");
 		if (mode === "pickup") setAddressComplete(hasNames);
 		else if (addressMode === "saved") setAddressComplete(!!selectedSavedId);
-		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1"));
+		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1") && (!notListed || !!readField("fallbackArea")));
 	}
 	useEffect(() => {
 		syncAddressComplete();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [mode, addressMode, selectedSavedId, zone, addresses]);
+	}, [mode, addressMode, selectedSavedId, zone, addresses, notListed]);
 
 	function handleZoneChange(zoneNumber: string, name: string, pickedAreaId: string) {
 		setZone(zoneNumber);
@@ -2736,21 +2806,47 @@ function OneStepCheckout({
 											{t.zone}
 											<span className="text-red-500 ms-1">*</span>
 										</label>
-										<div className="relative">
-											<MapPin size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-											<AreaSelect
-												id="checkout-postalCode"
-												name="postalCode"
-												areas={areas}
-												locale={locale}
-												placeholder={t.selectZone}
-												required
-												value={zone}
-												initialAreaId={initialDraft?.qatarAreaId}
-												onChange={handleZoneChange}
-												inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-											/>
-										</div>
+										{notListed ? (
+											<div className="flex flex-col gap-3">
+												<select
+													id="checkout-postalCode"
+													name="fallbackZone"
+													required
+													value={zone}
+													onChange={(e) => handleFallbackZone(e.target.value)}
+													className="w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+												>
+													<option value="">{o.selectZoneFallback}</option>
+													{zoneOptions.map((z) => (
+														<option key={z.zoneNumber} value={String(z.zoneNumber)}>
+															{z.label}
+														</option>
+													))}
+												</select>
+												<Field label={o.fallbackAreaLabel} name="fallbackArea" required className="" placeholder={o.fallbackAreaPlaceholder} icon={MapPin} />
+												<p className="text-xs text-gray-500 -mt-1">{o.fallbackNote}</p>
+												<button type="button" onClick={closeNotListed} className="self-start text-sm font-semibold text-[#007185] hover:text-[#C7511F] hover:underline">
+													{o.backToSearch}
+												</button>
+											</div>
+										) : (
+											<div className="relative">
+												<MapPin size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+												<AreaSelect
+													id="checkout-postalCode"
+													name="postalCode"
+													areas={areas}
+													locale={locale}
+													placeholder={t.selectZone}
+													required
+													value={zone}
+													initialAreaId={initialDraft?.qatarAreaId}
+													onChange={handleZoneChange}
+													notListed={{ label: o.notListed, onSelect: openNotListed }}
+													inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+												/>
+											</div>
+										)}
 									</div>
 									<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialDraft?.streetLine1} placeholder={t.addressPlaceholder} icon={Home} />
 									<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialDraft?.streetLine2} placeholder={t.streetPlaceholder} icon={MapPin} />
@@ -2821,7 +2917,7 @@ function OneStepCheckout({
 				<section>
 					<h2 className={sectionTitle}>{o.paymentMethodTitle}</h2>
 					{payMethods.length === 0 ? (
-						<p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 px-4 py-3">{areaKnown ? t.loadingPaymentOptions : o.selectAreaForOptions}</p>
+						<p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 px-4 py-3">{areaKnown ? t.loadingPaymentOptions : o.paymentAfterDelivery}</p>
 					) : (
 						<div className="space-y-2.5">
 							{payMethods.map((m) => (
@@ -2878,8 +2974,10 @@ export default function CheckoutPage() {
 	const { setCartCount } = useCart();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
-	// Opt-in single-page checkout: /checkout?onestep=1 (the multi-step flow stays the default).
-	const oneStep = new URLSearchParams(useLocation().search).get("onestep") === "1";
+	// The one-page checkout is the default. The previous multi-step flow is still available at
+	// /checkout?classic=1 (or ?onestep=0); to make it the default again, flip DEFAULT_ONE_STEP.
+	const checkoutParams = new URLSearchParams(useLocation().search);
+	const oneStep = checkoutParams.get("classic") === "1" || checkoutParams.get("onestep") === "0" ? false : checkoutParams.get("onestep") === "1" ? true : DEFAULT_ONE_STEP;
 
 	const [initialState] = useState(() => deriveCheckoutState(initialOrder!, activeCustomer, locale));
 	const [step, setStep] = useState(initialState.step);

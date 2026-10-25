@@ -46,6 +46,7 @@ export default function AreaSelect({
 	placeholder,
 	required,
 	inputClassName,
+	notListed,
 }: {
 	id: string;
 	name: string;
@@ -60,6 +61,10 @@ export default function AreaSelect({
 	placeholder: string;
 	required?: boolean;
 	inputClassName: string;
+	// Optional escape hatch pinned to the bottom of the list (and triggered by Enter when
+	// nothing matches): lets a customer whose area isn't listed choose something else instead
+	// of being stuck. Other callers simply don't pass it.
+	notListed?: { label: string; onSelect: () => void };
 }) {
 	// Ascending by zone number (1, 2, 3, …) — zone 0 (areas with no official zone
 	// assigned, see qatar-areas.ts) is a catch-all, not really "before zone 1", so it's
@@ -166,6 +171,10 @@ export default function AreaSelect({
 		} else if (e.key === "Enter") {
 			e.preventDefault();
 			if (filtered[activeIndex]) commit(filtered[activeIndex]);
+			else if (notListed) {
+				setOpen(false);
+				notListed.onSelect();
+			}
 		} else if (e.key === "Escape") {
 			setOpen(false);
 			setQuery(committedLabel);
@@ -237,6 +246,22 @@ export default function AreaSelect({
 							{labelFor(area)}
 						</li>
 					))}
+					{notListed && (
+						<li role="presentation" className="sticky bottom-0 bg-white border-t border-gray-100">
+							{/* mouse-down is prevented so the input doesn't blur (and close the list) before the click lands */}
+							<button
+								type="button"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={() => {
+									setOpen(false);
+									notListed.onSelect();
+								}}
+								className="w-full text-start px-4 py-2.5 text-sm font-semibold text-[#007185] hover:text-[#C7511F] hover:bg-gray-50"
+							>
+								{notListed.label}
+							</button>
+						</li>
+					)}
 				</ul>
 			)}
 		</div>
