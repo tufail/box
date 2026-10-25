@@ -1968,6 +1968,908 @@ function StepProgressBar({ step, completed, t }: { step: number; completed: numb
 	);
 }
 
+// ── One-step checkout (opt-in: /checkout?onestep=1) ───────────────────────────
+//
+// Everything on one page: contact, delivery address (with the area picker that drives the
+// fee), delivery method, payment method, and a single "Place order" button. The old
+// three-step flow above is untouched and stays the default until this has been tested.
+//
+// How it maps onto Vendure: the order stays editable (AddingItems) until payment is
+// attempted -- the ArrangingPayment lock only happens inside the `addPayment` intent -- so
+// every earlier mutation can run from one button, in order: customer -> shipping address ->
+// shipping method -> payment. Delivery options and fees still appear live as soon as an
+// area is picked (a preview run of the same address -> methods -> method calls), so the
+// total in the summary is real before the customer ever presses the button.
+
+const ONESTEP_COPY = {
+	en: {
+		title: "Complete your order",
+		secure: "Secure checkout",
+		contactDetails: "Contact details",
+		emailPlaceholder: "Enter your email",
+		alreadyHaveAccount: "Already have an account?",
+		logIn: "Log in",
+		createAccount: "Create an account",
+		newCustomer: "New customer?",
+		alreadyRegistered: "Already registered?",
+		continueAsGuest: "Continue as guest",
+		signedInAs: "Signed in as",
+		emailHasAccount: "This email already has an account.",
+		loginToUseDetails: "Log in to use your saved details.",
+		createAccountButton: "Create account",
+		loggingIn: "Logging in…",
+		creatingAccount: "Creating account…",
+		registerFailed: "Could not create your account. Please try again.",
+		enterPasswordPrompt: "Please enter your email and password.",
+		deliveryAddress: "Delivery address",
+		shipSubtitle: "Delivered to your address",
+		pickupSubtitle: "Collect from our Doha store",
+		deliveryMethodTitle: "Delivery method",
+		selectAreaForOptions: "Select your area to see delivery options and fees.",
+		paymentMethodTitle: "Payment method",
+		finalOrderTotal: "Final order total",
+		plusDelivery: "+ delivery",
+		placeOrder: "Place order",
+		placeOrderHint: "Add your delivery address and choose a delivery method to place your order.",
+		placingOrder: "Placing order…",
+		finalTotalNote: "Final total and payment requirements are confirmed before submission.",
+		enterEmail: "Please enter a valid email address.",
+		selectPayment: "Please choose a payment method.",
+		fillRequired: "Please complete the required fields.",
+	},
+	ar: {
+		title: "أكمل طلبك",
+		secure: "دفع آمن",
+		contactDetails: "بيانات التواصل",
+		emailPlaceholder: "أدخل بريدك الإلكتروني",
+		alreadyHaveAccount: "لديك حساب بالفعل؟",
+		logIn: "تسجيل الدخول",
+		createAccount: "إنشاء حساب",
+		newCustomer: "عميل جديد؟",
+		alreadyRegistered: "مسجّل بالفعل؟",
+		continueAsGuest: "المتابعة كزائر",
+		signedInAs: "تم تسجيل الدخول باسم",
+		emailHasAccount: "هذا البريد الإلكتروني مسجّل بحساب بالفعل.",
+		loginToUseDetails: "سجّل الدخول لاستخدام بياناتك المحفوظة.",
+		createAccountButton: "إنشاء الحساب",
+		loggingIn: "جارٍ تسجيل الدخول…",
+		creatingAccount: "جارٍ إنشاء الحساب…",
+		registerFailed: "تعذّر إنشاء حسابك. يرجى المحاولة مرة أخرى.",
+		enterPasswordPrompt: "يرجى إدخال بريدك الإلكتروني وكلمة المرور.",
+		deliveryAddress: "عنوان التوصيل",
+		shipSubtitle: "يصلك إلى عنوانك",
+		pickupSubtitle: "استلمه من متجرنا في الدوحة",
+		deliveryMethodTitle: "طريقة التوصيل",
+		selectAreaForOptions: "اختر منطقتك لعرض خيارات التوصيل والرسوم.",
+		paymentMethodTitle: "طريقة الدفع",
+		finalOrderTotal: "إجمالي الطلب النهائي",
+		plusDelivery: "+ التوصيل",
+		placeOrder: "إتمام الطلب",
+		placeOrderHint: "أضف عنوان التوصيل واختر طريقة التوصيل لإتمام طلبك.",
+		placingOrder: "جارٍ إتمام الطلب…",
+		finalTotalNote: "يتم تأكيد الإجمالي النهائي ومتطلبات الدفع قبل الإرسال.",
+		enterEmail: "يرجى إدخال بريد إلكتروني صحيح.",
+		selectPayment: "يرجى اختيار طريقة الدفع.",
+		fillRequired: "يرجى إكمال الحقول المطلوبة.",
+	},
+} as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type OneStepGraphResult = Record<string, unknown>;
+
+function OneStepCheckout({
+	order,
+	areas,
+	activeCustomer,
+	initialDraft,
+	initialMode,
+	initialMethodId,
+	setOrder,
+	onDone,
+}: {
+	order: ActiveOrder;
+	areas: AreaOption[];
+	activeCustomer: ActiveCustomer | null;
+	initialDraft: ShippingAddressValues | null;
+	initialMode: "address" | "pickup";
+	initialMethodId: string | null;
+	setOrder: (updater: (prev: ActiveOrder) => ActiveOrder) => void;
+	onDone: (orderCode: string) => void;
+}) {
+	const locale = getLocaleFromPathname(useLocation().pathname);
+	const t = CHECKOUT_COPY[locale];
+	const o = ONESTEP_COPY[locale];
+	const { notify } = useNotification();
+	const formRef = useRef<HTMLFormElement>(null);
+
+	// ── Contact / account ──
+	// `customer` is a REAL logged-in account (a guest order's own customer record must not be
+	// mistaken for one -- same distinction deriveCheckoutState makes).
+	const [customer, setCustomer] = useState<ActiveCustomer | null>(activeCustomer);
+	const [addresses, setAddresses] = useState<CustomerAddress[] | null>(activeCustomer?.addresses ?? null);
+	const guestEmailRef = useRef<string>(order.customer?.emailAddress ?? "");
+	const [emailHasAccount, setEmailHasAccount] = useState(false);
+	const [newsletter, setNewsletter] = useState(true);
+	const [authMode, setAuthMode] = useState<null | "login" | "register">(null);
+	const [authError, setAuthError] = useState<string | null>(null);
+	const [authBusy, setAuthBusy] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+
+	// ── Delivery ──
+	const [mode, setMode] = useState<"address" | "pickup">(initialMode);
+	const hasSaved = !!addresses && addresses.length > 0;
+	const [addressMode, setAddressMode] = useState<"saved" | "new">(hasSaved && !initialDraft ? "saved" : "new");
+	const [selectedSavedId, setSelectedSavedId] = useState<string | null>(() => {
+		if (!addresses || addresses.length === 0) return null;
+		return (addresses.find((a) => a.defaultShippingAddress) ?? addresses[0]).id;
+	});
+	const [zone, setZone] = useState(initialDraft?.postalCode ?? "");
+	const [areaId, setAreaId] = useState(initialDraft?.qatarAreaId ?? "");
+	const [areaName, setAreaName] = useState<string>(() => {
+		const exact = initialDraft?.qatarAreaId ? areas.find((a) => a.id === initialDraft.qatarAreaId) : undefined;
+		if (exact) return locale === "ar" ? exact.nameAr : exact.nameEn;
+		return initialDraft?.postalCode ? areaLabelForZone(Number(initialDraft.postalCode), locale) : "";
+	});
+	const [saveAddressChecked, setSaveAddressChecked] = useState(true);
+	const [methods, setMethods] = useState<ShippingMethod[]>([]);
+	const [selectedMethod, setSelectedMethod] = useState<string | null>(initialMethodId);
+	const selectedMethodRef = useRef(selectedMethod);
+	useEffect(() => {
+		selectedMethodRef.current = selectedMethod;
+	}, [selectedMethod]);
+	const [loadingMethods, setLoadingMethods] = useState(false);
+
+	// ── Payment ──
+	const [payMethods, setPayMethods] = useState<PaymentMethod[]>([]);
+	const [selectedPay, setSelectedPay] = useState<string | null>(null);
+	const selectedPayRef = useRef(selectedPay);
+	useEffect(() => {
+		selectedPayRef.current = selectedPay;
+	}, [selectedPay]);
+
+	const [error, setError] = useState<string | null>(null);
+	const [submitting, setSubmitting] = useState(false);
+	const [sadad, setSadad] = useState<SadadPaymentMetadata | null>(null);
+	const [redirecting, setRedirecting] = useState(false);
+	// Latest-wins guard for the live preview (rapid area changes must not let a slow, older
+	// response overwrite a newer one), and a flag for "an addPayment attempt already locked
+	// the order" so the next attempt reopens it first.
+	const previewSeq = useRef(0);
+	const needsReopenRef = useRef(order.state === "ArrangingPayment");
+
+	async function postCheckout<T = OneStepGraphResult>(body: Record<string, unknown>): Promise<T> {
+		const r = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+		return (await r.json()) as T;
+	}
+
+	// An earlier payment attempt (failed card, closed SkipCash tab, Back button) leaves the
+	// order locked in ArrangingPayment, where every address/method mutation is rejected.
+	async function reopenIfLocked() {
+		if (!needsReopenRef.current) return;
+		await postCheckout({ _intent: "reopenCart" });
+		needsReopenRef.current = false;
+		setOrder((prev) => ({ ...prev, state: "AddingItems" }));
+	}
+
+	// ── Address resolution (what will be sent as the order's shipping address) ──
+	function readField(name: string): string {
+		const el = formRef.current?.elements.namedItem(name) as HTMLInputElement | null;
+		return (el?.value ?? "").trim();
+	}
+
+	function resolveAddress(overrides?: { zone?: string; areaId?: string; areaLabel?: string }): { values: ShippingAddressValues; areaLabel: string; qatarAreaId: string } | null {
+		if (mode === "pickup") {
+			return {
+				values: { firstName: readField("firstName"), lastName: readField("lastName"), phoneNumber: readField("phoneNumber") || undefined, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, postalCode: STORE_PICKUP_ADDRESS.postalCode },
+				areaLabel: t.storePickup,
+				qatarAreaId: "",
+			};
+		}
+		if (addressMode === "saved" && selectedSavedId && addresses) {
+			const addr = addresses.find((a) => a.id === selectedSavedId);
+			const v = addr ? addressToShippingValues(addr) : null;
+			if (!v) return null;
+			// A saved address's area id can be missing or stale (see ShippingStep.selectSavedAddress):
+			// fall back to a same-zone area so the backend's area-based eligibility still resolves.
+			const known = v.qatarAreaId ? areas.find((a) => a.id === v.qatarAreaId) : undefined;
+			const resolved = known ?? areas.find((a) => `${a.zoneNumber}` === v.postalCode);
+			return { values: v, areaLabel: resolved ? (locale === "ar" ? resolved.nameAr : resolved.nameEn) : areaLabelForZone(Number(v.postalCode), locale), qatarAreaId: resolved?.id ?? "" };
+		}
+		const postalCode = overrides?.zone ?? zone;
+		if (!postalCode.trim()) return null;
+		return {
+			values: {
+				firstName: readField("firstName"),
+				lastName: readField("lastName"),
+				streetLine1: readField("streetLine1"),
+				streetLine2: readField("streetLine2") || undefined,
+				city: municipalityForZone(Number(postalCode), locale),
+				postalCode,
+				phoneNumber: readField("phoneNumber") || undefined,
+			},
+			areaLabel: overrides?.areaLabel ?? (areaName || areaLabelForZone(Number(postalCode), locale)),
+			qatarAreaId: overrides?.areaId ?? areaId,
+		};
+	}
+
+	function addressBody(r: { values: ShippingAddressValues; qatarAreaId: string }): Record<string, unknown> {
+		const v = r.values;
+		const body: Record<string, unknown> = { _intent: "setShippingAddress", firstName: v.firstName, lastName: v.lastName, streetLine1: v.streetLine1, city: v.city, countryCode: "QA", province: "Doha", postalCode: v.postalCode };
+		if (v.streetLine2) body.streetLine2 = v.streetLine2;
+		if (v.phoneNumber) body.phoneNumber = v.phoneNumber;
+		if (r.qatarAreaId) body.qatarAreaId = r.qatarAreaId;
+		return body;
+	}
+
+	function pickMethod(all: ShippingMethod[]): ShippingMethod | undefined {
+		if (mode === "pickup") return all.find((m) => m.code === STORE_PICKUP_METHOD_CODE);
+		const deliveryOnly = all.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
+		return deliveryOnly.find((m) => m.id === selectedMethodRef.current) ?? deliveryOnly[0];
+	}
+
+	// Sets the chosen shipping method on the order and mirrors the new totals (and the
+	// shipping line, which the summary uses to tell "not calculated yet" from "free") into state.
+	async function applyMethod(method: ShippingMethod): Promise<boolean> {
+		const res = await postCheckout<{ setOrderShippingMethod?: OneStepGraphResult; error?: string }>({ _intent: "setShippingMethod", shippingMethodId: method.id });
+		const r = res.setOrderShippingMethod;
+		if (!r || r.__typename !== "Order") {
+			setError((r?.message as string) || res.error || t.couldNotSetShippingMethod);
+			return false;
+		}
+		setOrder((prev) => ({
+			...prev,
+			shippingWithTax: r.shippingWithTax as number,
+			totalWithTax: r.totalWithTax as number,
+			subTotalWithTax: r.subTotalWithTax as number,
+			shippingLines: [{ price: method.price, priceWithTax: method.priceWithTax, shippingMethod: { id: method.id, name: method.name, code: method.code, description: method.description } }],
+		}));
+		return true;
+	}
+
+	async function loadPaymentMethods(): Promise<PaymentMethod[]> {
+		try {
+			const d = await fetch(`/api/checkout?intent=paymentMethods&lang=${locale}`).then((r) => r.json() as Promise<{ paymentMethods?: PaymentMethod[] }>);
+			// Online Payment (SkipCash) always sorts first, regardless of API order.
+			const list = (d.paymentMethods ?? []).filter((m) => m.isEligible).sort((a, b) => Number(b.code === SKIPCASH_METHOD_CODE) - Number(a.code === SKIPCASH_METHOD_CODE));
+			setPayMethods(list);
+			const keep = list.find((m) => m.code === selectedPayRef.current);
+			setSelectedPay(keep ? keep.code : (list[0]?.code ?? null));
+			return list;
+		} catch {
+			return [];
+		}
+	}
+
+	// Live preview: save whatever address is known so far (names/street may still be blank --
+	// only the area is needed for a quote), list the eligible methods, select one, and set it
+	// so the summary's shipping and total are real. The submit handler re-runs the same
+	// sequence authoritatively; this exists only so the customer sees real numbers early.
+	async function previewRates(overrides?: { zone?: string; areaId?: string; areaLabel?: string }) {
+		const resolved = resolveAddress(overrides);
+		if (!resolved) return;
+		const seq = ++previewSeq.current;
+		setLoadingMethods(true);
+		setError(null);
+		try {
+			await reopenIfLocked();
+			const a = await postCheckout<{ setOrderShippingAddress?: OneStepGraphResult; error?: string }>(addressBody(resolved));
+			if (seq !== previewSeq.current) return;
+			if (a.setOrderShippingAddress?.__typename !== "Order") {
+				setError((a.setOrderShippingAddress?.message as string) || a.error || t.couldNotSaveAddress);
+				return;
+			}
+			const m = await fetch(`/api/checkout?intent=shippingMethods&lang=${locale}`).then((r) => r.json() as Promise<{ shippingMethods?: ShippingMethod[] }>);
+			if (seq !== previewSeq.current) return;
+			const all = m.shippingMethods ?? [];
+			setMethods(all);
+			const method = pickMethod(all);
+			if (!method) {
+				setError(mode === "pickup" ? t.pickupUnavailable : t.noShippingMethods);
+				return;
+			}
+			setSelectedMethod(method.id);
+			if (!(await applyMethod(method)) || seq !== previewSeq.current) return;
+			await loadPaymentMethods();
+		} catch {
+			if (seq === previewSeq.current) setError(t.couldNotSaveAddress);
+		} finally {
+			if (seq === previewSeq.current) setLoadingMethods(false);
+		}
+	}
+
+	// Resume: a returning customer's saved/default address, an address already on the order,
+	// or a pickup order get their rates up front, like the multi-step flow does.
+	useEffect(() => {
+		if (mode === "pickup" || initialDraft?.postalCode || (addressMode === "saved" && selectedSavedId)) void previewRates();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// "Is there a usable delivery address yet?" -- the form's fields are uncontrolled, so this is
+	// recomputed from the DOM on every input event (and when the mode / saved choice / area changes).
+	const [addressComplete, setAddressComplete] = useState(false);
+	function syncAddressComplete() {
+		const hasNames = !!readField("firstName") && !!readField("lastName") && !!readField("phoneNumber");
+		if (mode === "pickup") setAddressComplete(hasNames);
+		else if (addressMode === "saved") setAddressComplete(!!selectedSavedId);
+		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1"));
+	}
+	useEffect(() => {
+		syncAddressComplete();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [mode, addressMode, selectedSavedId, zone, addresses]);
+
+	function handleZoneChange(zoneNumber: string, name: string, pickedAreaId: string) {
+		setZone(zoneNumber);
+		setAreaId(pickedAreaId);
+		setAreaName(name);
+		setMethods([]);
+		setSelectedMethod(null);
+		if (zoneNumber) void previewRates({ zone: zoneNumber, areaId: pickedAreaId, areaLabel: name });
+	}
+
+	function handleModeChange(next: "address" | "pickup") {
+		if (next === mode) return;
+		setMode(next);
+		setMethods([]);
+		setSelectedMethod(null);
+		setError(null);
+		// mode isn't updated yet when previewRates runs synchronously below, so defer a tick.
+		setTimeout(() => void previewRates(), 0);
+	}
+
+	function pickSavedAddress(id: string) {
+		setSelectedSavedId(id);
+		setMethods([]);
+		setSelectedMethod(null);
+		setTimeout(() => void previewRates(), 0);
+	}
+
+	// ── Guest email capture ──
+	// Saved as soon as a valid email is entered (not only on submit), so a customer who
+	// abandons the page still leaves a recoverable cart -- same as the multi-step flow's first
+	// step did. An email that already belongs to an account surfaces a gentle login hint.
+	async function saveGuestEmail(email: string, names?: { firstName: string; lastName: string }): Promise<"ok" | "has-account" | "error"> {
+		const firstTime = guestEmailRef.current !== email;
+		const res = await postCheckout<{ setCustomerForOrder?: OneStepGraphResult; error?: string }>({
+			_intent: "guest",
+			firstName: names?.firstName ?? "",
+			lastName: names?.lastName ?? "",
+			emailAddress: email,
+			// Only on the first save for this email, so the newsletter isn't re-subscribed on every call.
+			...(firstTime ? { emailOffers: newsletter ? "true" : "false" } : {}),
+		});
+		const r = res.setCustomerForOrder;
+		if (r?.__typename === "Order") {
+			guestEmailRef.current = email;
+			setEmailHasAccount(false);
+			return "ok";
+		}
+		if (r?.__typename === "EmailAddressConflictError") {
+			setEmailHasAccount(true);
+			return "has-account";
+		}
+		if (r?.__typename === "AlreadyLoggedInError") {
+			await refreshAfterLogin();
+			return "ok";
+		}
+		return "error";
+	}
+
+	function handleEmailBlur(e: React.FocusEvent<HTMLInputElement>) {
+		const email = e.target.value.trim();
+		if (customer || !EMAIL_PATTERN.test(email) || email === guestEmailRef.current) return;
+		void saveGuestEmail(email);
+	}
+
+	// ── Login / register (inline) ──
+	async function refreshAfterLogin() {
+		try {
+			const c = await fetch(`/api/checkout?intent=activeCustomer&lang=${locale}`).then((r) => r.json() as Promise<{ activeCustomer: ActiveCustomer | null }>);
+			if (!c.activeCustomer) return;
+			const list = c.activeCustomer.addresses ?? [];
+			setCustomer(c.activeCustomer);
+			setAddresses(list);
+			setAuthMode(null);
+			setAuthError(null);
+			setEmailHasAccount(false);
+			setSelectedSavedId(list.length > 0 ? (list.find((a) => a.defaultShippingAddress) ?? list[0]).id : null);
+			setAddressMode(list.length > 0 ? "saved" : "new");
+			// Logging in can attach/merge the customer's own cart onto this one -- re-read the
+			// order so the summary and totals reflect what the account actually has.
+			const cart = await fetch("/api/cart").then((r) => r.json() as Promise<{ activeOrder: ActiveOrder | null }>);
+			if (cart.activeOrder) setOrder(() => cart.activeOrder!);
+			if (list.length > 0) setTimeout(() => void previewRates(), 0);
+		} catch {
+			setAuthError(t.loginFailed);
+		}
+	}
+
+	async function handleLogin() {
+		const email = readField("email");
+		const password = readField("authPassword");
+		if (!email || !password) {
+			setAuthError(o.enterPasswordPrompt);
+			return;
+		}
+		setAuthBusy(true);
+		setAuthError(null);
+		try {
+			const res = await postCheckout<{ login?: OneStepGraphResult; error?: string }>({ _intent: "login", username: email, password });
+			if (res.login?.__typename === "CurrentUser") await refreshAfterLogin();
+			else setAuthError((res.login?.message as string) || res.error || t.loginFailed);
+		} catch {
+			setAuthError(t.loginFailed);
+		} finally {
+			setAuthBusy(false);
+		}
+	}
+
+	async function handleRegister() {
+		const email = readField("email");
+		const password = readField("authPassword");
+		const firstName = readField("authFirstName");
+		const lastName = readField("authLastName");
+		if (!EMAIL_PATTERN.test(email) || !password || !firstName || !lastName) {
+			setAuthError(o.fillRequired);
+			return;
+		}
+		setAuthBusy(true);
+		setAuthError(null);
+		try {
+			const res = await postCheckout<{ login?: OneStepGraphResult; error?: string }>({ _intent: "register", firstName, lastName, emailAddress: email, password });
+			if (res.error) setAuthError(res.error);
+			else if (res.login?.__typename === "CurrentUser") await refreshAfterLogin();
+			else setAuthError((res.login?.message as string) || o.registerFailed);
+		} catch {
+			setAuthError(o.registerFailed);
+		} finally {
+			setAuthBusy(false);
+		}
+	}
+
+	// ── Place order ──
+	async function handlePlaceOrder() {
+		if (submitting) return;
+		setError(null);
+		const form = formRef.current;
+		if (!form) return;
+		if (!form.reportValidity()) return;
+
+		const resolved = resolveAddress();
+		if (!resolved) {
+			setError(mode === "address" ? t.selectZonePrompt : t.couldNotSaveAddress);
+			return;
+		}
+		const email = readField("email");
+		if (!customer && !EMAIL_PATTERN.test(email)) {
+			setError(o.enterEmail);
+			return;
+		}
+
+		setSubmitting(true);
+		try {
+			await reopenIfLocked();
+
+			// 1. Customer -- a guest's email (+ real name now that the address form has one).
+			if (!customer) {
+				const outcome = await saveGuestEmail(email, { firstName: resolved.values.firstName, lastName: resolved.values.lastName });
+				if (outcome === "has-account") {
+					setAuthMode("login");
+					setAuthError(null);
+					setError(o.emailHasAccount + " " + o.loginToUseDetails);
+					return;
+				}
+				if (outcome === "error") {
+					setError(t.couldNotProceedAsGuest);
+					return;
+				}
+			}
+
+			// 2. Shipping address (authoritative -- the preview above may have been skipped, e.g. by autofill).
+			const a = await postCheckout<{ setOrderShippingAddress?: OneStepGraphResult; error?: string }>(addressBody(resolved));
+			if (a.setOrderShippingAddress?.__typename !== "Order") {
+				setError((a.setOrderShippingAddress?.message as string) || a.error || t.couldNotSaveAddress);
+				return;
+			}
+
+			// 3. Shipping method.
+			const m = await fetch(`/api/checkout?intent=shippingMethods&lang=${locale}`).then((r) => r.json() as Promise<{ shippingMethods?: ShippingMethod[] }>);
+			const all = m.shippingMethods ?? [];
+			setMethods(all);
+			const method = pickMethod(all);
+			if (!method) {
+				setError(mode === "pickup" ? t.pickupUnavailable : t.noShippingMethods);
+				return;
+			}
+			setSelectedMethod(method.id);
+			if (!(await applyMethod(method))) return;
+
+			// A logged-in customer's first-ever address goes to their account (never a guest's,
+			// never store pickup) -- same conditions as the multi-step flow.
+			if (customer && addresses !== null && addresses.length === 0 && mode === "address" && addressMode === "new" && saveAddressChecked) {
+				const v = resolved.values;
+				postCheckout<{ createCustomerAddress?: CustomerAddress; error?: string }>({ _intent: "saveAddressToAccount", firstName: v.firstName, lastName: v.lastName, streetLine1: v.streetLine1, streetLine2: v.streetLine2, city: v.city, countryCode: "QA", province: "Doha", postalCode: v.postalCode, phoneNumber: v.phoneNumber, qatarAreaId: resolved.qatarAreaId || undefined })
+					.then((d) => {
+						if (d.createCustomerAddress) setAddresses((prev) => [...(prev ?? []), d.createCustomerAddress!]);
+						else if (d.error) notify(t.couldNotSaveToAccount, "error");
+					})
+					.catch(() => notify(t.couldNotSaveToAccount, "error"));
+			}
+
+			// 4. Payment.
+			let pay = selectedPayRef.current;
+			if (!pay || payMethods.length === 0) {
+				const list = await loadPaymentMethods();
+				pay = list.find((x) => x.code === selectedPayRef.current)?.code ?? list[0]?.code ?? null;
+			}
+			if (!pay) {
+				setError(o.selectPayment);
+				return;
+			}
+			needsReopenRef.current = true; // addPayment locks the order (ArrangingPayment) from here on
+			const p = await postCheckout<{ addPaymentToOrder?: OneStepGraphResult; sadadMetadata?: SadadPaymentMetadata; skipcashCheckout?: SkipCashCheckoutResult; error?: string }>({ _intent: "addPayment", method: pay, metadata: {} });
+			if (p.error) {
+				setError(p.error);
+				return;
+			}
+			if (p.sadadMetadata) {
+				setSadad(p.sadadMetadata);
+				return;
+			}
+			if (p.skipcashCheckout) {
+				// Hosted redirect: leaves the SPA entirely. SkipCash's return URL is a fixed portal
+				// setting, so stash the order code for checkout.success.tsx to pick back up.
+				sessionStorage.setItem("pendingOrderCode", order.code);
+				setRedirecting(true);
+				window.location.href = p.skipcashCheckout.payUrl;
+				return;
+			}
+			const r = p.addPaymentToOrder;
+			if (r?.__typename === "Order") {
+				onDone(r.code as string);
+				return;
+			}
+			setError((r?.paymentErrorMessage as string) || (r?.eligibilityCheckerMessage as string) || (r?.message as string) || t.paymentFailed);
+		} catch {
+			setError(t.paymentFailed);
+		} finally {
+			setSubmitting(false);
+		}
+	}
+
+	const money = (cents: number) => fmt(cents, order.currencyCode, locale);
+	const deliveryMethods = methods.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
+	// The button only enables once there's a usable address AND a delivery method has actually
+	// been set on the order (a shipping line exists) -- not merely listed.
+	const canPlaceOrder = addressComplete && selectedMethod !== null && order.shippingLines.length > 0;
+	const areaKnown = mode === "pickup" || (addressMode === "saved" ? !!selectedSavedId : !!zone);
+	const paymentIcons: Record<string, React.ReactNode> = {
+		[SKIPCASH_METHOD_CODE]: <CreditCard size={18} className="text-gray-500 flex-shrink-0" />,
+		default: <Banknote size={18} className="text-gray-500 flex-shrink-0" />,
+	};
+
+	if (sadad) return <SadadCheckoutForm metadata={sadad} />;
+	if (redirecting) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+				<div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+				<p className="text-gray-600">{t.redirectingToSkipCash}</p>
+			</div>
+		);
+	}
+
+	const sectionTitle = "text-sm font-bold text-gray-900 mb-2";
+	const inputBase = "w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
+	const linkBtn = "text-primary font-semibold hover:underline";
+
+	return (
+		<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
+			<div className="flex items-center justify-between gap-3 mb-5">
+				<h1 className="text-lg font-bold text-gray-900">{o.title}</h1>
+				<span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+					<Lock size={13} className="text-primary" />
+					{o.secure}
+				</span>
+			</div>
+
+			{/* A <form> only to collect values and run native required-field checks -- placing the
+			    order is the button below, not an Enter keypress or an accidental inner submit. */}
+			<form ref={formRef} noValidate={false} onSubmit={(e) => e.preventDefault()} onInput={() => setTimeout(syncAddressComplete, 0)} className="flex flex-col gap-6">
+				<input type="hidden" name="countryCode" value="QA" />
+
+				{/* ── Contact ── */}
+				<section>
+					<h2 className={sectionTitle}>{o.contactDetails}</h2>
+					{customer ? (
+						<p className="flex items-center gap-2 text-sm text-gray-700">
+							<BadgeCheck size={16} className="text-primary flex-shrink-0" />
+							<span>
+								{o.signedInAs} <span className="font-semibold text-gray-900">{customer.emailAddress}</span>
+							</span>
+						</p>
+					) : (
+						<>
+							<div className="relative flex items-center">
+								<Mail size={16} className="absolute start-4 text-gray-400 pointer-events-none flex-shrink-0" />
+								<input id="checkout-email" name="email" type="email" required autoComplete="email" defaultValue={order.customer?.emailAddress ?? ""} placeholder={o.emailPlaceholder} onBlur={handleEmailBlur} className={`${inputBase} ps-10`} />
+							</div>
+							{emailHasAccount && authMode === null && (
+								<p className="mt-2 text-xs text-gray-600">
+									{o.emailHasAccount}{" "}
+									<button type="button" onClick={() => setAuthMode("login")} className={linkBtn}>
+										{o.loginToUseDetails}
+									</button>
+								</p>
+							)}
+							<p className="mt-2 text-sm text-gray-600">
+								{o.alreadyHaveAccount}{" "}
+								<button type="button" onClick={() => { setAuthError(null); setAuthMode(authMode ? null : "login"); }} className={linkBtn}>
+									{o.logIn}
+								</button>
+							</p>
+
+							{authMode && (
+								<div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+									<SocialAuthButtons dividerLabel={t.or} onSuccess={refreshAfterLogin} emailOffers={newsletter} mode={authMode === "register" ? "signup" : "signin"} />
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+										{authMode === "register" && (
+											<>
+												<input name="authFirstName" type="text" autoComplete="given-name" placeholder={t.firstName} className={inputBase} />
+												<input name="authLastName" type="text" autoComplete="family-name" placeholder={t.lastName} className={inputBase} />
+											</>
+										)}
+										<div className="relative flex items-center sm:col-span-2">
+											<Lock size={16} className="absolute start-4 text-gray-400 pointer-events-none flex-shrink-0" />
+											<input
+												name="authPassword"
+												type={showPassword ? "text" : "password"}
+												autoComplete={authMode === "register" ? "new-password" : "current-password"}
+												placeholder={t.passwordPlaceholder}
+												onKeyDown={(e) => {
+													if (e.key === "Enter") {
+														e.preventDefault();
+														void (authMode === "register" ? handleRegister() : handleLogin());
+													}
+												}}
+												className={`${inputBase} ps-10 pe-11`}
+											/>
+											<button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? t.hidePassword : t.showPassword} className="absolute end-4 text-gray-400 hover:text-gray-600 transition-colors">
+												{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+											</button>
+										</div>
+									</div>
+									{authMode === "login" && (
+										<div className="text-end mt-1.5">
+											<Link to="/forgot-password?redirect=/checkout" className="text-xs text-primary hover:underline">
+												{t.forgotPassword}
+											</Link>
+										</div>
+									)}
+									{authError && <ErrorBox message={authError} />}
+									<button type="button" disabled={authBusy} onClick={() => void (authMode === "register" ? handleRegister() : handleLogin())} className="mt-3 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-2.5 rounded-full disabled:opacity-60 transition-colors">
+										{authBusy ? (authMode === "register" ? o.creatingAccount : o.loggingIn) : authMode === "register" ? o.createAccountButton : o.logIn}
+									</button>
+									<p className="mt-3 text-center text-sm text-gray-600">
+										{authMode === "register" ? o.alreadyRegistered : o.newCustomer}{" "}
+										<button type="button" onClick={() => { setAuthError(null); setAuthMode(authMode === "register" ? "login" : "register"); }} className={linkBtn}>
+											{authMode === "register" ? o.logIn : o.createAccount}
+										</button>
+										<span className="text-gray-300"> | </span>
+										<button type="button" onClick={() => { setAuthError(null); setAuthMode(null); }} className="text-gray-500 hover:text-gray-700 underline">
+											{o.continueAsGuest}
+										</button>
+									</p>
+								</div>
+							)}
+							{!authMode && <NewsletterConsent checked={newsletter} onChange={setNewsletter} t={t} />}
+						</>
+					)}
+				</section>
+
+				{/* ── Delivery address ── */}
+				<section>
+					<h2 className={sectionTitle}>{o.deliveryAddress}</h2>
+					{/* Segmented tabs: the chosen option is a solid dark block, the other is just text over a bottom border. */}
+					<div className="grid grid-cols-2 mb-4" role="tablist" aria-label={o.deliveryAddress}>
+						{(["address", "pickup"] as const).map((m) => {
+							const active = mode === m;
+							return (
+								<button
+									key={m}
+									type="button"
+									role="tab"
+									aria-selected={active}
+									onClick={() => handleModeChange(m)}
+									className={`flex items-center justify-center gap-3 px-3 py-3 text-start transition-colors ${active ? "bg-primary text-white rounded-t-xl border-b-2 border-primary" : "bg-transparent text-gray-500 border-b-2 border-gray-200 hover:text-gray-900 hover:border-gray-400"}`}
+								>
+									{m === "address" ? <Truck size={20} className="flex-shrink-0" /> : <Store size={20} className="flex-shrink-0" />}
+									<span className="min-w-0">
+										<span className="block text-sm font-semibold leading-tight">{m === "address" ? t.shipToAddress : t.storePickup}</span>
+										<span className={`block text-[11px] font-normal leading-tight mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{m === "address" ? o.shipSubtitle : o.pickupSubtitle}</span>
+									</span>								</button>
+							);
+						})}
+					</div>
+
+					{mode === "address" && addressMode === "saved" && addresses && addresses.length > 0 ? (
+						<div>
+							<p className="text-sm font-semibold text-gray-700 mb-2">{t.savedAddresses}</p>
+							<div className="space-y-2.5">
+								{addresses.map((addr) => (
+									<label key={addr.id} className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${selectedSavedId === addr.id ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+										<input type="radio" name="savedAddress" value={addr.id} checked={selectedSavedId === addr.id} onChange={() => pickSavedAddress(addr.id)} className="accent-lime-400 flex-shrink-0 mt-1" />
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center gap-2 flex-wrap">
+												<p className="font-medium text-gray-900 text-sm">{addr.fullName}</p>
+												{addr.defaultShippingAddress && <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{t.defaultBadge}</span>}
+											</div>
+											<p className="text-sm text-gray-500 mt-0.5">
+												{addr.streetLine1}
+												{addr.streetLine2 ? `, ${addr.streetLine2}` : ""}, {addr.city}
+											</p>
+											{addr.phoneNumber && <p className="text-xs text-gray-400 mt-0.5">{addr.phoneNumber}</p>}
+										</div>
+									</label>
+								))}
+							</div>
+							<button type="button" onClick={() => { setAddressMode("new"); setMethods([]); setSelectedMethod(null); }} className={`mt-2.5 text-sm ${linkBtn}`}>
+								{t.addNewAddress}
+							</button>
+						</div>
+					) : (
+						<FieldGroup>
+							{hasSaved && mode === "address" && (
+								<div className="sm:col-span-2 -mb-1">
+									<button type="button" onClick={() => { setAddressMode("saved"); setTimeout(() => void previewRates(), 0); }} className={`text-sm ${linkBtn}`}>
+										{t.useSavedAddress}
+									</button>
+								</div>
+							)}
+							<Field label={t.firstName} name="firstName" required className="sm:col-span-1" defaultValue={initialDraft?.firstName || customer?.firstName || order.customer?.firstName} placeholder={t.firstNamePlaceholder} icon={UserRound} />
+							<Field label={t.lastName} name="lastName" required className="sm:col-span-1" defaultValue={initialDraft?.lastName || customer?.lastName || order.customer?.lastName} placeholder={t.lastNamePlaceholder} icon={UserRound} />
+							<PhoneField label={t.phoneNumber} required defaultValue={initialDraft?.phoneNumber} className="sm:col-span-2" />
+							{mode === "address" ? (
+								<>
+									<div className="sm:col-span-2">
+										<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
+											{t.zone}
+											<span className="text-red-500 ms-1">*</span>
+										</label>
+										<div className="relative">
+											<MapPin size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+											<AreaSelect
+												id="checkout-postalCode"
+												name="postalCode"
+												areas={areas}
+												locale={locale}
+												placeholder={t.selectZone}
+												required
+												value={zone}
+												initialAreaId={initialDraft?.qatarAreaId}
+												onChange={handleZoneChange}
+												inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+											/>
+										</div>
+									</div>
+									<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialDraft?.streetLine1} placeholder={t.addressPlaceholder} icon={Home} />
+									<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialDraft?.streetLine2} placeholder={t.streetPlaceholder} icon={MapPin} />
+								</>
+							) : (
+								<div className="sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
+									<MapPin size={18} className="text-gray-400 flex-shrink-0 mt-0.5" />
+									<div>
+										<p className="text-sm font-medium text-gray-700">{t.pickupFromStoreNote}</p>
+										<p className="text-sm text-gray-500 mt-0.5">
+											{STORE_PICKUP_ADDRESS.streetLine1}, {STORE_PICKUP_ADDRESS.city}
+										</p>
+									</div>
+								</div>
+							)}
+						</FieldGroup>
+					)}
+
+					{customer && mode === "address" && addressMode === "new" && (
+						<label className="flex items-center gap-2.5 mt-3 cursor-pointer select-none">
+							<input type="checkbox" checked={saveAddressChecked} onChange={(e) => setSaveAddressChecked(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+							<span className="text-sm text-gray-600">{t.saveAddressForFutureOrders}</span>
+						</label>
+					)}
+				</section>
+
+				{/* ── Delivery method ── */}
+				{mode === "address" && (
+					<section>
+						<h2 className={sectionTitle}>{o.deliveryMethodTitle}</h2>
+						{loadingMethods && (
+							<div className="flex items-center gap-3 py-3 text-gray-500 text-sm">
+								<div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+								{t.calculatingRates}
+							</div>
+						)}
+						{!loadingMethods && !areaKnown && <p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 px-4 py-3">{o.selectAreaForOptions}</p>}
+						{!loadingMethods && areaKnown && deliveryMethods.length === 0 && !error && <p className="text-sm text-gray-500">{t.noShippingMethods}</p>}
+						{!loadingMethods && deliveryMethods.length > 0 && (
+							<div className="space-y-2.5">
+								{deliveryMethods.map((m) => (
+									<label key={m.id} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${selectedMethod === m.id ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+										<input
+											type="radio"
+											name="shippingMethod"
+											value={m.id}
+											checked={selectedMethod === m.id}
+											onChange={() => {
+												setSelectedMethod(m.id);
+												void (async () => { if (await applyMethod(m)) await loadPaymentMethods(); })();
+											}}
+											className="accent-lime-400 flex-shrink-0"
+										/>
+										<Truck size={18} className="text-gray-400 flex-shrink-0" />
+										<div className="flex-1 min-w-0">
+											<p className="font-medium text-gray-900 text-sm">{m.name}</p>
+											{m.description && <div className="text-xs text-gray-500 mt-0.5 [&_p]:m-0" dangerouslySetInnerHTML={{ __html: m.description }} />}
+										</div>
+										<p className="font-semibold text-gray-900 text-sm flex-shrink-0">{m.priceWithTax === 0 ? <span className="text-green-600">{t.free}</span> : money(m.priceWithTax)}</p>
+									</label>
+								))}
+							</div>
+						)}
+					</section>
+				)}
+
+				{/* ── Payment ── */}
+				<section>
+					<h2 className={sectionTitle}>{o.paymentMethodTitle}</h2>
+					{payMethods.length === 0 ? (
+						<p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 px-4 py-3">{areaKnown ? t.loadingPaymentOptions : o.selectAreaForOptions}</p>
+					) : (
+						<div className="space-y-2.5">
+							{payMethods.map((m) => (
+								<label key={m.code} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${selectedPay === m.code ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
+									<input type="radio" name="paymentMethod" value={m.code} checked={selectedPay === m.code} onChange={() => setSelectedPay(m.code)} className="accent-lime-400 flex-shrink-0" />
+									{paymentIcons[m.code] ?? paymentIcons.default}
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2 flex-wrap">
+											<p className="font-medium text-gray-900 text-sm">{m.name}</p>
+											{m.code === SKIPCASH_METHOD_CODE && (
+												<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
+													{PAYMENT_ICON_IDS.map((id) => (
+														<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain" style={{ height: "20px", width: "32px" }} width={32} height={20} />
+													))}
+												</div>
+											)}
+										</div>
+										{m.eligibilityMessage && <p className="text-xs text-yellow-600 mt-0.5">{m.eligibilityMessage}</p>}
+									</div>
+								</label>
+							))}
+						</div>
+					)}
+				</section>
+
+				{/* ── Total + place order ── */}
+				<section className="border-t border-gray-100 pt-4">
+					<div className="flex items-baseline justify-between gap-3">
+						<span className="text-sm text-gray-600">{o.finalOrderTotal}</span>
+						<span className="text-lg font-extrabold text-gray-900">
+							{money(order.totalWithTax)}
+							{order.shippingLines.length === 0 && <span className="text-xs font-medium text-gray-500"> {o.plusDelivery}</span>}
+						</span>
+					</div>
+					{error && <ErrorBox message={error} />}
+					<button type="button" onClick={() => void handlePlaceOrder()} disabled={submitting || loadingMethods || !canPlaceOrder} className="mt-4 w-full bg-[#3b8578] hover:bg-[#2e6b61] text-white font-semibold py-3.5 rounded-full disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-base">
+						<ShieldCheck size={18} />
+						{submitting ? o.placingOrder : o.placeOrder}
+					</button>
+					{!canPlaceOrder && !submitting && <p className="text-center text-xs text-gray-500 mt-2.5">{o.placeOrderHint}</p>}
+					<p className="text-center text-xs text-gray-400 mt-3">{o.finalTotalNote}</p>
+					<TermsHint t={t} />
+				</section>
+			</form>
+		</div>
+	);
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
@@ -1976,6 +2878,8 @@ export default function CheckoutPage() {
 	const { setCartCount } = useCart();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
+	// Opt-in single-page checkout: /checkout?onestep=1 (the multi-step flow stays the default).
+	const oneStep = new URLSearchParams(useLocation().search).get("onestep") === "1";
 
 	const [initialState] = useState(() => deriveCheckoutState(initialOrder!, activeCustomer, locale));
 	const [step, setStep] = useState(initialState.step);
@@ -2058,6 +2962,22 @@ export default function CheckoutPage() {
 							{t.continueShopping}
 						</Link>
 
+						{oneStep ? (
+							<OneStepCheckout
+								order={order}
+								areas={qatarAreas}
+								activeCustomer={activeCustomer}
+								initialDraft={shippingAddressDraft}
+								initialMode={initialState.shippingModeDraft}
+								initialMethodId={shippingMethodDraft}
+								setOrder={setOrder}
+								onDone={(orderCode) => {
+									setCartCount(0);
+									navigate(localizePath(`/order-confirmation?code=${orderCode}`, locale));
+								}}
+							/>
+						) : (
+							<>
 						<StepProgressBar step={step} completed={completed} t={t} />
 
 						<div className="flex flex-col gap-4">
@@ -2106,6 +3026,8 @@ export default function CheckoutPage() {
 							/>
 						</StepSection>
 						</div>
+						</>
+					)}
 					</div>
 				</div>
 
