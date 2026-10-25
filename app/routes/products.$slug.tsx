@@ -1609,9 +1609,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 						</div>
 						{/* end inner 2-col */}
 
-						{/* Mobile only — after the Add to Cart box, collapsed by default */}
+						{/* Mobile only — after the Add to Cart box, as a swipeable row of cards (always visible) */}
 						<div className="md:hidden">
-							<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} collapsible />
+							<ProductHighlights highlights={activeVariant?.highlights ?? []} title={t.productHighlights} scroll />
 						</div>
 					</div>
 					{/* end detail column */}
@@ -1626,7 +1626,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 					const disclaimer = product.customFields?.disclaimer ?? "";
 					if (!product.description && !nutritionInfo && !disclaimer) return null;
 					return (
-						<div className="mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
+						<div className="mt-4 md:mt-12 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-10 items-start">
 							<div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
 								<ProductInfoTabs description={variantInfo ? `${variantInfo}${product.description ? ` ${product.description}` : ""}` : (product.description ?? "")} warnings={disclaimer} productId={product.id} productSlug={product.slug} productVariantId={activeVariant?.id ?? null} initialQuestions={initialQuestions} initialQuestionsTotal={initialQuestionsTotal} />
 							</div>

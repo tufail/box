@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ProductHighlightValue } from "~/graphql/product";
 
 function formatHighlightValue(highlight: ProductHighlightValue) {
@@ -107,10 +107,64 @@ function HighlightCard({ highlight }: { highlight: ProductHighlightValue }) {
 	);
 }
 
-// `collapsible` renders the whole block as a <details>, closed by default, with
-// `title` doubling as the toggle — used on the mobile product page so the section
-// doesn't push the Add to Cart box further down the page by default.
-export default function ProductHighlights({ highlights, title, collapsible = false }: { highlights: ProductHighlightValue[]; title?: string; collapsible?: boolean }) {
+// One swipeable row with "there's more this way" arrows: a round button appears at an edge only
+// while cards are hidden past that edge, tapping it scrolls about a card-and-a-half, and it hides
+// again at the end. Direction-aware (RTL pages scroll the other way and get mirrored arrows).
+function ScrollRow({ children }: { children: React.ReactNode }) {
+	const ref = useRef<HTMLDivElement>(null);
+	const [more, setMore] = useState({ start: false, end: false });
+
+	const update = useCallback(() => {
+		const el = ref.current;
+		if (!el) return;
+		const max = el.scrollWidth - el.clientWidth;
+		const pos = Math.abs(el.scrollLeft); // negative in RTL, so compare magnitudes
+		setMore({ start: pos > 4, end: max - pos > 4 });
+	}, []);
+
+	useEffect(() => {
+		update();
+		const el = ref.current;
+		if (!el) return;
+		const ro = new ResizeObserver(update);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, [update]);
+
+	function nudge(towardEnd: boolean) {
+		const el = ref.current;
+		if (!el) return;
+		const rtl = getComputedStyle(el).direction === "rtl";
+		const dir = (towardEnd ? 1 : -1) * (rtl ? -1 : 1);
+		el.scrollBy({ left: dir * el.clientWidth * 0.75, behavior: "smooth" });
+	}
+
+	const arrow = "absolute top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-md active:scale-95";
+	return (
+		// -mx-4 lets the row run edge to edge of the screen inside the page's 16px gutter, so cards
+		// scroll out under the edge instead of being clipped at the content boundary.
+		<div className="relative -mx-4">
+			<div ref={ref} onScroll={update} className="flex gap-2 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide [scroll-padding-inline:1rem]">
+				{children}
+			</div>
+			{more.start && (
+				<button type="button" onClick={() => nudge(false)} aria-label="Scroll back" className={`${arrow} start-1`}>
+					<ChevronLeft size={18} className="rtl:rotate-180" />
+				</button>
+			)}
+			{more.end && (
+				<button type="button" onClick={() => nudge(true)} aria-label="Scroll for more highlights" className={`${arrow} end-1`}>
+					<ChevronRight size={18} className="rtl:rotate-180" />
+				</button>
+			)}
+		</div>
+	);
+}
+// `scroll` lays each group out as ONE horizontally swipeable row of cards instead of the
+// wrapped grid -- used on the mobile product page, where the full grid is tall and used to sit
+// hidden in a closed accordion. The row snaps card by card and lets a sliver of the next card
+// peek in, which is the cue that it scrolls sideways.
+export default function ProductHighlights({ highlights, title, scroll = false }: { highlights: ProductHighlightValue[]; title?: string; scroll?: boolean }) {
 	if (!highlights || highlights.length === 0) return null;
 
 	// The API pre-sorts by group then type sortOrder, so same-group items are
@@ -123,39 +177,36 @@ export default function ProductHighlights({ highlights, title, collapsible = fal
 		else groups.push({ label, items: [highlight] });
 	}
 
-	const grid = (
+	const body = (
 		<div className="flex flex-col gap-3">
 			{groups.map((group, i) => (
 				<div key={i} className="flex flex-col gap-1.5">
 					{group.label && groups.length > 1 && <p className="text-xs font-semibold text-gray-500">{group.label}</p>}
-					<div className="grid grid-cols-2 sm:grid-cols-3 rounded-xl overflow-hidden">
-						{group.items.map((highlight, j) => (
-							<HighlightCard key={j} highlight={highlight} />
-						))}
-					</div>
+					{scroll ? (
+						<ScrollRow>
+							{group.items.map((highlight, j) => (
+								<div key={j} className="snap-start shrink-0 min-w-[10.5rem] max-w-[14rem] rounded-xl border border-gray-100 bg-gray-50">
+									<HighlightCard highlight={highlight} />
+								</div>
+							))}
+						</ScrollRow>
+					) : (
+						<div className="grid grid-cols-2 sm:grid-cols-3 rounded-xl overflow-hidden">
+							{group.items.map((highlight, j) => (
+								<HighlightCard key={j} highlight={highlight} />
+							))}
+						</div>
+					)}
 				</div>
 			))}
 		</div>
 	);
 
-	if (collapsible) {
-		return (
-			<details className="group mt-5">
-				<hr className="border-gray-200 mb-3" />
-				<summary className="flex items-center justify-between cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
-					{title && <h4 className="text-sm font-bold text-gray-900">{title}</h4>}
-					<ChevronDown size={16} className="text-gray-400 transition-transform group-open:rotate-180" />
-				</summary>
-				<div className="mt-3">{grid}</div>
-			</details>
-		);
-	}
-
 	return (
 		<div className="flex flex-col gap-3">
 			<hr className="border-gray-200" />
 			{title && <h4 className="text-sm font-bold text-gray-900">{title}</h4>}
-			{grid}
+			{body}
 		</div>
 	);
 }
