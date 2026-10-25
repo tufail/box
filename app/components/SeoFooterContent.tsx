@@ -1,4 +1,4 @@
-import { useLocation } from "react-router";
+import { useLocation, useMatches } from "react-router";
 import Link from "~/components/LocaleLink";
 import { ArrowUpRight } from "lucide-react";
 import type { MegaMenuData } from "~/graphql/megamenu";
@@ -30,23 +30,29 @@ const COPY = {
 	},
 } as const;
 
-// Brands actually stocked in the catalog (verified against the live shop API's
-// "brands" facet values, matched to real in-stock product counts) — replaces the
-// earlier list of well-known brands that weren't necessarily carried here.
+// Fallback only, used if the live brand counts can't be loaded. The real list comes from the
+// home route's loader (topBrands, see lib/topBrands.ts): brands ranked by how many items their
+// /brands/<code> page lists, so every link lands on a page with products on it. This fallback is
+// that ranking as of late Oct 2026 (items on page in brackets); brands whose products have no
+// variants yet (The Flavor Gang, AB, Pride Foods, TPS) are deliberately absent -- their pages are empty.
 // Brand names are proper nouns and stay unlocalized in both languages.
-const TOP_BRANDS = [
-	{ name: "Optimum Nutrition", code: "optimum-nutrition" },
-	{ name: "MuscleTech", code: "muscletech" },
-	{ name: "Dymatize", code: "dymatize" },
-	{ name: "Applied Nutrition", code: "applied-nutrition" },
-	{ name: "Ghost", code: "ghost" },
-	{ name: "EVLution Nutrition", code: "evlution-nutrition" },
-	{ name: "The Flavor Gang", code: "the-flavor-gang" },
-	{ name: "Pride Foods", code: "pride-foods" },
-	{ name: "Bloom", code: "bloom" },
-	{ name: "AB", code: "ab" },
+const FALLBACK_TOP_BRANDS = [
+	{ name: "Applied Nutrition", code: "applied-nutrition" }, // 66
+	{ name: "Optimum Nutrition", code: "optimum-nutrition" }, // 21
+	{ name: "Ghost", code: "ghost" }, // 16
+	{ name: "Dymatize", code: "dymatize" }, // 16
+	{ name: "ABE", code: "abe" }, // 14
+	{ name: "NOW Foods", code: "now-foods" }, // 13
+	{ name: "Rule One Proteins", code: "rule-one-proteins" }, // 11
+	{ name: "EVLution Nutrition", code: "evlution-nutrition" }, // 10
+	{ name: "Transparent Labs", code: "transparent-labs" }, // 8
+	{ name: "MuscleTech", code: "muscletech" }, // 7
+	{ name: "Alfa Vitamins", code: "alfa-vitamins" }, // 6
+	{ name: "Basix", code: "basix" }, // 6
+	{ name: "ALLMAX", code: "allmax" }, // 5
+	{ name: "Amerix", code: "amerix" }, // 5
+	{ name: "Bloom Nutrition", code: "bloom" }, // 4
 ];
-
 function normalize(s: string): string {
 	return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -95,6 +101,12 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = COPY[locale];
 	const collectionEntries = flattenMegaMenu(megaMenu);
+
+	// Brands ranked by real product count, supplied by the home route's loader (this block only
+	// renders on the homepage, English and Arabic).
+	const homeMatch = useMatches().find((m) => m.id === "routes/home" || m.id === "routes/home.ar");
+	const liveBrands = (homeMatch?.data as { topBrands?: { name: string; code: string }[] } | undefined)?.topBrands;
+	const topBrands = liveBrands && liveBrands.length > 0 ? liveBrands : FALLBACK_TOP_BRANDS;
 
 	const faqs = FAQS[locale];
 
@@ -169,12 +181,12 @@ export default function SeoFooterContent({ megaMenu, popularSearchTerms }: SeoFo
 				<div className="mt-8">
 					<h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">{t.topBrands}</h3>
 					<p className="text-sm leading-relaxed">
-						{TOP_BRANDS.map((brand, i) => (
+						{topBrands.map((brand, i) => (
 							<span key={brand.code}>
 								<Link to={`/brands/${brand.code}`} className="text-primary hover:underline">
 									{brand.name}
 								</Link>
-								{i < TOP_BRANDS.length - 1 && <span className="text-gray-300 mx-2">|</span>}
+								{i < topBrands.length - 1 && <span className="text-gray-300 mx-2">|</span>}
 							</span>
 						))}
 					</p>

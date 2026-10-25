@@ -4,6 +4,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { SEARCH_NEW_ARRIVALS, TOP_SELLERS_QUERY, mapTopSellerToSearchItem, GET_PRODUCT_VARIANT_ASSETS, type SearchProductsData, type SearchTopSellingVariables, type TopSellersData, type TopSellersVariables, type ProductVariantAssetsData, type ProductVariantAssetsVariables } from "~/graphql/product";
 import { GET_BANNER_BY_SLUG, type BannerData, type BannerVariables } from "~/graphql/banner";
 import { HOME_COLLECTIONS_QUERY, type HomeCollectionsResult } from "~/graphql/collection";
+import { loadTopBrands } from "~/lib/topBrands";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 
@@ -41,7 +42,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	// over-fetch window needs to cover effectively the whole ranked list, not
 	// just the top few dozen. The search index's SearchInput does support
 	// inStock directly (used below), so new arrivals doesn't need this treatment.
-	const [topSellingResult, newArrivalsResult, bannerResult, collectionsResult] = await Promise.allSettled([
+	const [topSellingResult, newArrivalsResult, bannerResult, collectionsResult, brandCountsResult] = await Promise.allSettled([
 		graphqlRequest<TopSellersData, TopSellersVariables>(env, TOP_SELLERS_QUERY, { limit: 200 }, cacheOpts),
 		graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_NEW_ARRIVALS, { input: { take: 10, groupByProduct: false, inStock: true } }, cacheOpts),
 		graphqlRequest<BannerData, BannerVariables>(env, GET_BANNER_BY_SLUG, { slug: "home-carousel" }, cacheOpts),
@@ -57,6 +58,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 			},
 			cacheOpts,
 		),
+		// Feeds the 'Top Brands' links in the About block: brands ranked by how many items their own
+		// page lists, so every link lands on a page with products (see loadTopBrands).
+		loadTopBrands(env, cacheOpts),
 	]);
 
 	const bannerItems = bannerResult.status === "fulfilled" ? (bannerResult.value.data.getBannerBySlug?.items ?? []) : [];
@@ -91,6 +95,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		vendureBase,
 		carouselItems: bannerItems,
 		homeCollections,
+		topBrands: brandCountsResult.status === "fulfilled" ? brandCountsResult.value : [],
 	};
 }
 
