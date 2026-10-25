@@ -5,7 +5,7 @@ import { useFetcher, useRouteLoaderData, useLocation, redirect } from "react-rou
 import Link from "~/components/LocaleLink";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
-import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, Info, CreditCard, RotateCcw, Clock } from "lucide-react";
+import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, CreditCard, RotateCcw, Clock } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
@@ -30,6 +30,7 @@ import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } 
 import { buildCollectionPath } from "~/graphql/collection";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { parseServings } from "~/lib/shopCopy";
+import DeliveryEstimate from "~/components/DeliveryEstimate";
 import type { BannerItem } from "~/graphql/banner";
 
 const WHATSAPP_NUMBER = "+97470157900"; // replace with business WhatsApp number (country code + number, no +)
@@ -67,10 +68,6 @@ const PDP_COPY = {
 		productHighlights: "Product Highlights",
 		productRankings: "Product rankings:",
 		rankIn: (rank: number) => `#${rank} in`,
-		shippingInfo: "Shipping Info",
-		shippingInfoPrefix: "Free shipping in Doha on orders over",
-		shippingInfoSuffixExpress: ". Quick delivery within 2 hours to same day.",
-		shippingInfoSuffixStandard: ". Standard delivery within Qatar in 2-6 business days.",
 		decrease: "Decrease",
 		increase: "Increase",
 		adding: "Adding...",
@@ -144,10 +141,6 @@ const PDP_COPY = {
 		productHighlights: "أبرز مميزات المنتج",
 		productRankings: "تصنيفات المنتج:",
 		rankIn: (rank: number) => `#${rank} في`,
-		shippingInfo: "معلومات الشحن",
-		shippingInfoPrefix: "شحن مجاني في الدوحة للطلبات فوق",
-		shippingInfoSuffixExpress: ". توصيل سريع من ساعتين إلى نفس اليوم.",
-		shippingInfoSuffixStandard: ". التوصيل القياسي داخل قطر خلال 2-6 أيام عمل.",
 		decrease: "إنقاص",
 		increase: "زيادة",
 		adding: "جارٍ الإضافة...",
@@ -455,7 +448,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
 		{ property: "og:url", content: canonicalUrl },
 		{ property: "og:site_name", content: "NutriBox Qatar" },
 		...(image ? [{ property: "og:image", content: image }] : []),
-		...(image ? [{ property: "og:image:width", content: "2000" }, { property: "og:image:height", content: "2000" }] : []),
+		...(image
+			? [
+					{ property: "og:image:width", content: "2000" },
+					{ property: "og:image:height", content: "2000" },
+				]
+			: []),
 		// Twitter
 		{ name: "twitter:card", content: "summary_large_image" },
 		{ name: "twitter:title", content: title },
@@ -508,6 +506,20 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			}
 		}
 		if (!product) throw new Response("Not Found", { status: 404 });
+
+		// A bare product URL ("/products/evl-100-isolate-protein-16lbs") renders exactly the same
+		// page as its first variant's own URL ("...-double-rich-chocolate", the one the sitemap
+		// lists), yet declared itself canonical -- two identical pages, so Search Console reported
+		// "Duplicate, Google chose different canonical than user" and kept the variant URL.
+		// A permanent redirect to that variant URL consolidates links/signals on the one
+		// indexable address instead of leaving a near-duplicate alias. The `!==` guard stops a
+		// loop for the (rare) product whose first variant slug is the product slug itself.
+		if (activeVariantId === null) {
+			const defaultVariantSlug = product.variants[0]?.customFields?.slug;
+			if (defaultVariantSlug && defaultVariantSlug !== slugParam) {
+				throw redirect(`${localizePath(`/products/${defaultVariantSlug}`, locale)}${url.search}`, 301);
+			}
+		}
 
 		const activeVariant = activeVariantId ? (product.variants.find((v) => v.id === activeVariantId) ?? product.variants[0]) : product.variants[0];
 		// Self-referencing by design (iHerb-style): a URL that resolved via the
@@ -995,27 +1007,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		};
 	}, []);
 
-	// Shipping-info popover — was CSS-hover-only (group-hover), so it never opened
-	// on touch devices at all (no hover state, and the button had no onClick).
-	// Now also toggles on tap, closing on an outside click/tap or Escape.
-	const [shippingInfoOpen, setShippingInfoOpen] = useState(false);
-	const shippingInfoRef = useRef<HTMLDivElement>(null);
-	useEffect(() => {
-		if (!shippingInfoOpen) return;
-		function handleOutside(e: MouseEvent) {
-			if (shippingInfoRef.current && !shippingInfoRef.current.contains(e.target as Node)) setShippingInfoOpen(false);
-		}
-		function handleEscape(e: KeyboardEvent) {
-			if (e.key === "Escape") setShippingInfoOpen(false);
-		}
-		document.addEventListener("mousedown", handleOutside);
-		document.addEventListener("keydown", handleEscape);
-		return () => {
-			document.removeEventListener("mousedown", handleOutside);
-			document.removeEventListener("keydown", handleEscape);
-		};
-	}, [shippingInfoOpen]);
-
 	// Subscribe & Save — which plans (if any) this variant is eligible for.
 	// Empty array = variant isn't enrolled in any subscription plan on the backend.
 	useEffect(() => {
@@ -1368,39 +1359,39 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 													})
 													.sort((a, b) => Number(b.available) - Number(a.available) || a.val.localeCompare(b.val, locale, { numeric: true, sensitivity: "base" }))
 													.map(({ val, matchedVariant, available }) => {
-													const isActive = selected[group.code] === val;
-													const variantHref = `/products/${matchedVariant?.customFields?.slug || product.slug}`;
-													// Tiny per-option thumbnail — only for products the merchandising team
-													// has flagged as featured, since most option pills are plain text.
-													const thumbSrc = product.customFields?.isFeatured ? matchedVariant?.featuredAsset?.preview : null;
-													return (
-														<Link
-															key={val}
-															to={variantHref}
-															replace
-															preventScrollReset
-															onClick={(e) => {
-																if (!matchedVariant) {
-																	e.preventDefault();
-																	return;
-																}
-																setSelected({ ...selected, [group.code]: val });
-															}}
-															className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-pointer hover:border-primary hover:text-primary bg-gray-50"}`}
-														>
-															{thumbSrc && <img src={vendureImageUrl(thumbSrc, vendureBase, { preset: "tiny", format: "webp" })} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-100 bg-white" />}
-															<span className={thumbSrc ? "flex flex-col leading-tight" : "block"}>
-																<span className="block">{val}</span>
-																{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "-"}</span>}
-															</span>
-															{!available && (
-																<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-																	<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
+														const isActive = selected[group.code] === val;
+														const variantHref = `/products/${matchedVariant?.customFields?.slug || product.slug}`;
+														// Tiny per-option thumbnail — only for products the merchandising team
+														// has flagged as featured, since most option pills are plain text.
+														const thumbSrc = product.customFields?.isFeatured ? matchedVariant?.featuredAsset?.preview : null;
+														return (
+															<Link
+																key={val}
+																to={variantHref}
+																replace
+																preventScrollReset
+																onClick={(e) => {
+																	if (!matchedVariant) {
+																		e.preventDefault();
+																		return;
+																	}
+																	setSelected({ ...selected, [group.code]: val });
+																}}
+																className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-pointer hover:border-primary hover:text-primary bg-gray-50"}`}
+															>
+																{thumbSrc && <img src={vendureImageUrl(thumbSrc, vendureBase, { preset: "tiny", format: "webp" })} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-100 bg-white" />}
+																<span className={thumbSrc ? "flex flex-col leading-tight" : "block"}>
+																	<span className="block">{val}</span>
+																	{available && showPrice && <span className={`block text-xs ${thumbSrc ? "" : "mt-0.5"} ${isActive ? "text-primary font-medium" : "text-gray-500"}`}>{matchedVariant ? formatCurrency(matchedVariant.price, matchedVariant.currencyCode, locale) : "-"}</span>}
 																</span>
-															)}
-														</Link>
-													);
-												})}
+																{!available && (
+																	<span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+																		<span className="absolute top-1/2 left-1/2 w-[140%] h-px bg-gray-300 -translate-x-1/2 -translate-y-1/2 rotate-[-24deg]" />
+																	</span>
+																)}
+															</Link>
+														);
+													})}
 											</div>
 										</div>
 									);
@@ -1517,7 +1508,10 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												</div>
 											</div>
 										)}
-										{/* Quantity stepper + shipping info */}
+										{/* Delivery promise, area fee and estimated total (cart total when there is a cart, else this item's price) */}
+										<DeliveryEstimate priceCents={price} qty={qty} currencyCode={activeVariant?.currencyCode ?? "QAR"} isExpress={isExpressDelivery} inStock={inStock} />
+
+										{/* Quantity stepper */}
 										<div className="flex items-center justify-between gap-3">
 											<div className="flex items-center border border-gray-300 bg-white rounded-full overflow-hidden">
 												<button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label={t.decrease}>
@@ -1527,18 +1521,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												<button onClick={() => setQty((q) => q + 1)} className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors" aria-label={t.increase}>
 													<Plus size={13} />
 												</button>
-											</div>
-
-											<div className="relative group" ref={shippingInfoRef}>
-												<button type="button" onClick={() => setShippingInfoOpen((v) => !v)} aria-expanded={shippingInfoOpen} className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-primary transition-colors">
-													<Truck size={15} />
-													{t.shippingInfo}
-													<Info size={13} className="text-gray-400" />
-												</button>
-												<div className={`absolute end-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-600 leading-relaxed transition-all duration-200 z-20 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 ${shippingInfoOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible translate-y-1"}`}>
-													{t.shippingInfoPrefix} <span className="font-bold text-black">QAR {freeShippingThreshold ?? "150"}</span>
-													{isExpressDelivery ? t.shippingInfoSuffixExpress : t.shippingInfoSuffixStandard}
-												</div>
 											</div>
 										</div>
 
@@ -1662,28 +1644,31 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 				{/* ── More from this brand: every collection this product is in, as a brand x category
 				    landing page link. Plain text links (no extra query -- product.collections is
 				    already loaded), server-rendered so crawlers see them. ── */}
-				{brandFacetValue && (() => {
-					const seen = new Set<string>();
-					const links = product.collections.filter((c) => c.name !== "__root_collection__" && !seen.has(c.slug) && seen.add(c.slug));
-					if (links.length === 0) return null;
-					const heading = locale === "ar" ? `المزيد من ${brandFacetValue.name}` : `More from ${brandFacetValue.name}`;
-					return (
-						<section className="mt-10" aria-label={heading}>
-							<h2 className="font-heading text-lg font-extrabold text-black mb-3">
-								<Link to={`/brands/${brandFacetValue.code}`} className="hover:underline">{heading}</Link>
-							</h2>
-							<ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-								{links.map((c) => (
-									<li key={c.id}>
-										<Link to={`/brands/${brandFacetValue.code}/${c.slug}`} className="text-blue-600 hover:underline">
-											{brandFacetValue.name} {c.name}
-										</Link>
-									</li>
-								))}
-							</ul>
-						</section>
-					);
-				})()}
+				{brandFacetValue &&
+					(() => {
+						const seen = new Set<string>();
+						const links = product.collections.filter((c) => c.name !== "__root_collection__" && !seen.has(c.slug) && seen.add(c.slug));
+						if (links.length === 0) return null;
+						const heading = locale === "ar" ? `المزيد من ${brandFacetValue.name}` : `More from ${brandFacetValue.name}`;
+						return (
+							<section className="mt-10" aria-label={heading}>
+								<h2 className="font-heading text-lg font-extrabold text-black mb-3">
+									<Link to={`/brands/${brandFacetValue.code}`} className="hover:underline">
+										{heading}
+									</Link>
+								</h2>
+								<ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+									{links.map((c) => (
+										<li key={c.id}>
+											<Link to={`/brands/${brandFacetValue.code}/${c.slug}`} className="text-blue-600 hover:underline">
+												{brandFacetValue.name} {c.name}
+											</Link>
+										</li>
+									))}
+								</ul>
+							</section>
+						);
+					})()}
 
 				{/* ── Product video ── */}
 				{videoUrl && (
