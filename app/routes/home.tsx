@@ -97,8 +97,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 const WEBSITE_JSON_LD = {
 	"@context": "https://schema.org",
 	"@type": "WebSite",
+	// Google's "site name" (the brand line above the URL in search results) is read from this
+	// homepage markup: `name` is the preferred form, `alternateName` the shorter/other-language
+	// forms it may fall back to. Keep them consistent with <title>, og:site_name and the
+	// application-name meta tag.
 	name: SITE_NAME,
-	url: SITE_URL,
+	alternateName: ["NutriBox", "نوتري بوكس"],
+	url: `${SITE_URL}/`,
 	potentialAction: {
 		"@type": "SearchAction",
 		target: `${SITE_URL}/search?q={search_term_string}`,
