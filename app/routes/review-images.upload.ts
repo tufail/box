@@ -36,7 +36,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 	files.forEach((file, i) => form.append(String(i), file));
 
 	const headers: Record<string, string> = {
-		"vendure-token": "jmnv08o4xjv1wk9dngg",
+		// Was hardcoded to a stale token (a leftover from before this project's real
+		// channel was configured) instead of reading the actual configured one --
+		// uploads were silently going to the wrong Vendure channel.
+		"vendure-token": env.VENDURE_CHANNEL_TOKEN ?? "jmnv08o4xjv1wk9dngg",
 	};
 	if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 

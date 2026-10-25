@@ -46,7 +46,7 @@
 		{
 			"binding": "GOOGLE_REVIEWS_KV",
 			"id": "24a56101a27e41d79327e8b4233bae36",
-			"remote": true
+			"remote": false
 		}
 	],
 }

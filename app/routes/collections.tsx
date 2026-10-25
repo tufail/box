@@ -4,6 +4,10 @@ import { useState } from "react";
 import { SlidersHorizontal, X, Check, ChevronDown } from "lucide-react";
 import Breadcrumb from "~/components/Breadcrumb";
 import { graphqlRequest } from "workers/graphqlClient";
+import Pagination from "~/components/Pagination";
+import BrandNavBar from "~/components/BrandNavBar";
+import { HOME_COLLECTIONS_QUERY, buildCollectionPath, type HomeCollectionsResult } from "~/graphql/collection";
+import { GET_BRAND_FACET_QUERY, type BrandFacetData } from "~/graphql/brand";
 import ProductCard from "~/components/ProductCard";
 import SortDropdown from "~/components/SortDropdown";
 import {
@@ -78,11 +82,15 @@ function groupFacets(facetValues: SearchPageFacetValue[]): FacetGroup[] {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const locale = loaderData?.locale ?? "en";
-  const { title, description } = COPY[locale];
+  const { title: baseTitle, description } = COPY[locale];
+  const page = loaderData?.page ?? 1;
+  const title = page > 1 ? `${baseTitle} - ${locale === "ar" ? "صفحة" : "Page"} ${page}` : baseTitle;
   const canonicalUrl = loaderData?.canonicalUrl ?? `${SITE_URL}/collections`;
   const canonicalPath = stripLocalePrefix(new URL(canonicalUrl).pathname);
   return [
     { title },
+    // Out-of-range ?page=N (no products, no filters) stays out of the index.
+    ...(loaderData && loaderData.items.length === 0 && loaderData.fv.length === 0 ? [{ name: "robots", content: "noindex, follow" }] : []),
     { name: "description", content: description },
     { tagName: "link" as const, rel: "canonical", href: canonicalUrl },
     ...(canonicalPath ? hreflangTags(SITE_URL, canonicalPath) : []),
@@ -103,7 +111,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const fv = url.searchParams.get("fv")?.split(",").filter(Boolean) ?? [];
   const locale = getLocaleFromPathname(url.pathname);
-  const canonicalUrl = `${url.origin}${localizePath("/collections", locale)}`;
+  const canonicalUrl = `${url.origin}${localizePath("/collections", locale)}${page > 1 ? `?page=${page}` : ""}`;
 
   const env = context.cloudflare.env;
   const vendureBase = (env.VENDURE_SHOP_API ?? "").replace(/\/shop-api\/?$/, "");
@@ -117,16 +125,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ...(fv.length > 0 && { facetValueIds: fv, facetValueOperator: "AND" }),
   };
 
+  const cached = { request, cf: { cacheTtl: 300, cacheEverything: true } };
   try {
-    const { data } = await graphqlRequest<SearchPageData, SearchPageVariables>(
-      env,
-      SEARCH_PAGE_QUERY,
-      { input },
-      { request }
-    );
-    return { ...data.search, sort, page, fv, vendureBase, canonicalUrl, locale };
+    // The category tree and brand list are fetched alongside the product search (not
+    // after it) and are cached at the edge, so the nav row below adds no serial wait.
+    // Either failing just hides that part of the row.
+    const [{ data }, collectionsResult, brandsResult] = await Promise.all([
+      graphqlRequest<SearchPageData, SearchPageVariables>(env, SEARCH_PAGE_QUERY, { input }, { request }),
+      graphqlRequest<HomeCollectionsResult>(env, HOME_COLLECTIONS_QUERY, { options: { take: 100 } }, cached).catch(() => null),
+      graphqlRequest<BrandFacetData>(env, GET_BRAND_FACET_QUERY, undefined, cached).catch(() => null),
+    ]);
+
+    // Top-level categories, each followed by its direct sub-categories, as deep /c/... URLs.
+    const tree = (collectionsResult?.data.collections.items ?? []).map((c) => ({
+      ...c,
+      crumbs: c.breadcrumbs.filter((b) => b.name !== "__root_collection__"),
+    }));
+    const categoryLinks = tree
+      .filter((c) => c.crumbs.length === 1)
+      .flatMap((parent) => [
+        parent,
+        ...tree.filter((c) => c.crumbs.length === 2 && c.crumbs[0].slug === parent.crumbs[0].slug),
+      ])
+      .map((c) => ({ key: c.id, label: c.name, href: buildCollectionPath(c.breadcrumbs) }));
+    const brandLinks = (brandsResult?.data.facets.items[0]?.values ?? []).map((v) => ({ key: v.code, label: v.name, href: `/brands/${v.code}` }));
+
+    return { ...data.search, sort, page, fv, vendureBase, canonicalUrl, locale, categoryLinks, brandLinks };
   } catch {
-    return { totalItems: 0, items: [], facetValues: [], collections: [], sort, page, fv, vendureBase, canonicalUrl, locale };
+    return { totalItems: 0, items: [], facetValues: [], collections: [], sort, page, fv, vendureBase, canonicalUrl, locale, categoryLinks: [], brandLinks: [] };
   }
 }
 
@@ -210,7 +236,7 @@ function FilterSidebar({ facetGroups, facetValues, activeFv, onToggle, locale }:
 }
 
 export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
-  const { totalItems, items, facetValues, sort, page, fv, vendureBase, canonicalUrl, locale } = loaderData;
+  const { totalItems, items, facetValues, sort, page, fv, vendureBase, canonicalUrl, locale, categoryLinks, brandLinks } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -302,6 +328,8 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
         </aside>
 
         <div className="flex-1 min-w-0">
+          {(brandLinks.length > 0 || categoryLinks.length > 0) && <BrandNavBar brands={brandLinks} collections={categoryLinks} locale={locale} />}
+
           {items.length === 0 ? (
             <div className="text-center py-24 text-gray-400">
               <p className="text-lg font-semibold text-gray-600 mb-1">{t.noProductsFound}</p>
@@ -319,25 +347,7 @@ export default function AllProductsPage({ loaderData }: Route.ComponentProps) {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-3 mt-10">
-              <button
-                disabled={page === 1}
-                onClick={() => updateParam("page", String((page as number) - 1))}
-                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t.prev}
-              </button>
-              <span className="text-sm text-gray-600">{t.pageOf(page as number, totalPages)}</span>
-              <button
-                disabled={page === totalPages}
-                onClick={() => updateParam("page", String((page as number) + 1))}
-                className="px-4 py-2 rounded-full bg-white border border-gray-100 shadow-sm text-sm hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t.next}
-              </button>
-            </div>
-          )}
+          <Pagination page={page as number} totalPages={totalPages} locale={locale} />
         </div>
       </div>
 
