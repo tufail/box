@@ -79,6 +79,20 @@ html[dir="rtl"] .font-heading2 {
 	margin: 0;
 }
 
+/* Rich-text editors wrap list items in a paragraph (<li><p>…</p></li>), and the typography
+   plugin's paragraph margin then stacks on top of the list item's own spacing. A paragraph
+   directly inside a list item gets no margin of its own; a second paragraph in the SAME item
+   keeps a small gap. `.prose.prose` doubles the specificity so this also beats the plugin's
+   own `li > p:first-child` / `:last-child` rules and the prose-sm size variants. */
+.prose.prose li > p:not(:where([class~="not-prose"] *)) {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+.prose.prose li > p + p:not(:where([class~="not-prose"] *)) {
+	margin-top: 0.5em;
+}
+
 @utility scrollbar-hide {
 	scrollbar-width: none;
 	&::-webkit-scrollbar {
