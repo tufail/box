@@ -33,7 +33,7 @@ const ORGANIZATION_JSON_LD = {
 	"@type": ["Store", "OnlineStore"],
 	name: SITE_NAME,
 	alternateName: ["NutriBox Supplements Doha", "NutriBox Qatar Protein & Beauty Store"],
-	description: "Qatar's trusted online and physical storefront destination for authentic sports nutrition, health supplements, vitamins, wellness products, and premium beauty and collagen formulations.",
+	description: "Shop authentic sports nutrition, protein powders, vitamins, health supplements, wellness essentials, and premium collagen and beauty products online in Qatar with NutriBox.",
 	url: SITE_URL,
 	logo: `${SITE_URL}/images/logo.png`,
 	image: `${SITE_URL}/images/logo.png`,
@@ -129,10 +129,7 @@ function ReferralCapture({ activeCustomer }: { activeCustomer: ActiveCustomer | 
 		} catch {
 			// best-effort cleanup
 		}
-		fetcher.submit(
-			{ _intent: "applyReferralCode", code: pending },
-			{ method: "post", encType: "application/json", action: "/api/loyalty" },
-		);
+		fetcher.submit({ _intent: "applyReferralCode", code: pending }, { method: "post", encType: "application/json", action: "/api/loyalty" });
 		// fetcher intentionally omitted — its identity changes every render, and the
 		// pending-code check above already makes this effect run at most once.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,12 +140,7 @@ function ReferralCapture({ activeCustomer }: { activeCustomer: ActiveCustomer | 
 		// Silent on failure (stale/self/already-applied code) — a background referral
 		// attempt should never interrupt the page the customer actually came for.
 		if (fetcher.data.referral) {
-			notify(
-				locale === "ar"
-					? "تم تطبيق رمز الإحالة! ستحصلان أنتما وصديقك على مكافآت بعد تأكيد أول طلب له."
-					: "Referral code applied! You and your friend will both earn rewards once their first order is confirmed.",
-				"success",
-			);
+			notify(locale === "ar" ? "تم تطبيق رمز الإحالة! ستحصلان أنتما وصديقك على مكافآت بعد تأكيد أول طلب له." : "Referral code applied! You and your friend will both earn rewards once their first order is confirmed.", "success");
 		}
 	}, [fetcher.state, fetcher.data, notify, locale]);
 
@@ -196,18 +188,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		graphqlRequest<{ popularSearchTerms: PopularSearchTerm[] }>(env, POPULAR_SEARCH_TERMS_QUERY, { prefix: "", limit: 20 }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
 
-	const rawSections = pageSectionsResult.status === "fulfilled"
-		? (pageSectionsResult.value.data.getPageSections?.items ?? [])
-		: [];
+	const rawSections = pageSectionsResult.status === "fulfilled" ? (pageSectionsResult.value.data.getPageSections?.items ?? []) : [];
 
 	const pageSections: PageSection[] = rawSections
 		.filter((s) => s.position === "DEFAULT")
 		.sort((a, b) => a.orderId - b.orderId)
 		.map((section) => ({
 			...section,
-			pages: section.pages
-				.filter((p) => p.active)
-				.sort((a, b) => a.orderId - b.orderId),
+			pages: section.pages.filter((p) => p.active).sort((a, b) => a.orderId - b.orderId),
 		}));
 
 	return {
@@ -266,9 +254,7 @@ export default function App() {
 	// stripLocalePrefix first — otherwise this never matches on Arabic pages,
 	// since /ar/checkout starts with "/ar/", not "/checkout".
 	const bareRoutePath = stripLocalePrefix(location.pathname);
-	const isCheckoutRoute =
-		bareRoutePath.startsWith("/checkout") ||
-		bareRoutePath.startsWith("/order-confirmation");
+	const isCheckoutRoute = bareRoutePath.startsWith("/checkout") || bareRoutePath.startsWith("/order-confirmation");
 
 	// Belt-and-suspenders alongside <ScrollRestoration /> — on a real page change
 	// (not back/forward, where preserving position is the whole point) force the
@@ -331,7 +317,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 							{/* Handle */}
 							<path d="M58 64 C58 40 102 40 102 64" stroke="#458500" strokeWidth="3.5" fill="none" strokeLinecap="round" />
 							{/* Question mark */}
-							<text x="80" y="112" textAnchor="middle" fontSize="38" fontWeight="900" fill="#458500" fillOpacity="0.55">?</text>
+							<text x="80" y="112" textAnchor="middle" fontSize="38" fontWeight="900" fill="#458500" fillOpacity="0.55">
+								?
+							</text>
 							{/* Sparkles */}
 							<circle cx="138" cy="44" r="5" fill="#f38a00" fillOpacity="0.75" />
 							<circle cx="22" cy="74" r="3.5" fill="#f38a00" fillOpacity="0.55" />
@@ -343,29 +331,20 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 					</div>
 
 					{/* Badge */}
-					<span className="inline-flex items-center gap-1.5 bg-[#f38a00]/10 text-[#f38a00] text-xs font-bold px-3.5 py-1.5 rounded-full mb-5 tracking-wide uppercase">
-						404 - Page Not Found
-					</span>
+					<span className="inline-flex items-center gap-1.5 bg-[#f38a00]/10 text-[#f38a00] text-xs font-bold px-3.5 py-1.5 rounded-full mb-5 tracking-wide uppercase">404 - Page Not Found</span>
 
 					<h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4 leading-tight">
-						This page went<br className="hidden sm:block" /> on a detour.
+						This page went
+						<br className="hidden sm:block" /> on a detour.
 					</h1>
 
-					<p className="text-gray-500 text-base md:text-lg leading-relaxed mb-10">
-						It may have been moved, renamed, or it never existed. Let's get you back on track.
-					</p>
+					<p className="text-gray-500 text-base md:text-lg leading-relaxed mb-10">It may have been moved, renamed, or it never existed. Let's get you back on track.</p>
 
 					<div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-						<a
-							href="/"
-							className="px-8 py-3.5 bg-[#458500] text-white rounded-full font-bold text-sm hover:bg-[#3a7000] transition-all duration-200 shadow-lg shadow-[#458500]/20 hover:shadow-xl hover:shadow-[#458500]/30 hover:-translate-y-0.5 text-center"
-						>
+						<a href="/" className="px-8 py-3.5 bg-[#458500] text-white rounded-full font-bold text-sm hover:bg-[#3a7000] transition-all duration-200 shadow-lg shadow-[#458500]/20 hover:shadow-xl hover:shadow-[#458500]/30 hover:-translate-y-0.5 text-center">
 							Back to Home
 						</a>
-						<a
-							href="/collections"
-							className="px-8 py-3.5 border-2 border-gray-200 text-gray-700 rounded-full font-bold text-sm hover:border-[#458500] hover:text-[#458500] transition-all duration-200 hover:-translate-y-0.5 text-center"
-						>
+						<a href="/collections" className="px-8 py-3.5 border-2 border-gray-200 text-gray-700 rounded-full font-bold text-sm hover:border-[#458500] hover:text-[#458500] transition-all duration-200 hover:-translate-y-0.5 text-center">
 							Browse Products
 						</a>
 					</div>
@@ -393,9 +372,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return (
 		<main className="min-h-screen flex items-center justify-center p-4">
 			<div className="text-center max-w-xl">
-				<span className="inline-block bg-red-50 text-red-500 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide mb-6">
-					Something went wrong
-				</span>
+				<span className="inline-block bg-red-50 text-red-500 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide mb-6">Something went wrong</span>
 				<h1 className="text-5xl font-black text-gray-900 mb-4">Oops!</h1>
 				<p className="text-gray-500 mb-6">{details}</p>
 				{stack && (
@@ -403,10 +380,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 						<code>{stack}</code>
 					</pre>
 				)}
-				<a
-					href="/"
-					className="inline-block px-8 py-3.5 bg-primary text-white rounded-full font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
-				>
+				<a href="/" className="inline-block px-8 py-3.5 bg-primary text-white rounded-full font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20">
 					Back to Home
 				</a>
 			</div>
