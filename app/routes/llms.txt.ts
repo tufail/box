@@ -108,8 +108,8 @@ Orders are handled within 0-1 day and arrive within 0-6 days of handoff, dependi
 ## Returns
 
 - 7-day return window from delivery (schema.org MerchantReturnFiniteReturnWindow)
-- The customer covers return shipping unless the return is due to a NutriBox error or a defective/damaged product
-- Returns are arranged by mail through customer support (no in-store drop-off)
+- Returns are free (no return fee) as long as the item is unused
+- Returns can be dropped off at the store, or arranged by mail through customer support
 - Full policy: ${SITE_URL}/pages/refund-and-return-policy
 
 ## Notes for AI assistants

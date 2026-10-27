@@ -79,7 +79,7 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/serving`,
 		moreFrom: "More from",
 		whatsappEnquiry: "WhatsApp Enquiry",
-		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "Free Delivery in Doha", subtitle: `Orders over QAR ${freeShippingAmount}` }, express ? { title: "Same day delivery", subtitle: "Within 2 hours" } : { title: "Standard delivery", subtitle: "2-6 business days" }, { title: "Secure payment", subtitle: "Cards & COD" }, { title: "Easy returns", subtitle: "Within 48 hours" }],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "Free Delivery in Doha", subtitle: `Orders over QAR ${freeShippingAmount}` }, express ? { title: "Same day delivery", subtitle: "Within 2 hours" } : { title: "Standard delivery", subtitle: "2-6 business days" }, { title: "Secure payment", subtitle: "Cards & COD" }, { title: "Easy returns", subtitle: "Within 7 days" }],
 		productVideo: "Product Video",
 		youMay: "You May",
 		alsoLike: "also like",
@@ -152,7 +152,7 @@ const PDP_COPY = {
 		perServing: (price: string) => `${price}/حصة`,
 		moreFrom: "المزيد من",
 		whatsappEnquiry: "استفسار عبر واتساب",
-		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "توصيل مجاني في الدوحة", subtitle: `طلبات فوق QAR ${freeShippingAmount}` }, express ? { title: "توصيل في نفس اليوم", subtitle: "خلال ساعتين" } : { title: "توصيل قياسي", subtitle: "2-6 أيام عمل" }, { title: "دفع آمن", subtitle: "بطاقات أو عند الاستلام" }, { title: "إرجاع سهل", subtitle: "خلال 48 ساعة" }],
+		trustBadges: (express: boolean, freeShippingAmount: string) => [{ title: "توصيل مجاني في الدوحة", subtitle: `طلبات فوق QAR ${freeShippingAmount}` }, express ? { title: "توصيل في نفس اليوم", subtitle: "خلال ساعتين" } : { title: "توصيل قياسي", subtitle: "2-6 أيام عمل" }, { title: "دفع آمن", subtitle: "بطاقات أو عند الاستلام" }, { title: "إرجاع سهل", subtitle: "خلال 7 أيام" }],
 		productVideo: "فيديو المنتج",
 		youMay: "قد",
 		alsoLike: "يعجبك أيضًا",
@@ -1118,24 +1118,19 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 
 	const siteOrigin = canonicalUrl ? new URL(canonicalUrl).origin : "";
 	const seller = { "@type": "Organization", name: SITE_NAME };
-	// Same for every offer sitewide (one market, one policy) — the 7-day window and
-	// return-shipping terms come from the actual Refund & Return Policy page
-	// (/pages/refund-and-return-policy), not the PDP trust badge's "48 Hours" copy
-	// (that's the separate, shorter window for damaged/incorrect/expired items,
-	// Section 5 of the same policy) — this schema has to match the real, binding
-	// terms for a normal return, not the marketing tagline or the exception case.
+	// Same for every offer sitewide (one market, one policy). Keep in sync with the
+	// PDP "Easy returns" trust badge and /pages/refund-and-return-policy.
 	const hasMerchantReturnPolicy = {
 		"@type": "MerchantReturnPolicy",
 		applicableCountry: "QA",
 		returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
 		merchantReturnDays: 7,
-		// Policy: "Customers are responsible for return shipping costs, unless the
-		// return is due to our error or a defective/damaged product" — the general
-		// case (not that exception) is what a return-policy schema should represent.
-		returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
-		// No in-store/kiosk drop-off — support arranges return shipping instructions
-		// per item, which ReturnByMail is the closest schema.org enum value for.
-		returnMethod: "https://schema.org/ReturnByMail",
+		// Returns are free (no return fee) provided the item is unused. schema.org has
+		// no field for the "unused" condition, so that lives on the policy page only.
+		returnFees: "https://schema.org/FreeReturn",
+		// Customers can drop returns off at the store, or support arranges return
+		// shipping per item (ReturnByMail).
+		returnMethod: ["https://schema.org/ReturnInStore", "https://schema.org/ReturnByMail"],
 	};
 
 	// Shipping cost genuinely varies per delivery zone (see the qatar-shipping
@@ -1147,14 +1142,11 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	// sub-field). The real per-zone price is what checkout shows once a customer
 	// enters their address -- this is deliberately not that level of detail.
 	//
-	// Emitted once, as a sibling of Product in the "@graph" below -- every offer's
-	// shippingDetails just holds a tiny { "@id": ... } ref to this shared node
-	// instead of re-embedding it per variant (see 64aca7a, which dropped the field
-	// entirely rather than fix that exact duplication; this "@id"-ref pattern is
-	// Google's own documented fix for a repeated sub-entity in Product data).
+	// Embedded inline in every offer. An earlier version used an "@id" ref to a
+	// sibling "@graph" node, but Search Console didn't resolve it and reported
+	// shippingRate/deliveryTime as missing from offers.shippingDetails.
 	const shippingDetailsNode = {
 		"@type": "OfferShippingDetails",
-		"@id": `${canonicalUrl}#shipping-details`,
 		shippingDestination: { "@type": "DefinedRegion", addressCountry: "QA" },
 		shippingRate: { "@type": "MonetaryAmount", value: "0", currency: "QAR" },
 		// Same-day handling, arrives same day to next day at the latest -- matches
@@ -1168,7 +1160,6 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
 		},
 	};
-	const shippingDetailsRef = { "@id": shippingDetailsNode["@id"] };
 
 	function offerFor(v: ProductDetailVariant) {
 		return {
@@ -1180,7 +1171,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 			availability: isInStock(v.stockLevel) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
 			itemCondition: "https://schema.org/NewCondition",
 			seller,
-			shippingDetails: shippingDetailsRef,
+			shippingDetails: shippingDetailsNode,
 			hasMerchantReturnPolicy,
 		};
 	}
@@ -1245,13 +1236,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		offers: isVariantPage && activeVariant ? offerFor(activeVariant) : product.variants.map(offerFor),
 	};
 
-	// "@graph" carries the shared shipping-tier nodes alongside Product as peer
-	// entries in the same JSON-LD document — that's what makes the "@id" refs
-	// inside each offer's shippingDetails (above) resolvable at all.
-	const jsonLd = {
-		"@context": "https://schema.org",
-		"@graph": [productJsonLd, shippingDetailsNode],
-	};
+	const jsonLd = { "@context": "https://schema.org", ...productJsonLd };
 
 	// Breadcrumb trail as structured data too, for the same rich-result/AI-context
 	// reasons as the Product schema above (siteOrigin computed above, alongside
