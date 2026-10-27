@@ -16,7 +16,9 @@ export const GET_MEGA_MENU = `
           promoLabel
           sections {
             title
+            subtitle
             url
+            iconAssetPreview
             links {
               label
               url
@@ -35,7 +37,9 @@ export interface MegaMenuLink {
 
 export interface MegaMenuSection {
   title: string | null;
+  subtitle: string | null;
   url: string | null;
+  iconAssetPreview: string | null;
   links: MegaMenuLink[];
 }
 
