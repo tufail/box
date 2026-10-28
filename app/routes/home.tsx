@@ -68,29 +68,49 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const homeCollections = collectionsResult.status === "fulfilled" ? collectionsResult.value.data.collections.items : [];
 
 	const topSellers = topSellingResult.status === "fulfilled" ? topSellingResult.value.data.topSellers : [];
-	const inStockTopSellers = topSellers.filter((t) => t.inStock).slice(0, 12);
+	// A few spare candidates beyond the 12 shown: a card whose product turns out to have no
+	// purchasable variant at all is dropped below, and the spares backfill that slot.
+	const inStockTopSellers = topSellers.filter((t) => t.inStock).slice(0, 16);
 
 	// topSellers only returns the product-level image — batch-fetch each
 	// variant's own photo in one follow-up request (by product id, not one
 	// request per card) so "Best-Sellers Edition" shows the actual flavor/size
 	// being listed instead of always the product's default image. Scoped to
-	// the already-filtered 12 cards, not the full over-fetch candidate set --
+	// the already-filtered candidates, not the full over-fetch candidate set --
 	// the products list query silently caps at its default page size (100),
 	// so requesting it for all ~130+ candidates was dropping some products
 	// entirely and leaving their cards on the (sometimes wrong) generic asset.
-	const variantAssetPreviewById = new Map<string, string>();
+	const variantsByProductId = new Map<string, ProductVariantAssetsData["products"]["items"][number]["variants"]>();
 	if (inStockTopSellers.length > 0) {
 		const productIds = [...new Set(inStockTopSellers.map((t) => t.productId))];
 		const variantAssetsResult = await graphqlRequest<ProductVariantAssetsData, ProductVariantAssetsVariables>(env, GET_PRODUCT_VARIANT_ASSETS, { ids: productIds }, cacheOpts).catch(() => null);
-		for (const product of variantAssetsResult?.data.products.items ?? []) {
-			for (const variant of product.variants) {
-				if (variant.featuredAsset?.preview) variantAssetPreviewById.set(variant.id, variant.featuredAsset.preview);
-			}
-		}
+		for (const product of variantAssetsResult?.data.products.items ?? []) variantsByProductId.set(product.id, product.variants);
 	}
 
+	// topSellers has one row per product, naming its best-selling variant -- but its `inStock`
+	// flag is product-level (any variant in stock), so that named variant can itself be sold
+	// out (e.g. Gold Standard's top seller, Double Rich Chocolate) while a sibling flavor is
+	// available. Linking the sold-out one sent customers to an Out of stock page; instead swap
+	// the card to the first purchasable variant. Falls back to the row as-is when the variant
+	// lookup failed, so a failed lookup never empties the section.
+	const resolved = inStockTopSellers.flatMap((t) => {
+		const variants = variantsByProductId.get(t.productId);
+		if (!variants) return [{ t, preview: null as string | null }];
+		const isAvailable = (v: (typeof variants)[number]) => v.stockLevel !== "OUT_OF_STOCK";
+		const listed = variants.find((v) => v.id === t.productVariantId);
+		const pick = listed && isAvailable(listed) ? listed : (variants.find((v) => isAvailable(v) && v.stockQty > 0) ?? variants.find(isAvailable));
+		if (!pick) return [];
+		if (pick === listed) return [{ t, preview: pick.featuredAsset?.preview ?? null }];
+		return [
+			{
+				t: { ...t, productVariantId: pick.id, productVariantName: pick.name, variantSlug: pick.customFields?.slug ?? null, priceWithTax: { min: pick.priceWithTax, max: pick.priceWithTax }, stockQty: pick.stockQty },
+				preview: pick.featuredAsset?.preview ?? null,
+			},
+		];
+	});
+
 	return {
-		products: inStockTopSellers.map((t) => mapTopSellerToSearchItem(t, variantAssetPreviewById.get(t.productVariantId) ?? null)),
+		products: resolved.slice(0, 12).map(({ t, preview }) => mapTopSellerToSearchItem(t, preview)),
 		newProducts: newArrivalsResult.status === "fulfilled" ? newArrivalsResult.value.data.search.items : [],
 		vendureBase,
 		carouselItems: bannerItems,

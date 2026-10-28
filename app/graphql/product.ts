@@ -601,7 +601,15 @@ export interface ProductVariantAssetsData {
   products: {
     items: {
       id: string;
-      variants: { id: string; featuredAsset: { preview: string } | null }[];
+      variants: {
+        id: string;
+        name: string;
+        priceWithTax: number;
+        stockLevel: string;
+        stockQty: number;
+        featuredAsset: { preview: string } | null;
+        customFields: { slug: string | null } | null;
+      }[];
     }[];
   };
 }
@@ -617,7 +625,12 @@ export const GET_PRODUCT_VARIANT_ASSETS = `
         id
         variants {
           id
+          name
+          priceWithTax
+          stockLevel
+          stockQty
           featuredAsset { preview }
+          customFields { slug }
         }
       }
     }
