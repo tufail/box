@@ -22,7 +22,9 @@ import { formatPrice } from "~/lib/currency";
 
 // Which checkout customers get by default: true = the one-page checkout, false = the original
 // multi-step flow (kept intact in this file; reachable at /checkout?classic=1 either way).
-const DEFAULT_ONE_STEP = true;
+// Set back to false after orders stopped coming in on the one-page flow; the one-page
+// version is still reachable at /checkout?onestep=1 for debugging.
+const DEFAULT_ONE_STEP = false;
 
 // Must match the `code` the SkipCash PaymentMethod is created with in the
 // Vendure admin (see SKIPCASH_METHOD_CODE in api.checkout.ts).
@@ -2974,8 +2976,8 @@ export default function CheckoutPage() {
 	const { setCartCount } = useCart();
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = CHECKOUT_COPY[locale];
-	// The one-page checkout is the default. The previous multi-step flow is still available at
-	// /checkout?classic=1 (or ?onestep=0); to make it the default again, flip DEFAULT_ONE_STEP.
+	// The classic multi-step flow is the default (see DEFAULT_ONE_STEP). The one-page checkout
+	// is opt-in at /checkout?onestep=1; /checkout?classic=1 (or ?onestep=0) forces classic.
 	const checkoutParams = new URLSearchParams(useLocation().search);
 	const oneStep = checkoutParams.get("classic") === "1" || checkoutParams.get("onestep") === "0" ? false : checkoutParams.get("onestep") === "1" ? true : DEFAULT_ONE_STEP;
 
