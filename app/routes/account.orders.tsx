@@ -10,6 +10,7 @@ import {
   type CustomerOrder,
 } from "~/graphql/account";
 import AccountLayout from "~/layouts/AccountLayout";
+import VendureImage from "~/components/VendureImage";
 import { Package, ChevronRight, ShoppingBag } from "lucide-react";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
@@ -176,12 +177,8 @@ function OrderCard({ order, vendureBase, locale, t }: { order: CustomerOrder; ve
                 className="w-14 h-14 rounded-xl border-2 border-white overflow-hidden bg-gray-100"
                 style={{ marginInlineStart: i > 0 ? "-14px" : 0, zIndex: 3 - i }}
               >
-                {preview.startsWith("/") ? (
-                  <img
-                    src={`${vendureBase}${preview}?preset=thumb`}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                {preview ? (
+                  <VendureImage src={preview} vendureBase={vendureBase} alt="" width={56} height={56} objectFit="contain" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
                     <Package size={20} className="text-gray-400" />

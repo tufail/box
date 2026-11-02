@@ -50,6 +50,19 @@ export default {
       return new Response(null, { status: 404 });
     }
 
+    // Static-file folders: a request only reaches the Worker when the file doesn't exist (existing
+    // files are served from the assets binding first). Letting it fall into React Router meant a
+    // full SSR render of the 404 page plus a logged "No routes matched" error for every miss -- and
+    // the storefront probes for icon files by name on purpose (public/icons/<slug>.svg, falling back
+    // when absent, see ProductHighlights / HomeFeaturedCollections). Answer these directly, cached,
+    // so a missing icon costs almost nothing.
+    if (url.pathname.startsWith("/icons/") || url.pathname.startsWith("/images/") || url.pathname.startsWith("/assets/")) {
+      // Build files (/assets/) are never cached as misses: during a deploy a new page can ask for a
+      // new hashed file before it has reached every edge, and a cached 404 would then stick.
+      const cacheControl = url.pathname.startsWith("/assets/") ? "no-store" : "public, max-age=3600";
+      return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": cacheControl } });
+    }
+
     const bannerMatch = BANNER_ROUTE.exec(url.pathname);
     if (bannerMatch) {
       try {

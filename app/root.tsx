@@ -250,6 +250,24 @@ export default function App() {
 	const bareRoutePath = stripLocalePrefix(location.pathname);
 	const isCheckoutRoute = bareRoutePath.startsWith("/checkout") || bareRoutePath.startsWith("/order-confirmation");
 
+	// A deploy replaces the hashed build files (/assets/*.js). A tab opened before it still points at
+	// the old ones, so the next lazy route chunk 404s and the navigation breaks until a manual refresh.
+	// Vite fires `vite:preloadError` for exactly that; reload once to pick up the new build. The
+	// sessionStorage stamp stops a reload loop if the file is genuinely missing.
+	useEffect(() => {
+		const onPreloadError = () => {
+			try {
+				const last = Number(sessionStorage.getItem("preloadErrorReloadAt") ?? 0);
+				if (Date.now() - last < 30_000) return;
+				sessionStorage.setItem("preloadErrorReloadAt", String(Date.now()));
+			} catch {
+				// sessionStorage unavailable: still reload once rather than stay broken.
+			}
+			window.location.reload();
+		};
+		window.addEventListener("vite:preloadError", onPreloadError);
+		return () => window.removeEventListener("vite:preloadError", onPreloadError);
+	}, []);
 	// Belt-and-suspenders alongside <ScrollRestoration /> — on a real page change
 	// (not back/forward, where preserving position is the whole point) force the
 	// scroll to the top of the new page. Without this, following a link from far

@@ -10,6 +10,7 @@ import {
   type CustomerOrderDetail,
 } from "~/graphql/account";
 import AccountLayout from "~/layouts/AccountLayout";
+import VendureImage from "~/components/VendureImage";
 import { Package, MapPin, CreditCard, ChevronLeft } from "lucide-react";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
@@ -259,11 +260,8 @@ function OrderItems({
               {/* Image */}
               <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0 border border-gray-100">
                 {preview ? (
-                  <img
-                    src={`${vendureBase}${preview}?preset=thumb`}
-                    alt={line.productVariant.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <VendureImage src={preview} vendureBase={vendureBase} alt={`${line.productVariant.product.name} - ${line.productVariant.name}`} width={64} height={64} objectFit="contain" />
+
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Package size={20} className="text-gray-300" />
