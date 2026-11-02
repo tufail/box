@@ -37,7 +37,7 @@ export default function BrandLogo({ code, name, className, rounded = "rounded-lg
 
 	return (
 		<div className={`relative bg-white ${rounded} overflow-hidden ${className ?? ""}`}>
-			<img ref={imgRef} src={`/images/brands/${code}.jpg`} alt={name} className={`w-full h-full object-contain ${padding}`} loading="lazy" onError={() => setErrored(true)} />
+			<img ref={imgRef} src={`/images/brands/${code}.jpg`} alt={`${name} logo`} className={`w-full h-full object-contain ${padding}`} loading="lazy" onError={() => setErrored(true)} />
 		</div>
 	);
 }

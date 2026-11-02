@@ -13,7 +13,6 @@ import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
 import { CART_COUNT_QUERY } from "./graphql/order";
 import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
 import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
-import { POPULAR_SEARCH_TERMS_QUERY, type PopularSearchTerm } from "./graphql/search";
 import { SITE_NAME, SITE_URL } from "./lib/seo";
 import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
 
@@ -175,17 +174,13 @@ export const links: Route.LinksFunction = () => [
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const locale = getLocaleFromPathname(new URL(request.url).pathname);
-	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult, popularSearchTermsResult] = await Promise.allSettled([
+	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult] = await Promise.allSettled([
 		graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
 		graphqlRequest<{ activeOrder: { totalQuantity: number } | null }>(env, CART_COUNT_QUERY, undefined, { request }),
 		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
 		// Locale is baked into the cache key via the request URL (/ar/* vs /*), so caching
 		// per-locale response bodies here is still safe.
 		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, { languageCode: locale }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
-		// Real search terms are language-agnostic (whatever customers actually typed), so
-		// this isn't cached per-locale differently -- same top-20 list feeds the "Popular
-		// Searches" SEO block regardless of /ar/ vs default locale.
-		graphqlRequest<{ popularSearchTerms: PopularSearchTerm[] }>(env, POPULAR_SEARCH_TERMS_QUERY, { prefix: "", limit: 20 }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
 	]);
 
 	const rawSections = pageSectionsResult.status === "fulfilled" ? (pageSectionsResult.value.data.getPageSections?.items ?? []) : [];
@@ -203,7 +198,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		cartCount: cartCountResult.status === "fulfilled" ? (cartCountResult.value.data.activeOrder?.totalQuantity ?? 0) : 0,
 		activeCustomer: customerResult.status === "fulfilled" ? (customerResult.value.data.activeCustomer ?? null) : null,
 		pageSections,
-		popularSearchTerms: popularSearchTermsResult.status === "fulfilled" ? popularSearchTermsResult.value.data.popularSearchTerms : [],
 	};
 }
 
@@ -248,7 +242,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { megaMenu, cartCount, activeCustomer, pageSections, popularSearchTerms } = useLoaderData<typeof loader>();
+	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
 	const location = useLocation();
 	const navigationType = useNavigationType();
 	// stripLocalePrefix first — otherwise this never matches on Arabic pages,
@@ -281,7 +275,7 @@ export default function App() {
 						{isCheckoutRoute ? (
 							<Outlet />
 						) : (
-							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections} popularSearchTerms={popularSearchTerms}>
+							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
 								<Outlet />
 							</MainLayout>
 						)}
