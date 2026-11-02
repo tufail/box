@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import { useState, useEffect } from "react";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import Breadcrumb from "~/components/Breadcrumb";
-import { graphqlRequest } from "workers/graphqlClient";
+import { graphqlRequest, edgeCached } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import {
   SEARCH_PAGE_QUERY,
@@ -94,7 +94,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       env,
       SEARCH_PAGE_QUERY,
       { input },
-      { request }
+      edgeCached(request, 120)
     );
     return { ...data.search, q, sort, page, fv, onSale, bundle, vendureBase };
   } catch {

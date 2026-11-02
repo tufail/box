@@ -109,4 +109,14 @@ export async function graphqlRequest<
   };
 }
 
+// Request options that edge-cache a loader's GraphQL subrequest for `ttlSeconds` (Cloudflare's
+// fetch cache, keyed per operation + variables + locale -- see the cacheKey above). Meant for
+// public catalogue reads only. Skipped when the visitor carries an auth/session cookie: the cache
+// key does not include the token, so a signed-in (or cart-holding) request must never read or
+// write a shared entry. Those visitors simply go to the backend as before.
+export function edgeCached(request: Request, ttlSeconds: number): { request: Request; cf?: Record<string, unknown> } {
+  if (getAuthTokenFromCookie(request)) return { request };
+  return { request, cf: { cacheTtl: ttlSeconds, cacheEverything: true } };
+}
+
 export { gql };

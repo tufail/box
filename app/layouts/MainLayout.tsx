@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import type { MegaMenuData } from "~/graphql/megamenu";
-import type { ActiveCustomer } from "~/graphql/checkout";
+import { useSession } from "~/context/SessionContext";
 import type { PageSection } from "~/graphql/pages";
 import type { BannerItem } from "~/graphql/banner";
 import MegaMenu from "../components/MegaMenu";
@@ -20,7 +20,6 @@ import { useFocusTrap } from "~/hooks/useFocusTrap";
 interface MainLayoutProps {
 	children: React.ReactNode;
 	megaMenu: MegaMenuData["getMegaMenu"];
-	activeCustomer: ActiveCustomer | null;
 	pageSections: PageSection[];
 }
 
@@ -528,7 +527,8 @@ function TopBarNewsPills() {
 	return null;
 }
 
-export default function MainLayout({ children, megaMenu, activeCustomer, pageSections }: MainLayoutProps) {
+export default function MainLayout({ children, megaMenu, pageSections }: MainLayoutProps) {
+	const { activeCustomer } = useSession();
 	const routerLocation = useLocation();
 	const { isCartOpen, openCart, closeCart, cartCount } = useCart();
 	const { wishlistCount } = useWishlist();

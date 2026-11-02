@@ -1,6 +1,7 @@
 import type { Route } from "./+types/products.$slug.reviews";
 import { useState, useEffect, useRef } from "react";
-import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import { useSession } from "~/context/SessionContext";
 import Link from "~/components/LocaleLink";
 import { data } from "react-router";
 import type { ActiveCustomer } from "~/graphql/checkout";
@@ -529,7 +530,7 @@ export default function ProductReviewsPage({ loaderData }: Route.ComponentProps)
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = REVIEWS_COPY[locale];
 	const SORT_OPTIONS = getSortOptions(t);
-	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
+	const rootData = useSession();
 	const customer = rootData?.activeCustomer ?? null;
 	const [writeOpen, setWriteOpen] = useState(false);
 	const voteFetcher = useFetcher();

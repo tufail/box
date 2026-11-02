@@ -10,8 +10,7 @@ import { NotificationProvider, useNotification } from "./context/NotificationCon
 import { WishlistProvider } from "./context/WishlistContext";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_MEGA_MENU, type MegaMenuData } from "./graphql/megamenu";
-import { CART_COUNT_QUERY } from "./graphql/order";
-import { ACTIVE_CUSTOMER_QUERY, type ActiveCustomer } from "./graphql/checkout";
+import { SessionProvider, useSession } from "./context/SessionContext";
 import { GET_PAGE_SECTIONS, type PageSectionsData, type PageSection } from "./graphql/pages";
 import { SITE_NAME, SITE_URL } from "./lib/seo";
 import { getLocaleFromPathname, stripLocalePrefix } from "./lib/i18n";
@@ -92,7 +91,8 @@ const PENDING_REFERRAL_CODE_KEY = "pendingReferralCode";
 // which authenticates immediately) — so this fires from a global effect keyed off
 // activeCustomer instead of any single auth entry point. Rendered inside
 // NotificationProvider (not in App() itself) purely so it can call useNotification.
-function ReferralCapture({ activeCustomer }: { activeCustomer: ActiveCustomer | null }) {
+function ReferralCapture() {
+	const { activeCustomer } = useSession();
 	const location = useLocation();
 	const fetcher = useFetcher<{ error?: string; referral?: unknown }>();
 	const { notify } = useNotification();
@@ -174,10 +174,8 @@ export const links: Route.LinksFunction = () => [
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const env = context.cloudflare.env;
 	const locale = getLocaleFromPathname(new URL(request.url).pathname);
-	const [megaMenuResult, cartCountResult, customerResult, pageSectionsResult] = await Promise.allSettled([
+	const [megaMenuResult, pageSectionsResult] = await Promise.allSettled([
 		graphqlRequest<MegaMenuData>(env, GET_MEGA_MENU, { slug: "main-nav" }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
-		graphqlRequest<{ activeOrder: { totalQuantity: number } | null }>(env, CART_COUNT_QUERY, undefined, { request }),
-		graphqlRequest<{ activeCustomer: ActiveCustomer | null }>(env, ACTIVE_CUSTOMER_QUERY, undefined, { request }),
 		// Locale is baked into the cache key via the request URL (/ar/* vs /*), so caching
 		// per-locale response bodies here is still safe.
 		graphqlRequest<PageSectionsData>(env, GET_PAGE_SECTIONS, { languageCode: locale }, { request, cf: { cacheTtl: 600, cacheEverything: true } }),
@@ -195,8 +193,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	return {
 		megaMenu: megaMenuResult.status === "fulfilled" ? megaMenuResult.value.data.getMegaMenu : null,
-		cartCount: cartCountResult.status === "fulfilled" ? (cartCountResult.value.data.activeOrder?.totalQuantity ?? 0) : 0,
-		activeCustomer: customerResult.status === "fulfilled" ? (customerResult.value.data.activeCustomer ?? null) : null,
+		// Only whether a session cookie exists (it is HttpOnly) -- the cart count and customer are loaded
+		// in the browser (SessionContext), so this render makes no per-visitor backend calls.
+		hasSession: /(?:^|;\s*)vendure-auth-token=/.test(request.headers.get("cookie") ?? ""),
 		pageSections,
 	};
 }
@@ -242,7 +241,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { megaMenu, cartCount, activeCustomer, pageSections } = useLoaderData<typeof loader>();
+	const loaderData = useLoaderData<typeof loader>();
+	const { megaMenu, hasSession, pageSections } = loaderData;
 	const location = useLocation();
 	const navigationType = useNavigationType();
 	// stripLocalePrefix first — otherwise this never matches on Arabic pages,
@@ -268,17 +268,19 @@ export default function App() {
 		<>
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }} />
 			<NotificationProvider>
-				<ReferralCapture activeCustomer={activeCustomer} />
 				<WishlistProvider>
-					<CartProvider initialCount={cartCount}>
-						<NavigationProgress />
-						{isCheckoutRoute ? (
-							<Outlet />
-						) : (
-							<MainLayout megaMenu={megaMenu} activeCustomer={activeCustomer} pageSections={pageSections}>
+					<CartProvider initialCount={0}>
+						<SessionProvider hasSession={hasSession} revalidationKey={loaderData}>
+							<ReferralCapture />
+							<NavigationProgress />
+							{isCheckoutRoute ? (
 								<Outlet />
-							</MainLayout>
-						)}
+							) : (
+								<MainLayout megaMenu={megaMenu} pageSections={pageSections}>
+									<Outlet />
+								</MainLayout>
+							)}
+						</SessionProvider>
 					</CartProvider>
 				</WishlistProvider>
 			</NotificationProvider>

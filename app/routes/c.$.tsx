@@ -2,7 +2,7 @@ import type { Route } from "./+types/c.$";
 import { useSearchParams, redirect } from "react-router";
 import { useState } from "react";
 import { SlidersHorizontal, X, Check, ChevronDown } from "lucide-react";
-import { graphqlRequest } from "workers/graphqlClient";
+import { graphqlRequest, edgeCached } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
@@ -148,8 +148,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   try {
     const [mainResult, facetsResult] = await Promise.allSettled([
-      graphqlRequest<CollectionPageData, CollectionPageVariables>(env, COLLECTION_PAGE_QUERY, { slug, input }, { request }),
-      graphqlRequest<CollectionFacetsData>(env, COLLECTION_FACETS_QUERY, { input: facetsInput }, { request }),
+      graphqlRequest<CollectionPageData, CollectionPageVariables>(env, COLLECTION_PAGE_QUERY, { slug, input }, edgeCached(request, 120)),
+      graphqlRequest<CollectionFacetsData>(env, COLLECTION_FACETS_QUERY, { input: facetsInput }, edgeCached(request, 300)),
     ]);
 
     if (mainResult.status === "rejected") throw mainResult.reason;

@@ -1,12 +1,12 @@
 import type { Route } from "./+types/products.$slug";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useFetcher, useRouteLoaderData, useLocation, redirect } from "react-router";
+import { useFetcher, useLocation, redirect } from "react-router";
+import { useSession } from "~/context/SessionContext";
 import Link from "~/components/LocaleLink";
-import type { ActiveCustomer } from "~/graphql/checkout";
 import { useCart } from "~/context/CartContext";
 import { Heart, Share2, CheckCircle, XCircle, Minus, Plus, ChevronLeft, ChevronRight, Link2, Star, TrendingUp, ThumbsUp, ThumbsDown, BadgeCheck, ImagePlus, ChevronDown, Maximize2, X, Truck, CreditCard, RotateCcw, Clock } from "lucide-react";
-import { graphqlRequest } from "workers/graphqlClient";
+import { graphqlRequest, edgeCached } from "workers/graphqlClient";
 import Breadcrumb, { type BreadcrumbItem } from "~/components/Breadcrumb";
 import HomeTopSelling from "~/components/HomeTopSelling";
 import ProductBundleOffers from "~/components/ProductBundleOffers";
@@ -495,15 +495,23 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		let product: ProductDetailItem | null = null;
 		let activeVariantId: string | null = null;
 
-		const { data } = await graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: slugParam }, { request });
-		if (data.product) {
-			product = data.product;
-		} else {
-			const { data: variantData } = await graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: slugParam }, { request });
+		// Both lookups start together (they used to run one after the other, so a variant URL -- what the
+		// sitemap lists, i.e. the common case -- paid for a wasted product query first). Edge-cached, so
+		// the extra call is rarely a real backend hit.
+		const [productResult, variantResult] = await Promise.allSettled([
+			graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: slugParam }, edgeCached(request, 60)),
+			graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: slugParam }, edgeCached(request, 60)),
+		]);
+		if (productResult.status === "fulfilled" && productResult.value.data.product) {
+			product = productResult.value.data.product;
+		} else if (variantResult.status === "fulfilled") {
+			const variantData = variantResult.value.data;
 			if (variantData.productVariantBySlug) {
 				product = variantData.productVariantBySlug.product;
 				activeVariantId = variantData.productVariantBySlug.id;
 			}
+		} else if (productResult.status === "rejected") {
+			throw productResult.reason;
 		}
 		if (!product) throw new Response("Not Found", { status: 404 });
 
@@ -548,15 +556,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const collectionSlug = product.collections[0]?.slug ?? null;
 
 		const [summaryResult, currentProductResult, reviewsResult, questionsResult] = await Promise.allSettled([
-			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, { request }),
+			graphqlRequest<ProductRatingSummaryData>(env, PRODUCT_RATING_SUMMARY_QUERY, { slug: product.slug }, edgeCached(request, 120)),
 			// Dedicated search for current product to get sold count + best seller data
-			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, { request }),
+			graphqlRequest<SearchProductsData, SearchTopSellingVariables>(env, SEARCH_TOP_SELLING, { input: { term: product.name, groupByProduct: false, take: 5 } }, edgeCached(request, 120)),
 			// First page of reviews/Q&A, SSR'd so this content (and the Review schema
 			// below) is in the initial HTML instead of only appearing after a client-side
 			// fetch on mount — RatingPanel/ProductQA still own re-fetching for sort
 			// changes and "load more", this just seeds their first render.
-			graphqlRequest<ProductReviewsData>(env, PRODUCT_REVIEWS_QUERY, { slug: product.slug, take: 5, skip: 0, sort: "MOST_RELEVANT" }, { request }),
-			graphqlRequest<ProductQuestionsData>(env, PRODUCT_QUESTIONS_QUERY, { slug: product.slug, productVariantId: activeVariant?.id, options: { take: 10 } }, { request }),
+			graphqlRequest<ProductReviewsData>(env, PRODUCT_REVIEWS_QUERY, { slug: product.slug, take: 5, skip: 0, sort: "MOST_RELEVANT" }, edgeCached(request, 60)),
+			graphqlRequest<ProductQuestionsData>(env, PRODUCT_QUESTIONS_QUERY, { slug: product.slug, productVariantId: activeVariant?.id, options: { take: 10 } }, edgeCached(request, 60)),
 		]);
 
 		// Find current product in the dedicated search result (term: product.name)
@@ -903,7 +911,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		}
 	};
 	const { notify } = useNotification();
-	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
+	const rootData = useSession();
 
 	// React Router keeps this component mounted across client-side navigations
 	// between two /products/:slug URLs (same route), so useState(initialSelected)
@@ -1883,7 +1891,7 @@ function RatingPanel({ summary, productSlug, pageSlug, productName, initialRevie
 	const maxCount = Math.max(...summary.distribution.map((d) => d.count), 1);
 
 	// Auth
-	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
+	const rootData = useSession();
 	const isLoggedIn = !!rootData?.activeCustomer;
 
 	const [sort, setSort] = useState<ReviewSortOrder>("MOST_RELEVANT");

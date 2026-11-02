@@ -74,6 +74,7 @@ export default [
 	route("api/loyalty", "routes/api.loyalty.ts"),
 	route("api/search", "routes/api.search.ts"),
 	route("api/cart", "routes/api.cart.ts"),
+	route("api/session", "routes/api.session.ts"),
 	route("api/bundle", "routes/api.bundle.ts"),
 	route("api/wellness", "routes/api.wellness.ts"),
 	route("api/checkout", "routes/api.checkout.ts"),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useFetcher, useRouteLoaderData, useLocation } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import { useSession } from "~/context/SessionContext";
 import Link from "~/components/LocaleLink";
-import type { ActiveCustomer } from "~/graphql/checkout";
 import type { ProductQuestionItem } from "~/graphql/question";
 import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 import { MessageCircleQuestion, BadgeCheck, ChevronDown } from "lucide-react";
@@ -177,7 +177,7 @@ function AskQuestionForm({ productId, isLoggedIn, productSlug, onSubmitted, t }:
 export default function ProductQA({ productId, productSlug, productVariantId, initialQuestions, initialTotalItems, embedded = false }: { productId: string; productSlug: string; productVariantId: string | null; initialQuestions: ProductQuestionItem[]; initialTotalItems: number; embedded?: boolean }) {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const t = QA_COPY[locale];
-	const rootData = useRouteLoaderData("root") as { activeCustomer: ActiveCustomer | null } | undefined;
+	const rootData = useSession();
 	const isLoggedIn = !!rootData?.activeCustomer;
 
 	const [showForm, setShowForm] = useState(false);
