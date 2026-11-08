@@ -7,7 +7,7 @@ export const SITE_URL = "https://nutribox.qa";
 // Used for title suffixes, og:site_name, and JSON-LD name fields; the visual
 // header/footer brand lockup stays plain "NutriBox" since that's the logo mark.
 export const SITE_NAME = "NutriBox Qatar";
-// Default social-share image (1200x628) for pages without their own image.
+// Default social-share image (1200x630) for pages without their own image.
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/images/common.jpg`;
 
 // Adds "Page N" to a listing title from page 2 on, so paginated pages don't all share
