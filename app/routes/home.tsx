@@ -4,7 +4,7 @@ import { graphqlRequest } from "workers/graphqlClient";
 import { SEARCH_NEW_ARRIVALS, TOP_SELLERS_QUERY, mapTopSellerToSearchItem, GET_PRODUCT_VARIANT_ASSETS, type SearchProductsData, type SearchTopSellingVariables, type TopSellersData, type TopSellersVariables, type ProductVariantAssetsData, type ProductVariantAssetsVariables } from "~/graphql/product";
 import { GET_BANNER_BY_SLUG, type BannerData, type BannerVariables } from "~/graphql/banner";
 import { HOME_COLLECTIONS_QUERY, type HomeCollectionsResult } from "~/graphql/collection";
-import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, hreflangTags } from "~/lib/i18n";
 
 // AI-translated (not yet reviewed by a native Arabic speaker) — fine as a
@@ -25,7 +25,7 @@ export function meta({ location }: Route.MetaArgs) {
 	const locale = getLocaleFromPathname(location.pathname);
 	const { title, description } = COPY[locale];
 	const canonicalUrl = `${SITE_URL}${localizePath("/", locale)}`;
-	return [{ title }, { name: "description", content: description }, { tagName: "link" as const, rel: "canonical", href: canonicalUrl }, ...hreflangTags(SITE_URL, "/"), { property: "og:type", content: "website" }, { property: "og:title", content: title }, { property: "og:description", content: description }, { property: "og:url", content: canonicalUrl }, { property: "og:site_name", content: SITE_NAME }, { name: "twitter:card", content: "summary" }, { name: "twitter:title", content: title }, { name: "twitter:description", content: description }];
+	return [{ title }, { name: "description", content: description }, { tagName: "link" as const, rel: "canonical", href: canonicalUrl }, ...hreflangTags(SITE_URL, "/"), { property: "og:type", content: "website" }, { property: "og:title", content: title }, { property: "og:description", content: description }, { property: "og:url", content: canonicalUrl }, { property: "og:site_name", content: SITE_NAME }, { property: "og:image", content: DEFAULT_OG_IMAGE }, { property: "og:image:width", content: "1200" }, { property: "og:image:height", content: "628" }, { name: "twitter:card", content: "summary_large_image" }, { name: "twitter:title", content: title }, { name: "twitter:description", content: description }, { name: "twitter:image", content: DEFAULT_OG_IMAGE }];
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
