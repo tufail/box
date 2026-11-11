@@ -227,6 +227,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 							function gtag(){dataLayer.push(arguments);}
 							gtag('js', new Date());
 							gtag('config', 'G-T5GQGKSJM2');
+							gtag('config', 'AW-1018264058');
 						`,
 					}}
 				/>
