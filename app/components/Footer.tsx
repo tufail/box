@@ -131,18 +131,17 @@ const socialLinks = [
 ];
 
 // Real, verified category/brand destinations — a footer nav that only ever points at
-// pages that exist beats one padded out with guessed slugs. Brand names are kept in
-// Latin script for both locales (proper nouns/trademarks, same treatment as "NutriBox"
-// itself), matching how socialLinks' platform names above aren't translated either.
+// pages that exist beats one padded out with guessed slugs. Arabic brand names match the
+// Arabic names on the brand facet values in Vendure, so the footer agrees with filters.
 const SHOP_LINKS: { to: string; en: string; ar: string }[] = [
 	{ to: "/c/sports-nutrition/protein", en: "Protein", ar: "بروتين" },
 	{ to: "/c/sports-nutrition/creatine", en: "Creatine", ar: "كرياتين" },
 	{ to: "/c/sports-nutrition/pre-workout", en: "Pre-Workout", ar: "قبل التمرين" },
 	{ to: "/c/sports-nutrition/protein/mass-gainers", en: "Mass Gainers", ar: "معززات الكتلة" },
 	{ to: "/c/supplements", en: "Vitamins & Supplements", ar: "الفيتامينات والمكملات" },
-	{ to: "/brands/optimum-nutrition", en: "Optimum Nutrition", ar: "Optimum Nutrition" },
-	{ to: "/brands/dymatize", en: "Dymatize", ar: "Dymatize" },
-	{ to: "/brands/muscletech", en: "MuscleTech", ar: "MuscleTech" },
+	{ to: "/brands/optimum-nutrition", en: "Optimum Nutrition", ar: "أوبتيموم نيوتريشن" },
+	{ to: "/brands/dymatize", en: "Dymatize", ar: "ديماتيز" },
+	{ to: "/brands/muscletech", en: "MuscleTech", ar: "مسل تك" },
 	{ to: "/collections", en: "All Categories", ar: "جميع الفئات" },
 	{ to: "/brands", en: "All Brands", ar: "جميع الماركات" },
 ];
