@@ -4,18 +4,9 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { BannerItem } from "~/graphql/banner";
 import VendureImage from "./VendureImage";
-import { getLocaleFromPathname } from "~/lib/i18n";
+import { bannerHref, getLocaleFromPathname } from "~/lib/i18n";
 
 type State = "loading" | BannerItem[];
-
-function normalizeDestination(href?: string) {
-	if (!href) return undefined;
-	const value = href.trim();
-	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
-		return undefined;
-	}
-	return value;
-}
 
 export default function HomeTrendingBanners({ title, vendureBase = "" }: { title?: string; vendureBase?: string }) {
 	const [state, setState] = useState<State>("loading");
@@ -103,7 +94,7 @@ function BannerScroll({ items, title, vendureBase }: { items: BannerItem[]; titl
 				<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
 					<div className="flex -mx-2" role="list">
 						{items.map((item) => {
-							const resolvedHref = normalizeDestination(item.url);
+							const resolvedHref = bannerHref(item.url, locale);
 							const cardClassName = "border border-gray-100 bg-white overflow-hidden flex flex-col h-full group block rounded-2xl shadow-sm hover:shadow-md transition-shadow";
 							return (
 								<div key={item.id} className="flex-none w-1/2 md:w-1/4 lg:w-1/5 px-2" role="listitem">

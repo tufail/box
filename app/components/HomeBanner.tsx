@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import type { BannerItem } from "~/graphql/banner";
+import { bannerHref, getLocaleFromPathname } from "~/lib/i18n";
 
 function BannerShimmer() {
 	return (
@@ -26,17 +28,9 @@ function BannerShimmer() {
 
 type BannerState = "loading" | BannerItem | null;
 
-function normalizeDestination(href?: string) {
-	if (!href) return undefined;
-	const value = href.trim();
-	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
-		return undefined;
-	}
-	return value;
-}
-
 export default function HomeBanner({ slug }: { slug: string }) {
 	const [state, setState] = useState<BannerState>("loading");
+	const locale = getLocaleFromPathname(useLocation().pathname);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -64,7 +58,7 @@ export default function HomeBanner({ slug }: { slug: string }) {
 	);
 
 	const wrapperClass = "block overflow-hidden rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow";
-	const resolvedHref = normalizeDestination(state.url);
+	const resolvedHref = bannerHref(state.url, locale);
 
 	return (
 		<div className="container mx-auto px-4 py-8 md:py-10">

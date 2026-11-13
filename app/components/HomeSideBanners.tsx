@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import type { BannerItem } from "~/graphql/banner";
+import { bannerHref, getLocaleFromPathname } from "~/lib/i18n";
 
 type BannerState = "loading" | BannerItem | null;
 
@@ -24,6 +26,7 @@ function useBanner(slug: string) {
 
 function SideBanner({ slug, rounded }: { slug: string; rounded: "top" | "bottom" }) {
 	const state = useBanner(slug);
+	const locale = getLocaleFromPathname(useLocation().pathname);
 	const roundedClass = rounded === "top" ? "rounded-xl" : "rounded-xl";
 
 	if (state === "loading") {
@@ -40,9 +43,11 @@ function SideBanner({ slug, rounded }: { slug: string; rounded: "top" | "bottom"
 		/>
 	);
 
+	const href = bannerHref(state.url, locale);
+
 	return (
 		<div className={`flex-1 overflow-hidden ${roundedClass} min-h-0`}>
-			{state.url ? <a href={state.url} className="block w-full h-full">{img}</a> : img}
+			{href ? <a href={href} className="block w-full h-full">{img}</a> : img}
 		</div>
 	);
 }

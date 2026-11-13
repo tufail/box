@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { vendureImageUrl } from "./VendureImage";
-import { getLocaleFromPathname } from "~/lib/i18n";
+import { bannerHref, getLocaleFromPathname } from "~/lib/i18n";
 
 export interface CarouselSlide {
 	id: string;
@@ -41,15 +41,6 @@ const DEPTH_STYLES = [
 function depthOf(index: number, selected: number, total: number) {
 	const d = (index - selected + total) % total;
 	return Math.min(d, DEPTH_STYLES.length - 1);
-}
-
-function normalizeDestination(href?: string) {
-	if (!href) return undefined;
-	const value = href.trim();
-	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
-		return undefined;
-	}
-	return value;
 }
 
 export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }: { items?: CarouselSlide[]; vendureBase?: string }) {
@@ -117,7 +108,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 	}
 
 	const currentSlide = items[selectedIndex];
-	const currentHref = normalizeDestination(currentSlide?.href);
+	const currentHref = bannerHref(currentSlide?.href, locale);
 
 	return (
 		<div className="relative group" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -152,7 +143,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 					const isFront = depth === 0;
 					const isPeekVisible = depth > 0 && depth <= 2;
 
-					const resolvedHref = isFront ? normalizeDestination(slide.href) : undefined;
+					const resolvedHref = isFront ? bannerHref(slide.href, locale) : undefined;
 
 					return (
 						<a

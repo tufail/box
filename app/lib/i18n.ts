@@ -38,6 +38,37 @@ export function localizePath(path: string, locale: Locale): string {
 	return `/ar${path}`;
 }
 
+// Localizes a CMS-supplied link (banners, carousel slides, tiles). Admins enter these
+// once, usually as English paths ("/c/protein") or full nutribox.qa URLs, so without
+// this every banner on the Arabic site sends shoppers back to the English page.
+// Internal links get the locale prefix (never doubled); external, mailto:, tel: and
+// in-page "#" links are returned unchanged.
+export function localizeHref(href: string, locale: Locale): string {
+	const value = href.trim();
+	if (value.startsWith("/") && !value.startsWith("//")) {
+		return localizePath(stripLocalePrefix(value), locale);
+	}
+	try {
+		const url = new URL(value);
+		if (/(^|\.)nutribox\.qa$/i.test(url.hostname) && !/^(app-admin|assets)\./i.test(url.hostname)) {
+			return `${localizePath(stripLocalePrefix(url.pathname), locale)}${url.search}${url.hash}`;
+		}
+	} catch {
+		// Not an absolute URL (e.g. "mailto:", "#section") -- leave as-is.
+	}
+	return value;
+}
+
+// Banner/slide/tile destination: undefined for empty or placeholder links (so the
+// card renders unlinked), otherwise the locale-correct href via localizeHref.
+export function bannerHref(href: string | null | undefined, locale: Locale): string | undefined {
+	const value = href?.trim();
+	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
+		return undefined;
+	}
+	return localizeHref(value, locale);
+}
+
 // Absolute URL for the site's homepage in the given locale — the common case for
 // a breadcrumb/JSON-LD "Home" entry, where "/" would otherwise need locale
 // handling spelled out at every call site.

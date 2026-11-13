@@ -4,21 +4,12 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { BannerItem } from "~/graphql/banner";
 import { vendureImageUrl } from "./VendureImage";
-import { getLocaleFromPathname } from "~/lib/i18n";
+import { bannerHref, getLocaleFromPathname } from "~/lib/i18n";
 
 // Light, plain fill per card — cycled by position since the banner plugin
 // has no color field of its own. Deliberately flat pastels (not gradients),
 // paired with dark text/CTA for contrast.
 const CARD_BG = ["bg-rose-100", "bg-teal-100", "bg-amber-100", "bg-sky-100", "bg-indigo-100", "bg-fuchsia-100"];
-
-function normalizeDestination(href?: string) {
-	if (!href) return undefined;
-	const value = href.trim();
-	if (!value || value === "#" || value === "/#" || value === "javascript:void(0)" || value === "about:blank") {
-		return undefined;
-	}
-	return value;
-}
 
 type State = "loading" | BannerItem[];
 
@@ -115,7 +106,7 @@ function ConcernScroll({ items, vendureBase }: { items: BannerItem[]; vendureBas
 					<div className="overflow-hidden py-1 pb-3 -my-1 -mb-3" ref={emblaRef}>
 						<div className="flex -mx-2" role="list" aria-label={locale === "ar" ? "احتياجات التسوق" : "Shopping concerns"}>
 							{items.map((item, i) => {
-								const href = normalizeDestination(item.url);
+								const href = bannerHref(item.url, locale);
 								const hasImage = !!item.assetPreview;
 								const bg = hasImage ? "bg-gray-100" : CARD_BG[i % CARD_BG.length];
 								// Photo tiles need a dark scrim + white text for contrast; plain
