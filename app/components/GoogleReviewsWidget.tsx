@@ -66,6 +66,10 @@ export default function GoogleReviewsWidget() {
 		el.scrollBy({ left: dir * (rtl ? -1 : 1) * (el.clientWidth + 24), behavior: "smooth" });
 	}
 
+	// Latest first. Sorted here rather than in api.google-reviews.ts so it applies
+	// immediately, without waiting out that route's 24h KV cache. Undated last.
+	const reviews = [...data.reviews].sort((a, b) => (b.date ? Date.parse(b.date) : 0) - (a.date ? Date.parse(a.date) : 0));
+
 	const dateFmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-QA" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
 
 	return (
@@ -110,7 +114,7 @@ export default function GoogleReviewsWidget() {
 						</button>
 					)}
 					<div ref={trackRef} className="flex min-w-0 flex-1 gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-						{data.reviews.map((r) => (
+						{reviews.map((r) => (
 							<article key={`${r.author}-${r.date}`} className="snap-start shrink-0 basis-[85%] sm:basis-[calc((100%-1.5rem)/2)] lg:basis-[calc((100%-3rem)/3)] flex gap-3">
 								{r.photo ? <img src={r.photo} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover shrink-0" /> : <span className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0">{r.author[0]}</span>}
 								<div className="min-w-0">
