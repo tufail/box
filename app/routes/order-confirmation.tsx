@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
 import Link from "~/components/LocaleLink";
 import { Check, ShoppingBag } from "lucide-react";
@@ -11,6 +11,7 @@ import PostOrderAccountPrompt from "~/components/PostOrderAccountPrompt";
 import PostOrderReferralPrompt from "~/components/PostOrderReferralPrompt";
 import OrderSummaryBox, { type OrderSummaryLine } from "~/components/OrderSummaryBox";
 import { getLocaleFromPathname } from "~/lib/i18n";
+import { trackPurchaseConversion } from "~/lib/gtag";
 
 export function meta() {
   return [
@@ -100,6 +101,10 @@ export default function OrderConfirmationPage({ loaderData }: Route.ComponentPro
   const isGuest = customer && !customer.user;
   const showReferral = customer?.user && referralCode;
   const hasSideCard = isGuest || showReferral;
+
+  useEffect(() => {
+    if (order) trackPurchaseConversion(order.code, order.totalWithTax, order.currencyCode);
+  }, [order]);
 
   return (
     <CheckoutLayout>

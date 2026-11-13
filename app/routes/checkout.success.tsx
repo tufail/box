@@ -12,6 +12,7 @@ import PostOrderReferralPrompt from "~/components/PostOrderReferralPrompt";
 import OrderSummaryBox from "~/components/OrderSummaryBox";
 import type { VendurePayment } from "~/types/sadad";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
+import { trackPurchaseConversion } from "~/lib/gtag";
 
 export function meta() {
   return [
@@ -230,6 +231,10 @@ export default function CheckoutSuccessPage() {
 
   useEffect(() => {
     if (isSettled && order) sessionStorage.removeItem(`successPollStart:${order.code}`);
+  }, [isSettled, order]);
+
+  useEffect(() => {
+    if (isSettled && order) trackPurchaseConversion(order.code, order.totalWithTax, order.currencyCode);
   }, [isSettled, order]);
 
   useEffect(() => {
