@@ -189,7 +189,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     return { ...data.search, collection: data.collection, sort, page, fv, vendureBase, allFacetValues, canonicalUrl, collectionImage, locale };
   } catch (e) {
     if (e instanceof Response) throw e;
-    return { totalItems: 0, items: [], facetValues: [], allFacetValues: [], collection: null, sort, page, fv, vendureBase, canonicalUrl: `${url.origin}${localizePath("/c/" + path, locale)}`, collectionImage: null, locale };
+    // API failure (rate-limited/timeout/unreachable): answer 503 + Retry-After so crawlers
+    // retry, rather than a 200 with zero products that gets indexed as an empty page.
+    console.error("[c.$] collection load failed:", e);
+    throw new Response("Service Unavailable", { status: 503, headers: { "Retry-After": "120" } });
   }
 }
 

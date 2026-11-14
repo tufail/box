@@ -510,10 +510,18 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 				product = variantData.productVariantBySlug.product;
 				activeVariantId = variantData.productVariantBySlug.id;
 			}
-		} else if (productResult.status === "rejected") {
-			throw productResult.reason;
 		}
-		if (!product) throw new Response("Not Found", { status: 404 });
+		if (!product) {
+			// A lookup that FAILED (API rate-limited, timed out or unreachable) is not "this product
+			// doesn't exist". Returning 404 then tells Google the URL is gone and it gets dropped from
+			// the index; 503 + Retry-After makes crawlers come back instead. This happened for real on
+			// 2026-11-14: variant URLs (the common case) 404'd whenever the variant lookup was rejected.
+			if (productResult.status === "rejected" || variantResult.status === "rejected") {
+				console.error("[products.$slug] product lookup failed:", productResult.status === "rejected" ? productResult.reason : (variantResult as PromiseRejectedResult).reason);
+				throw new Response("Service Unavailable", { status: 503, headers: { "Retry-After": "120" } });
+			}
+			throw new Response("Not Found", { status: 404 });
+		}
 
 		// A bare product URL ("/products/evl-100-isolate-protein-16lbs") renders exactly the same
 		// page as its first variant's own URL ("...-double-rich-chocolate", the one the sitemap

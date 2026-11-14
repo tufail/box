@@ -191,7 +191,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		return { ...data.search, brandName: brand.name, sort, page, fv, vendureBase, allFacetValues, brandContent, brandImage, canonicalUrl, locale, brandCode: slug, categories, brandLinks };
 	} catch (e) {
 		if (e instanceof Response) throw e;
-		return { totalItems: 0, items: [], facetValues: [], brandName: slug, sort, page, fv, vendureBase, allFacetValues: [], brandContent: null, brandImage: null, canonicalUrl, locale, brandCode: slug, categories: [], brandLinks: [] };
+		// API failure: 503 + Retry-After so crawlers retry, rather than a 200 empty brand page.
+		console.error("[brands.$slug] brand load failed:", e);
+		throw new Response("Service Unavailable", { status: 503, headers: { "Retry-After": "120" } });
 	}
 }
 
