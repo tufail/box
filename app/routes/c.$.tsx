@@ -154,6 +154,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
     if (mainResult.status === "rejected") throw mainResult.reason;
     const { data } = mainResult.value;
+    // Unknown collection slug: a real 404, not a 200 page with no products (a "soft 404"
+    // that Search Console flags and that can get indexed as an empty page).
+    if (!data.collection) throw new Response("Not Found", { status: 404 });
 
     // Canonicalize: if the visited path doesn't match the collection's real
     // ancestor chain, redirect to the correct deep URL (avoids duplicate-content
