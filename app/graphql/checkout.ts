@@ -353,3 +353,39 @@ export const CHECK_SKIPCASH_PAYMENT_STATUS_MUTATION = `
     }
   }
 `;
+
+// ── PayLater (buy now, pay later) ────────────────────────────────────────────
+// Hosted checkout like SkipCash: initiatePayLaterPayment only builds a payment link
+// for the order in ArrangingPayment and creates no Payment. The Payment is created
+// later, server-side, once PayLater's webhook or checkPayLaterPaymentStatus confirms
+// the transaction with a live call back to PayLater (src/plugins/paylater on the backend).
+
+export interface PayLaterCheckoutResult {
+  paymentLinkUrl: string;
+  merchantOrderId: string;
+}
+
+export interface PayLaterStatusResult {
+  status: number | null; // 0=customer did not proceed, 1=pending, 2=success, 3=failed
+  paymentSettled: boolean;
+  orderCode: string | null;
+}
+
+export const INITIATE_PAYLATER_PAYMENT_MUTATION = `
+  mutation InitiatePayLaterPayment {
+    initiatePayLaterPayment {
+      paymentLinkUrl
+      merchantOrderId
+    }
+  }
+`;
+
+export const CHECK_PAYLATER_PAYMENT_STATUS_MUTATION = `
+  mutation CheckPayLaterPaymentStatus($merchantOrderId: String!) {
+    checkPayLaterPaymentStatus(merchantOrderId: $merchantOrderId) {
+      status
+      paymentSettled
+      orderCode
+    }
+  }
+`;

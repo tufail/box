@@ -16,7 +16,7 @@ import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
 import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
 import type { SadadPaymentMetadata } from "~/types/sadad";
-import type { SkipCashCheckoutResult } from "~/graphql/checkout";
+import type { SkipCashCheckoutResult, PayLaterCheckoutResult } from "~/graphql/checkout";
 import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
 
@@ -29,6 +29,8 @@ const DEFAULT_ONE_STEP = false;
 // Must match the `code` the SkipCash PaymentMethod is created with in the
 // Vendure admin (see SKIPCASH_METHOD_CODE in api.checkout.ts).
 const SKIPCASH_METHOD_CODE = "skipcash-payment";
+// Code of the PayLater PaymentMethod in the Vendure admin (see PAYLATER_METHOD_CODE in api.checkout.ts).
+const PAYLATER_METHOD_CODE = "pay-later";
 
 // Same accepted-payment-method logos shown in the footer (public/images/payments/).
 const PAYMENT_ICON_IDS = [1, 2, 3, 4, 5];
@@ -122,6 +124,7 @@ const CHECKOUT_COPY = {
 		paymentFailed: "Payment failed. Please try again.",
 		processingPayment: "Processing Payment…",
 		redirectingToSkipCash: "Redirecting to SkipCash secure payment…",
+		redirectingToPayLater: "Redirecting to PayLater…",
 		acceptedPaymentMethods: "Accepted payment methods",
 		placeOrder: (price: string) => `Place Order · ${price}`,
 		securePaymentNote: "Your payment information is secure and encrypted",
@@ -222,6 +225,7 @@ const CHECKOUT_COPY = {
 		paymentFailed: "فشلت عملية الدفع. يرجى المحاولة مرة أخرى.",
 		processingPayment: "جارٍ معالجة الدفع…",
 		redirectingToSkipCash: "جارٍ التحويل إلى الدفع الآمن عبر SkipCash…",
+		redirectingToPayLater: "جارٍ التحويل إلى PayLater…",
 		acceptedPaymentMethods: "طرق الدفع المقبولة",
 		placeOrder: (price: string) => `إتمام الطلب · ${price}`,
 		securePaymentNote: "معلومات الدفع الخاصة بك آمنة ومشفّرة",
@@ -1483,11 +1487,13 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 	const [error, setError] = useState<string | null>(null);
 	const [sadadMetadata, setSadadMetadata] = useState<SadadPaymentMetadata | null>(null);
 	const [skipcashRedirecting, setSkipcashRedirecting] = useState(false);
+	const [paylaterRedirecting, setPaylaterRedirecting] = useState(false);
 	const loadFetcher = useFetcher<{ paymentMethods?: PaymentMethod[]; error?: string }>();
 	const payFetcher = useFetcher<{
 		addPaymentToOrder?: Record<string, unknown>;
 		sadadMetadata?: SadadPaymentMetadata;
 		skipcashCheckout?: SkipCashCheckoutResult;
+		paylaterCheckout?: PayLaterCheckoutResult;
 		error?: string;
 	}>();
 	const loading = payFetcher.state !== "idle";
@@ -1532,6 +1538,13 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 			window.location.href = d.skipcashCheckout.payUrl;
 			return;
 		}
+		if (d.paylaterCheckout) {
+			// Hosted redirect. Unlike SkipCash, PayLater's return URL carries our
+			// merchantOrderId, so checkout/paylater/return needs nothing stashed here.
+			setPaylaterRedirecting(true);
+			window.location.href = d.paylaterCheckout.paymentLinkUrl;
+			return;
+		}
 		if (d.addPaymentToOrder) {
 			const r = d.addPaymentToOrder;
 			if (r.__typename === "Order") {
@@ -1551,6 +1564,7 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 
 	const paymentIcons: Record<string, React.ReactNode> = {
 		[SKIPCASH_METHOD_CODE]: <CreditCard size={20} className="text-gray-400 flex-shrink-0" />,
+		[PAYLATER_METHOD_CODE]: <img src="/images/payments/paylater-icon.svg" alt="" className="w-5 h-5 flex-shrink-0" />,
 		default: <Banknote size={20} className="text-gray-400 flex-shrink-0" />,
 	};
 
@@ -1558,11 +1572,11 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 		return <SadadCheckoutForm metadata={sadadMetadata} />;
 	}
 
-	if (skipcashRedirecting) {
+	if (skipcashRedirecting || paylaterRedirecting) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
 				<div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-				<p className="text-gray-600">{t.redirectingToSkipCash}</p>
+				<p className="text-gray-600">{paylaterRedirecting ? t.redirectingToPayLater : t.redirectingToSkipCash}</p>
 			</div>
 		);
 	}
@@ -2161,6 +2175,7 @@ function OneStepCheckout({
 	const [submitting, setSubmitting] = useState(false);
 	const [sadad, setSadad] = useState<SadadPaymentMetadata | null>(null);
 	const [redirecting, setRedirecting] = useState(false);
+	const [paylaterRedirecting, setPaylaterRedirecting] = useState(false);
 	// Latest-wins guard for the live preview (rapid area changes must not let a slow, older
 	// response overwrite a newer one), and a flag for "an addPayment attempt already locked
 	// the order" so the next attempt reopens it first.
@@ -2580,7 +2595,7 @@ function OneStepCheckout({
 				return;
 			}
 			needsReopenRef.current = true; // addPayment locks the order (ArrangingPayment) from here on
-			const p = await postCheckout<{ addPaymentToOrder?: OneStepGraphResult; sadadMetadata?: SadadPaymentMetadata; skipcashCheckout?: SkipCashCheckoutResult; error?: string }>({ _intent: "addPayment", method: pay, metadata: {} });
+			const p = await postCheckout<{ addPaymentToOrder?: OneStepGraphResult; sadadMetadata?: SadadPaymentMetadata; skipcashCheckout?: SkipCashCheckoutResult; paylaterCheckout?: PayLaterCheckoutResult; error?: string }>({ _intent: "addPayment", method: pay, metadata: {} });
 			if (p.error) {
 				setError(p.error);
 				return;
@@ -2595,6 +2610,12 @@ function OneStepCheckout({
 				sessionStorage.setItem("pendingOrderCode", order.code);
 				setRedirecting(true);
 				window.location.href = p.skipcashCheckout.payUrl;
+				return;
+			}
+			if (p.paylaterCheckout) {
+				// Hosted redirect; the return URL carries our merchantOrderId, nothing to stash.
+				setPaylaterRedirecting(true);
+				window.location.href = p.paylaterCheckout.paymentLinkUrl;
 				return;
 			}
 			const r = p.addPaymentToOrder;
@@ -2618,15 +2639,16 @@ function OneStepCheckout({
 	const areaKnown = mode === "pickup" || (addressMode === "saved" ? !!selectedSavedId : !!zone);
 	const paymentIcons: Record<string, React.ReactNode> = {
 		[SKIPCASH_METHOD_CODE]: <CreditCard size={18} className="text-gray-500 flex-shrink-0" />,
+		[PAYLATER_METHOD_CODE]: <img src="/images/payments/paylater-icon.svg" alt="" className="w-[18px] h-[18px] flex-shrink-0" />,
 		default: <Banknote size={18} className="text-gray-500 flex-shrink-0" />,
 	};
 
 	if (sadad) return <SadadCheckoutForm metadata={sadad} />;
-	if (redirecting) {
+	if (redirecting || paylaterRedirecting) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
 				<div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-				<p className="text-gray-600">{t.redirectingToSkipCash}</p>
+				<p className="text-gray-600">{paylaterRedirecting ? t.redirectingToPayLater : t.redirectingToSkipCash}</p>
 			</div>
 		);
 	}

@@ -15,10 +15,12 @@ import {
   ADD_PAYMENT_TO_ORDER_MUTATION,
   APPLY_COUPON_CODE_MUTATION,
   INITIATE_SKIPCASH_PAYMENT_MUTATION,
+  INITIATE_PAYLATER_PAYMENT_MUTATION,
   type ShippingMethod,
   type PaymentMethod,
   type ActiveCustomer,
   type SkipCashCheckoutResult,
+  type PayLaterCheckoutResult,
 } from "~/graphql/checkout";
 import { CREATE_CUSTOMER_ADDRESS_MUTATION, type CreateCustomerAddressResult } from "~/graphql/account";
 
@@ -29,6 +31,9 @@ type GQLResult = Record<string, unknown>;
 // ("skipcash-payment" on the backend), which only identifies which handler that
 // PaymentMethod uses. Same convention as Sadad's "pay-online" below.
 const SKIPCASH_METHOD_CODE = "skipcash-payment";
+// Same convention: the code of the PayLater PaymentMethod created in the admin
+// (its handler is "paylater-payment" on the backend). Matches proteinhouse.
+const PAYLATER_METHOD_CODE = "pay-later";
 
 // graphqlRequest throws `new Error(JSON.stringify(errors))` on any GraphQL error —
 // initiateSkipCashPayment throws a real UserInputError (not a typed union result)
@@ -368,6 +373,31 @@ export async function action({ request, context }: Route.ActionArgs) {
         } catch (err) {
           console.error("[api.checkout] initiateSkipCashPayment failed:", err);
           const message = extractGraphQLErrorMessage(err, "SkipCash payment could not be initiated");
+          return new Response(
+            JSON.stringify({ error: message }),
+            { status: 502, headers: makeHeaders(transToken) }
+          );
+        }
+      }
+
+      // PayLater is also a hosted checkout: build the payment link only. No Payment is
+      // created here; it's created server-side once PayLater's webhook or the
+      // post-redirect status check (checkout/paylater/return) confirms the transaction.
+      if (method === PAYLATER_METHOD_CODE) {
+        try {
+          const { data, token } = await graphqlRequest<{ initiatePayLaterPayment: PayLaterCheckoutResult }>(
+            env,
+            INITIATE_PAYLATER_PAYMENT_MUTATION,
+            undefined,
+            { request, ...(transToken ? { authToken: transToken } : {}) }
+          );
+          return new Response(
+            JSON.stringify({ paylaterCheckout: data.initiatePayLaterPayment }),
+            { headers: makeHeaders(token ?? transToken) }
+          );
+        } catch (err) {
+          console.error("[api.checkout] initiatePayLaterPayment failed:", err);
+          const message = extractGraphQLErrorMessage(err, "PayLater payment could not be initiated");
           return new Response(
             JSON.stringify({ error: message }),
             { status: 502, headers: makeHeaders(transToken) }

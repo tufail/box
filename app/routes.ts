@@ -71,6 +71,8 @@ export default [
 	route("blog/:slug.md", "routes/blog.$slug.md.ts"),
 	...CONTENT_ROUTES.flatMap(([path, file]) => [route(path, file), route(`ar/${path}`, file, { id: `${file}.ar` })]),
 	route("checkout/callback", "routes/checkout.callback.tsx"),
+	// PayLater return target (success and failure); not mirrored under /ar, same as checkout/callback.
+	route("checkout/paylater/return", "routes/checkout.paylater-return.tsx"),
 	route("api/loyalty", "routes/api.loyalty.ts"),
 	route("api/search", "routes/api.search.ts"),
 	route("api/cart", "routes/api.cart.ts"),
