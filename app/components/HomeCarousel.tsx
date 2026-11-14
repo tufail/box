@@ -109,15 +109,17 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 
 	const currentSlide = items[selectedIndex];
 	const currentHref = bannerHref(currentSlide?.href, locale);
+	// No CMS link -> plain div, never an <a> without href (uncrawlable link).
+	const MobileSlideTag = currentHref ? "a" : "div";
 
 	return (
 		<div className="relative group" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 			{/* Mobile/tablet: single in-flow image, no stacking — the frame's height is
 			    just the image's own natural height, so it stays correct for whatever
 			    crop the CMS banner actually has instead of guessing a fixed ratio. */}
-			<a
+			<MobileSlideTag
 				key={currentSlide.id}
-				href={currentHref}
+				{...(currentHref ? { href: currentHref } : {})}
 				aria-label={getSlideAriaLabel(currentSlide)}
 				className="lg:hidden relative block rounded-xl overflow-hidden shadow-md shadow-black/25 animate-fade-in"
 			>
@@ -133,7 +135,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 					/>
 				</picture>
 				{renderTitleOverlay(currentSlide, currentHref)}
-			</a>
+			</MobileSlideTag>
 
 			{/* Desktop: stacked peek carousel with the depth/offset effect. */}
 			<div className={`hidden lg:block relative lg:aspect-[1440/420] ${total > 1 ? "pr-3" : ""}`}>
@@ -143,12 +145,18 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 					const isFront = depth === 0;
 					const isPeekVisible = depth > 0 && depth <= 2;
 
-					const resolvedHref = isFront ? bannerHref(slide.href, locale) : undefined;
+					// Every slide keeps its real href, including the peeking back cards, so crawlers can
+					// discover all banner destinations (Lighthouse "Links are not crawlable" flagged the
+					// href-less back cards). Clicking a back card is still intercepted below to bring it
+					// to the front instead of navigating. A slide with no CMS link renders as a div,
+					// never as an <a> without href.
+					const resolvedHref = bannerHref(slide.href, locale);
+					const SlideTag = resolvedHref ? "a" : "div";
 
 					return (
-						<a
+						<SlideTag
 							key={slide.id}
-							href={resolvedHref}
+							{...(resolvedHref ? { href: resolvedHref } : {})}
 							aria-label={getSlideAriaLabel(slide)}
 							className={`absolute left-0 right-0 rounded-xl overflow-hidden block ${isFront || isPeekVisible ? "shadow-md shadow-black/25" : ""}`}
 							style={{
@@ -182,7 +190,7 @@ export default function HomeCarousel({ items = defaultSlides, vendureBase = "" }
 							{!isFront && <div className="absolute inset-0 bg-black/25" />}
 
 							{isFront && renderTitleOverlay(slide, resolvedHref)}
-						</a>
+						</SlideTag>
 					);
 				})}
 			</div>
