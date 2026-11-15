@@ -1,30 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router";
 import { LocateFixed, MapPin } from "lucide-react";
-import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
 import { useCart } from "~/context/CartContext";
 import { getLocaleFromPathname } from "~/lib/i18n";
 import { formatPrice } from "~/lib/currency";
-import type { LocateAreaResponse } from "~/routes/api.locate-area";
+import { MapPinPicker, MAPS_KEY, type PickedLocation } from "~/components/MapPinPicker";
 
-// Amazon-style delivery block for the product page's buy box: when it arrives, what it
-// costs to the customer's area, and the resulting order total.
+// Amazon-style delivery block for the product page's buy box: when it arrives, what it costs
+// to the customer's location, and the resulting order total.
 //
-// Fee: the area's own price from the public Shop API (QatarShippingArea.price) -- the same
-// number the checkout's area-based shipping calculator charges, so the estimate and the
-// final checkout figure can't drift. Everything about an area (name, zone, fee) is read from
-// that API on every visit; the browser only remembers WHICH area the customer picked (its
-// id), never a price, so an admin price change shows up immediately. Order value: the cart's items total when the cart has
-// anything in it, otherwise this product's price x the selected quantity.
+// Fee: the live distance quote (/api/shipping-quote -> qatarShippingQuote), i.e. the same
+// distance-based shipping method the checkout charges, so the estimate and the checkout figure
+// can't drift. The order value is sent along so free-delivery rules ("99 QAR+ within 25 km")
+// apply exactly as they will at checkout. The browser only remembers WHERE the customer is
+// (the pin), never a price, so an admin pricing change shows up immediately.
+// Order value: the cart's items total when the cart has anything in it, otherwise this
+// product's price x the selected quantity.
 
 // Same-day delivery cutoff, Doha time (Qatar is a fixed UTC+3, no DST) -- the same 9pm
 // the checkout's own estimate uses (see estimatedDeliveryLabel in checkout.tsx).
 const CUTOFF_HOUR = 21;
 const DOHA_UTC_OFFSET_MS = 3 * 60 * 60 * 1000;
-const STORAGE_KEY = "nutribox:delivery-area:v2";
+const STORAGE_KEY = "nutribox:delivery-location:v1";
 
-interface DeliveryArea extends AreaOption {
-	price: number; // fils
+interface SavedLocation {
+	latitude: number;
+	longitude: number;
+	/** Readable address from the map picker; empty for "use my current location". */
+	label: string;
+}
+
+interface ShippingQuote {
+	deliverable: boolean;
+	reason: string | null;
+	distanceKm: number | null;
+	price: number | null;
+	isFree: boolean;
+	freeReason: string | null;
+	maximumDistanceKm: number | null;
 }
 
 const COPY = {
@@ -35,28 +48,22 @@ const COPY = {
 		deliveryStandard: "Delivery in 2–6 business days",
 		orderWithin: (t: string) => `Order within ${t} to get it today`,
 		deliverTo: "Deliver to",
-		change: "Change",
-		selectArea: "Select your delivery area",
-		selectAreaHint: "to see the delivery fee",
-		checkingArea: "Checking delivery to your area…",
-		cancel: "Cancel",
+		yourLocation: "your current location",
+		selectLocation: "Select your delivery location",
+		selectLocationHint: "to see the delivery fee",
+		checking: "Checking delivery to your location…",
 		useMyLocation: "Use my current location",
 		locating: "Finding your location…",
-		locationPrivacy: "Only used to find your delivery area. It isn't stored.",
-		orChooseArea: "or choose your area from the list",
-		chooseZone: "We found your area. Which zone is yours?",
-		zoneLabel: (n: number) => `Zone ${n}`,
-		locDenied: "Location access was blocked. Allow it in your browser settings, or choose your area from the list.",
-		locFailed: "We couldn't get your location. Please choose your area from the list.",
-		locOutside: "Your device location appears to be outside Qatar. Please choose your area from the list.",
-		locNoMatch: "We couldn't match your location to a delivery area. Please choose it from the list.",
-		locUnavailable: "We couldn't detect your area right now. Please choose it from the list.",
-		areaPlaceholder: "Search your area…",
+		locationPrivacy: "Only used to work out the delivery fee.",
+		locDenied: "Location access was blocked. Allow it in your browser settings, or pick your location on the map.",
+		locFailed: "We couldn't get your location. Please pick it on the map.",
+		outside: "This location is outside Qatar.",
+		tooFar: (max: number | null) => `Sorry, we don't deliver this far${max ? ` (max ${max} km)` : ""}.`,
 		free: "FREE",
+		km: (n: number) => `${n} km`,
 		estimatedTotal: "Estimated total",
 		forThisItem: "this item",
 		forCart: "your cart",
-		plusDelivery: "+ delivery",
 		confirmedAtCheckout: "Final delivery fee is confirmed at checkout.",
 		hr: (n: number) => `${n} hr${n === 1 ? "" : "s"}`,
 		min: (n: number) => `${n} min${n === 1 ? "" : "s"}`,
@@ -68,28 +75,22 @@ const COPY = {
 		deliveryStandard: "التوصيل خلال 2–6 أيام عمل",
 		orderWithin: (t: string) => `اطلب خلال ${t} لتصلك اليوم`,
 		deliverTo: "التوصيل إلى",
-		change: "تغيير",
-		selectArea: "اختر منطقة التوصيل",
-		selectAreaHint: "لمعرفة رسوم التوصيل",
-		checkingArea: "جارٍ التحقق من التوصيل إلى منطقتك...",
-		cancel: "إلغاء",
+		yourLocation: "موقعك الحالي",
+		selectLocation: "حدد موقع التوصيل",
+		selectLocationHint: "لمعرفة رسوم التوصيل",
+		checking: "جارٍ التحقق من التوصيل إلى موقعك...",
 		useMyLocation: "استخدم موقعي الحالي",
 		locating: "جارٍ تحديد موقعك…",
-		locationPrivacy: "يُستخدم فقط لتحديد منطقة التوصيل ولا يتم حفظه.",
-		orChooseArea: "أو اختر منطقتك من القائمة",
-		chooseZone: "وجدنا منطقتك. ما هو رقم منطقتك؟",
-		zoneLabel: (n: number) => `المنطقة ${n}`,
-		locDenied: "تم حظر الوصول إلى الموقع. اسمح به من إعدادات المتصفح أو اختر منطقتك من القائمة.",
-		locFailed: "تعذر الحصول على موقعك. يرجى اختيار منطقتك من القائمة.",
-		locOutside: "يبدو أن موقع جهازك خارج قطر. يرجى اختيار منطقتك من القائمة.",
-		locNoMatch: "تعذر مطابقة موقعك مع منطقة توصيل. يرجى اختيارها من القائمة.",
-		locUnavailable: "تعذر تحديد منطقتك حاليًا. يرجى اختيارها من القائمة.",
-		areaPlaceholder: "ابحث عن منطقتك…",
+		locationPrivacy: "يُستخدم فقط لحساب رسوم التوصيل.",
+		locDenied: "تم حظر الوصول إلى الموقع. اسمح به من إعدادات المتصفح أو حدد موقعك على الخريطة.",
+		locFailed: "تعذر الحصول على موقعك. يرجى تحديده على الخريطة.",
+		outside: "هذا الموقع خارج قطر.",
+		tooFar: (max: number | null) => `عذراً، لا نوصل إلى هذه المسافة${max ? ` (الحد الأقصى ${max} كم)` : ""}.`,
 		free: "مجاني",
+		km: (n: number) => `${n} كم`,
 		estimatedTotal: "الإجمالي التقديري",
 		forThisItem: "هذا المنتج",
 		forCart: "سلتك",
-		plusDelivery: "+ التوصيل",
 		confirmedAtCheckout: "يتم تأكيد رسوم التوصيل النهائية عند إتمام الطلب.",
 		hr: (n: number) => `${n} ساعة`,
 		min: (n: number) => `${n} دقيقة`,
@@ -104,18 +105,21 @@ function msUntilCutoff(nowMs: number): number | null {
 	return left > 0 ? left : null;
 }
 
-// Only the picked area's id is remembered -- name, zone and fee are always re-read from the API.
-function readSavedAreaId(): string | null {
+// Only the pin (and its readable label) is remembered -- the fee is always re-quoted.
+function readSavedLocation(): SavedLocation | null {
 	try {
-		return window.localStorage.getItem(STORAGE_KEY) || null;
+		const raw = window.localStorage.getItem(STORAGE_KEY);
+		if (!raw) return null;
+		const v = JSON.parse(raw) as SavedLocation;
+		return Number.isFinite(v?.latitude) && Number.isFinite(v?.longitude) ? { latitude: v.latitude, longitude: v.longitude, label: v.label ?? "" } : null;
 	} catch {
 		return null;
 	}
 }
 
-function saveAreaId(id: string) {
+function saveLocation(loc: SavedLocation) {
 	try {
-		window.localStorage.setItem(STORAGE_KEY, id);
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
 	} catch {
 		// private mode / blocked storage -- the choice just won't persist across visits
 	}
@@ -136,38 +140,20 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 	const t = COPY[locale];
 	const { cartCount, cartRefreshKey } = useCart();
 
-	const [areaId, setAreaId] = useState<string | null>(null);
-	const [areas, setAreas] = useState<DeliveryArea[] | null>(null);
-	const [picking, setPicking] = useState(false);
+	const [loc, setLoc] = useState<SavedLocation | null>(null);
+	const [quote, setQuote] = useState<ShippingQuote | null>(null);
+	const [quoting, setQuoting] = useState(false);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const [cartSubTotal, setCartSubTotal] = useState<number | null>(null);
 	// null until mounted: the countdown depends on the clock, so it must not render on the
 	// server (it would never match what the browser computes a moment later).
 	const [now, setNow] = useState<number | null>(null);
-	// "Use my current location" flow.
-	const [locate, setLocate] = useState<{ phase: "idle" } | { phase: "locating" } | { phase: "error"; message: string } | { phase: "choose"; candidates: DeliveryArea[] }>({ phase: "idle" });
+	const [locate, setLocate] = useState<{ phase: "idle" } | { phase: "locating" } | { phase: "error"; message: string }>({ phase: "idle" });
 
-	// Restore which area the customer last chose (id only).
+	// Restore the customer's last location (pin only).
 	useEffect(() => {
-		setAreaId(readSavedAreaId());
+		setLoc(readSavedLocation());
 	}, []);
-
-	// The area list (with live fees): loaded as soon as there's a remembered area to price, or
-	// when the picker is first opened.
-	const needAreas = picking || areaId !== null;
-	useEffect(() => {
-		if (!needAreas || areas) return;
-		let cancelled = false;
-		fetch("/api/shipping-areas")
-			.then((r): Promise<DeliveryArea[]> => (r.ok ? r.json() : Promise.resolve([])))
-			.then((list) => {
-				if (!cancelled && list.length > 0) setAreas(list);
-			})
-			.catch(() => {});
-		return () => {
-			cancelled = true;
-		};
-	}, [needAreas, areas]);
-
 
 	// Cart total, when there is a cart. Re-read whenever the cart changes (add to cart bumps
 	// both cartCount and cartRefreshKey).
@@ -195,10 +181,36 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 		return () => window.clearInterval(id);
 	}, []);
 
-	const areaOptions = useMemo<AreaOption[]>(() => areas ?? [], [areas]);
-	// Always the live record from the API (null while it loads, or if the remembered id no longer exists).
-	const area = useMemo(() => (areaId && areas ? (areas.find((a) => a.id === areaId) ?? null) : null), [areaId, areas]);
-	const areaLoading = areaId !== null && areas === null;
+	// Order value the estimate is based on: the cart's items total when there is a cart,
+	// otherwise this product's price for the selected quantity.
+	const usingCart = cartCount > 0 && cartSubTotal !== null;
+	const orderValue = usingCart ? cartSubTotal : priceCents !== null ? priceCents * qty : null;
+
+	// Live distance quote for the pin + order value (debounced: qty can change quickly).
+	useEffect(() => {
+		if (!loc) {
+			setQuote(null);
+			return;
+		}
+		const ctrl = new AbortController();
+		setQuoting(true);
+		const timer = window.setTimeout(async () => {
+			try {
+				const total = orderValue !== null ? `&total=${Math.max(0, Math.round(orderValue))}` : "";
+				const res = await fetch(`/api/shipping-quote?lat=${loc.latitude}&lng=${loc.longitude}${total}`, { signal: ctrl.signal });
+				const data = (await res.json()) as { quote: ShippingQuote | null };
+				setQuote(data.quote);
+			} catch {
+				/* aborted or offline -- keep the previous quote */
+			} finally {
+				if (!ctrl.signal.aborted) setQuoting(false);
+			}
+		}, 250);
+		return () => {
+			window.clearTimeout(timer);
+			ctrl.abort();
+		};
+	}, [loc, orderValue]);
 
 	if (!inStock) return null;
 
@@ -217,44 +229,26 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 	else if (now === null) promise = t.deliverySameDayGeneric;
 	else promise = msLeft !== null ? t.deliveryToday : t.deliveryTodayTomorrow;
 
-	// Order value the estimate is based on: the cart's items total when there is a cart,
-	// otherwise this product's price for the selected quantity.
-	const usingCart = cartCount > 0 && cartSubTotal !== null;
-	const orderValue = usingCart ? cartSubTotal : priceCents !== null ? priceCents * qty : null;
-	const fee = area ? area.price : null;
+	const deliverable = !!quote && quote.deliverable && quote.price !== null;
+	const fee = deliverable ? quote!.price! : null;
 	const total = orderValue !== null && fee !== null ? orderValue + fee : null;
 	const money = (cents: number) => formatPrice(cents, currencyCode, locale);
-	// Shown in front of the headline once an area is known: "FREE delivery Today" / "QAR 29 delivery Today".
-	const feeLabel = area && fee !== null ? (fee === 0 ? t.free : money(fee)) : null;
+	// Shown in front of the headline once a fee is known: "FREE delivery Today" / "QAR 15 delivery Today".
+	const feeLabel = fee !== null ? (fee === 0 ? t.free : money(fee)) : null;
 
-	function choose(picked: DeliveryArea) {
-		setAreaId(picked.id);
-		saveAreaId(picked.id);
-		setPicking(false);
+	function choose(next: SavedLocation) {
+		setLoc(next);
+		saveLocation(next);
 		setLocate({ phase: "idle" });
 	}
 
-	function onPick(_zone: string, _name: string, areaId: string) {
-		const picked = areas?.find((a) => a.id === areaId);
-		if (picked) choose(picked);
+	function onPicked(p: PickedLocation) {
+		setPickerOpen(false);
+		choose({ latitude: p.latitude, longitude: p.longitude, label: p.address });
 	}
 
-	async function loadAreas(): Promise<DeliveryArea[]> {
-		if (areas) return areas;
-		try {
-			const r = await fetch("/api/shipping-areas");
-			const list = r.ok ? ((await r.json()) as DeliveryArea[]) : [];
-			if (list.length > 0) setAreas(list);
-			return list;
-		} catch {
-			return [];
-		}
-	}
-
-	// Asks the browser for the device's position (the browser shows its own permission
-	// prompt -- only ever triggered by this click, never on page load), has the server turn
-	// it into delivery area(s), then selects it. When several areas share the matched name
-	// (e.g. Al Sadd exists in zones 38 and 39) the customer confirms which zone is theirs.
+	// Asks the browser for the device's position (the browser shows its own permission prompt --
+	// only ever triggered by this click, never on page load) and quotes delivery to it.
 	function onUseLocation() {
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
 			setLocate({ phase: "error", message: t.locFailed });
@@ -262,33 +256,15 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 		}
 		setLocate({ phase: "locating" });
 		navigator.geolocation.getCurrentPosition(
-			async (pos) => {
-				try {
-					const res = await fetch("/api/locate-area", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-					});
-					const data = (await res.json()) as LocateAreaResponse;
-					if (data.status === "outside-qatar") return setLocate({ phase: "error", message: t.locOutside });
-					if (data.status === "no-match") return setLocate({ phase: "error", message: t.locNoMatch });
-					if (data.status !== "ok") return setLocate({ phase: "error", message: t.locUnavailable });
-					const list = await loadAreas();
-					const found = data.areaIds.map((id) => list.find((a) => a.id === id)).filter((a): a is DeliveryArea => !!a);
-					if (found.length === 0) return setLocate({ phase: "error", message: t.locNoMatch });
-					if (found.length === 1) return choose(found[0]);
-					setLocate({ phase: "choose", candidates: found });
-				} catch {
-					setLocate({ phase: "error", message: t.locUnavailable });
-				}
-			},
+			(pos) => choose({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, label: "" }),
 			(err) => setLocate({ phase: "error", message: err.code === err.PERMISSION_DENIED ? t.locDenied : t.locFailed }),
-			{ enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
+			{ enableHighAccuracy: true, timeout: 10_000, maximumAge: 5 * 60_000 },
 		);
 	}
 
 	// Amazon-style: plain text lines, no box; every action is a blue link that goes orange on hover.
 	const LINK = "text-[#007185] hover:text-[#C7511F] hover:underline cursor-pointer";
+	const canMap = !!MAPS_KEY;
 
 	const locateLink = (
 		<button type="button" onClick={onUseLocation} disabled={locate.phase === "locating"} className={`inline-flex items-center gap-1 ${LINK} disabled:opacity-60 disabled:no-underline`}>
@@ -296,27 +272,11 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 			{locate.phase === "locating" ? t.locating : t.useMyLocation}
 		</button>
 	);
-	const locateNotes = (
-		<>
-			{locate.phase === "error" && <p className="text-xs text-red-600">{locate.message}</p>}
-			{locate.phase === "choose" && (
-				<p className="text-xs text-gray-700">
-					{t.chooseZone}{" "}
-					{locate.candidates.map((c, i) => (
-						<span key={c.id}>
-							{i > 0 && <span className="text-gray-400"> | </span>}
-							<button type="button" onClick={() => choose(c)} className={`font-semibold ${LINK}`}>
-								{locale === "ar" ? c.nameAr : c.nameEn} · {t.zoneLabel(c.zoneNumber)}
-							</button>
-						</span>
-					))}
-				</p>
-			)}
-		</>
-	);
+	const locateError = locate.phase === "error" ? <p className="text-xs text-red-600">{locate.message}</p> : null;
 
 	// "Order within <2 hrs 54 mins> to get it today" with just the time in green.
 	const [orderBefore, orderAfter] = t.orderWithin("\u0001").split("\u0001");
+	const placeName = loc ? loc.label.replace(/,?\s*Qatar$/i, "") || t.yourLocation : "";
 
 	return (
 		<div className="flex flex-col gap-1 text-sm text-gray-800" aria-live="polite">
@@ -332,52 +292,45 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 				)}
 			</p>
 
-			{picking ? (
-				<div className="flex flex-col gap-1.5 mt-0.5">
-					<AreaSelect
-						id="pdp-delivery-area"
-						name="pdpDeliveryArea"
-						value={area ? String(area.zoneNumber) : ""}
-						initialAreaId={area?.id}
-						areas={areaOptions}
-						onChange={onPick}
-						locale={locale}
-						placeholder={t.areaPlaceholder}
-						inputClassName="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-					/>
-					<p className="text-xs flex flex-wrap items-center gap-x-3 gap-y-1">
-						{locateLink}
-						<button type="button" onClick={() => { setPicking(false); setLocate({ phase: "idle" }); }} className={LINK}>
-							{t.cancel}
+			{loc ? (
+				<div className="flex flex-col gap-0.5">
+					<p className="flex items-center gap-1.5 min-w-0">
+						<MapPin size={15} className="text-gray-700 shrink-0" aria-hidden="true" />
+						<button
+							type="button"
+							onClick={() => (canMap ? setPickerOpen(true) : onUseLocation())}
+							className={`text-start truncate ${LINK}`}
+							title={placeName}
+						>
+							{t.deliverTo} {placeName}
 						</button>
+						{deliverable && quote!.distanceKm !== null && <span className="text-xs text-gray-500 shrink-0">· {t.km(quote!.distanceKm!)}</span>}
 					</p>
-					<p className="text-[11px] text-gray-400">{t.locationPrivacy}</p>
-					{locateNotes}
+					{quoting && !quote && <p className="text-gray-500 text-xs">{t.checking}</p>}
+					{quote && !quote.deliverable && (
+						<p className="text-xs text-red-600">{quote.reason === "TOO_FAR" ? t.tooFar(quote.maximumDistanceKm) : t.outside}</p>
+					)}
+					{canMap && <p className="text-xs">{locateLink}</p>}
+					{locateError}
 				</div>
-			) : area ? (
-				<p className="flex items-center gap-1.5">
-					<MapPin size={15} className="text-gray-700 shrink-0" aria-hidden="true" />
-					<button type="button" onClick={() => setPicking(true)} className={`text-start ${LINK}`}>
-						{t.deliverTo} {locale === "ar" ? area.nameAr : area.nameEn}
-					</button>
-				</p>
-			) : areaLoading ? (
-				<p className="text-gray-500">{t.checkingArea}</p>
 			) : (
 				<div className="flex flex-col gap-0.5">
-					<p className="flex items-center gap-1.5">
-						<MapPin size={15} className="text-gray-700 shrink-0" aria-hidden="true" />
-						<button type="button" onClick={() => setPicking(true)} className={`text-start text-xs ${LINK}`}>
-							{t.selectArea}
-						</button>
-						<span className="text-gray-500 text-xs">{t.selectAreaHint}</span>
-					</p>
+					{canMap && (
+						<p className="flex items-center gap-1.5">
+							<MapPin size={15} className="text-gray-700 shrink-0" aria-hidden="true" />
+							<button type="button" onClick={() => setPickerOpen(true)} className={`text-start text-xs ${LINK}`}>
+								{t.selectLocation}
+							</button>
+							<span className="text-gray-500 text-xs">{t.selectLocationHint}</span>
+						</p>
+					)}
 					<p className="text-xs">{locateLink}</p>
-					{locateNotes}
+					<p className="text-[11px] text-gray-400">{t.locationPrivacy}</p>
+					{locateError}
 				</div>
 			)}
 
-			{area && !picking && (
+			{deliverable && (
 				<div className="flex flex-col gap-0.5">
 					{total !== null && orderValue !== null && (
 						<p>
@@ -387,6 +340,16 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 					)}
 					<p className="text-[11px] text-gray-400 leading-snug">{t.confirmedAtCheckout}</p>
 				</div>
+			)}
+
+			{pickerOpen && (
+				<MapPinPicker
+					locale={locale}
+					initial={loc}
+					initialAddress={loc?.label || undefined}
+					onClose={() => setPickerOpen(false)}
+					onConfirm={onPicked}
+				/>
 			)}
 		</div>
 	);
