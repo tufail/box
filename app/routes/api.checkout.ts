@@ -2,6 +2,7 @@ import type { Route } from "./+types/api.checkout";
 import { graphqlRequest } from "workers/graphqlClient";
 import { subscribeToNewsletter } from "workers/listmonk";
 import type { Locale } from "~/lib/i18n";
+import { addressCustomFields } from "~/lib/addressPin";
 import {
   LOGIN_MUTATION,
   REGISTER_MUTATION,
@@ -212,6 +213,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         countryCode,
         phoneNumber,
         qatarAreaId,
+        latitude,
+        longitude,
       } = body as {
         firstName: string;
         lastName: string;
@@ -223,6 +226,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         countryCode: string;
         phoneNumber?: string;
         qatarAreaId?: string;
+        latitude?: number | string;
+        longitude?: number | string;
       };
 
       const { data, token } = await graphqlRequest<{
@@ -245,7 +250,8 @@ export async function action({ request, context }: Route.ActionArgs) {
             // plugin's contract -- omitted entirely when unknown (e.g. AreaSelect fell back
             // to the static area list because the live query failed) rather than sent as
             // an empty/invalid id.
-            ...(qatarAreaId ? { customFields: { qatarAreaId: Number(qatarAreaId) } } : {}),
+            // The map pin (latitude/longitude) rides along for distance-based delivery.
+            ...addressCustomFields({ qatarAreaId, latitude, longitude }),
           },
         },
         { request }
@@ -272,6 +278,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         countryCode,
         phoneNumber,
         qatarAreaId,
+        latitude,
+        longitude,
       } = body as {
         firstName: string;
         lastName: string;
@@ -283,6 +291,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         countryCode: string;
         phoneNumber?: string;
         qatarAreaId?: string;
+        latitude?: number | string;
+        longitude?: number | string;
       };
 
       const { data, token } = await graphqlRequest<CreateCustomerAddressResult>(
@@ -300,7 +310,7 @@ export async function action({ request, context }: Route.ActionArgs) {
             phoneNumber: phoneNumber || undefined,
             defaultShippingAddress: true,
             defaultBillingAddress: true,
-            ...(qatarAreaId ? { customFields: { qatarAreaId: Number(qatarAreaId) } } : {}),
+            ...addressCustomFields({ qatarAreaId, latitude, longitude }),
           },
         },
         { request }

@@ -48,7 +48,7 @@ export const ACTIVE_CUSTOMER_QUERY = `
         phoneNumber
         defaultShippingAddress
         defaultBillingAddress
-        customFields { qatarAreaId }
+        customFields { qatarAreaId latitude longitude }
       }
     }
   }
@@ -137,7 +137,7 @@ export const SET_SHIPPING_ADDRESS_MUTATION = `
           postalCode
           country
           phoneNumber
-          customFields { qatarAreaId }
+          customFields { qatarAreaId latitude longitude }
         }
       }
       ... on NoActiveOrderError { errorCode message }

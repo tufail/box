@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { redirect, useFetcher, useLocation } from "react-router";
 import type { Route } from "./+types/account.addresses";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -6,6 +6,8 @@ import { GET_CUSTOMER_PROFILE_QUERY, type CustomerProfileData, type CustomerAddr
 import AccountLayout from "~/layouts/AccountLayout";
 import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
 import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
+import MapPinField, { MAP_PIN_ENABLED, areaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
+import type { PickedLocation } from "~/components/MapPinPicker";
 import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { MapPin, Plus, Pencil, Trash2, Star, X } from "lucide-react";
 import { isValidQatarPhone } from "~/lib/validation";
@@ -46,8 +48,9 @@ const COPY = {
 		cancel: "Cancel",
 		firstName: "First Name",
 		lastName: "Last Name",
-		addressLabel: "Address (villa, flat, building & block, etc.)",
-		street: "Street",
+		addressLabel: "Select location",
+		street: "Address detail (Door, Villa, Flat, Building & Block, etc.)",
+		streetPlaceholder: "E.g. Door 4, Villa 12, Building 5, Block 3",
 		zone: "Area",
 		selectZone: "Select your area...",
 		phoneNumber: "Phone Number",
@@ -55,7 +58,8 @@ const COPY = {
 		saveAddress: "Save Address",
 		firstNameRequired: "First name is required.",
 		lastNameRequired: "Last name is required.",
-		addressRequired: "Address is required.",
+		addressRequired: "Please select your location.",
+		addressDetailRequired: "Address detail is required.",
 		selectZoneError: "Please select your area.",
 		phoneRequired: "Phone number is required.",
 		invalidPhone: "Enter a valid Qatar phone number.",
@@ -81,8 +85,9 @@ const COPY = {
 		cancel: "إلغاء",
 		firstName: "الاسم الأول",
 		lastName: "اسم العائلة",
-		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
-		street: "الشارع",
+		addressLabel: "حدد الموقع",
+		street: "تفاصيل العنوان (الباب، فيلا، شقة، مبنى وبلوك، إلخ.)",
+		streetPlaceholder: "مثال: باب 4، فيلا 12، مبنى 5، بلوك 3",
 		zone: "المنطقة",
 		selectZone: "اختر منطقتك...",
 		phoneNumber: "رقم الهاتف",
@@ -90,7 +95,8 @@ const COPY = {
 		saveAddress: "حفظ العنوان",
 		firstNameRequired: "الاسم الأول مطلوب.",
 		lastNameRequired: "اسم العائلة مطلوب.",
-		addressRequired: "العنوان مطلوب.",
+		addressRequired: "يرجى تحديد موقعك.",
+		addressDetailRequired: "تفاصيل العنوان مطلوبة.",
 		selectZoneError: "يرجى اختيار منطقتك.",
 		phoneRequired: "رقم الهاتف مطلوب.",
 		invalidPhone: "أدخل رقم هاتف قطري صالح.",
@@ -126,6 +132,8 @@ interface AddressFormValues {
 	postalCode: string;
 	phoneNumber: string;
 	qatarAreaId?: string;
+	latitude?: number | null;
+	longitude?: number | null;
 	defaultShippingAddress?: boolean;
 	defaultBillingAddress?: boolean;
 }
@@ -146,7 +154,33 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 	// The specific area's backend row id -- pricing is looked up by this on the backend,
 	// alongside postalCode (zone number) which keeps flowing exactly as before.
 	const [areaId, setAreaId] = useState(initial?.qatarAreaId ?? "");
+	// Map pin for distance-based delivery (required when the map is available)
+	const [pin, setPin] = useState<MapPinValue | null>(initial?.latitude != null && initial?.longitude != null ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+	const [pinError, setPinError] = useState(false);
+	// True while the area came from the map pin (a fresh match, or a pinned address loaded with
+	// its area) -- the area select is then locked.
+	const [areaFromPin, setAreaFromPin] = useState(() => initial?.latitude != null && initial?.longitude != null && !!initial?.qatarAreaId);
+	const formRef = useRef<HTMLFormElement>(null);
 	const fetcher = useFetcher<{ error?: string; address?: CustomerAddress }>();
+
+	function handlePinPicked(loc: PickedLocation) {
+		setPin({ latitude: loc.latitude, longitude: loc.longitude });
+		setPinError(false);
+		// MapPinField has already written the picked address into the streetLine1 input.
+		const matched = areaForLocation(areas, loc);
+		if (matched) {
+			setPostalCode(String(matched.zoneNumber));
+			setAreaId(matched.id);
+			setAreaFromPin(true);
+			setFieldErrors((prev) => (prev.postalCode ? { ...prev, postalCode: "" } : prev));
+		} else if (areaFromPin) {
+			// The area came from the previous pin and no longer applies -- clear it so the
+			// customer picks one from the (now unlocked) area select.
+			setAreaFromPin(false);
+			setPostalCode("");
+			setAreaId("");
+		}
+	}
 	const loading = fetcher.state !== "idle";
 
 	useEffect(() => {
@@ -174,11 +208,14 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 		if (!first) errors.firstName = t.firstNameRequired;
 		if (!last) errors.lastName = t.lastNameRequired;
 		if (!streetLine1) errors.streetLine1 = t.addressRequired;
+		if (!streetLine2) errors.streetLine2 = t.addressDetailRequired;
 		if (!postalCode) errors.postalCode = t.selectZoneError;
 		if (!phoneNumber) errors.phoneNumber = t.phoneRequired;
 		else if (!isValidQatarPhone(phoneNumber)) errors.phoneNumber = t.invalidPhone;
 		setFieldErrors(errors);
-		if (Object.keys(errors).length > 0) return;
+		const missingPin = MAP_PIN_ENABLED && !pin;
+		setPinError(missingPin);
+		if (Object.keys(errors).length > 0 || missingPin) return;
 
 		const defaultShippingAddress = fd.get("defaultShippingAddress") === "on";
 		const defaultBillingAddress = fd.get("defaultBillingAddress") === "on";
@@ -196,13 +233,17 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 		if (streetLine2) body.streetLine2 = streetLine2;
 		if (postalCode) body.postalCode = postalCode;
 		if (areaId) body.qatarAreaId = areaId;
+		if (pin) {
+			body.latitude = String(pin.latitude);
+			body.longitude = String(pin.longitude);
+		}
 		if (phoneNumber) body.phoneNumber = phoneNumber;
 		setError(null);
 		fetcher.submit(body, { method: "post", encType: "application/json", action: "/api/account" });
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-5" noValidate>
+		<form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-5" noValidate>
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold text-gray-900">{initial?.id ? t.editAddress : t.addNewAddress}</h2>
 				<button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors" aria-label={t.cancel}>
@@ -225,16 +266,25 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 					<input id="address-lastName" name="lastName" required autoComplete="family-name" defaultValue={initial?.lastName} className={fieldErrors.lastName ? errCls : inputCls} />
 					{fieldErrors.lastName && <p className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</p>}
 				</div>
+				<MapPinField
+					locale={locale}
+					pin={pin}
+					error={pinError}
+					onPicked={handlePinPicked}
+					label={t.addressLabel}
+					id="address-streetLine1"
+					defaultValue={initial?.streetLine1}
+					labelClassName={labelCls}
+					inputClassName={inputCls}
+					errorInputClassName={errCls}
+					fieldError={fieldErrors.streetLine1}
+				/>
 				<div className="sm:col-span-2">
-					<label htmlFor="address-streetLine1" className={labelCls}>
-						{t.addressLabel} <span className="text-red-500">*</span>
+					<label htmlFor="address-streetLine2" className={labelCls}>
+						{t.street} <span className="text-red-500">*</span>
 					</label>
-					<input id="address-streetLine1" name="streetLine1" required autoComplete="address-line1" defaultValue={initial?.streetLine1} className={fieldErrors.streetLine1 ? errCls : inputCls} />
-					{fieldErrors.streetLine1 && <p className="text-xs text-red-600 mt-1">{fieldErrors.streetLine1}</p>}
-				</div>
-				<div className="sm:col-span-2">
-					<label htmlFor="address-streetLine2" className={labelCls}>{t.street}</label>
-					<input id="address-streetLine2" name="streetLine2" autoComplete="address-line2" defaultValue={initial?.streetLine2} className={inputCls} />
+					<input id="address-streetLine2" name="streetLine2" required autoComplete="address-line2" placeholder={t.streetPlaceholder} defaultValue={initial?.streetLine2} className={fieldErrors.streetLine2 ? errCls : inputCls} />
+					{fieldErrors.streetLine2 && <p className="text-xs text-red-600 mt-1">{fieldErrors.streetLine2}</p>}
 				</div>
 				<div className="sm:col-span-2">
 					<label htmlFor="address-postalCode" className={labelCls}>
@@ -249,6 +299,8 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 						required
 						value={postalCode}
 						initialAreaId={initial?.qatarAreaId}
+						selectedAreaId={areaId}
+						locked={MAP_PIN_ENABLED && areaFromPin && !!postalCode}
 						onChange={(zoneNumber, _areaName, pickedAreaId) => {
 							setPostalCode(zoneNumber);
 							setAreaId(pickedAreaId);
@@ -440,6 +492,8 @@ export default function AddressesPage({ loaderData }: Route.ComponentProps) {
 										postalCode: formState.postalCode,
 										phoneNumber: formState.phoneNumber ?? "",
 										qatarAreaId: formState.customFields?.qatarAreaId != null ? String(formState.customFields.qatarAreaId) : undefined,
+										latitude: formState.customFields?.latitude ?? null,
+										longitude: formState.customFields?.longitude ?? null,
 										defaultShippingAddress: formState.defaultShippingAddress,
 										defaultBillingAddress: formState.defaultBillingAddress,
 									}

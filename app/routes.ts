@@ -91,6 +91,7 @@ export default [
 	route("api/google-reviews", "routes/api.google-reviews.ts"),
 	route("api/shipping-areas", "routes/api.shipping-areas.ts"),
 	route("api/locate-area", "routes/api.locate-area.ts"),
+	route("api/shipping-quote", "routes/api.shipping-quote.ts"),
 	route("api/subscription-plans", "routes/api.subscription-plans.ts"),
 	route("api/subscriptions", "routes/api.subscriptions.ts"),
 	route("api/questions", "routes/api.questions.ts"),

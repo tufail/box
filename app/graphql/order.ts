@@ -47,7 +47,7 @@ export interface OrderShippingAddress {
   province: string | null;
   postalCode: string | null;
   phoneNumber: string | null;
-  customFields?: { qatarAreaId: number | null } | null;
+  customFields?: { qatarAreaId: number | null; latitude?: number | null; longitude?: number | null } | null;
 }
 
 export interface OrderShippingLine {
@@ -343,7 +343,7 @@ export const ACTIVE_ORDER_QUERY = `
         province
         postalCode
         phoneNumber
-        customFields { qatarAreaId }
+        customFields { qatarAreaId latitude longitude }
       }
       shippingLines {
         price

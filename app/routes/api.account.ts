@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.account";
 import { graphqlRequest } from "workers/graphqlClient";
+import { addressCustomFields } from "~/lib/addressPin";
 import {
   UPDATE_CUSTOMER_MUTATION,
   UPDATE_CUSTOMER_PASSWORD_MUTATION,
@@ -94,7 +95,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "createAddress") {
-    const { fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId } = body;
+    const { fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId, latitude, longitude } = body;
     if (!fullName || !streetLine1) {
       return json({ error: "Full name and street address are required." }, null, 400);
     }
@@ -107,8 +108,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
     if (defaultBillingAddress) input.defaultBillingAddress = defaultBillingAddress === "true";
     // Per-area shipping price is looked up by this on the backend; postalCode (zone
-    // number) above stays as-is, per the qatar-shipping plugin's contract.
-    if (qatarAreaId) input.customFields = { qatarAreaId: Number(qatarAreaId) };
+    // number) above stays as-is, per the qatar-shipping plugin's contract. The map pin
+    // (latitude/longitude) rides along for distance-based delivery.
+    Object.assign(input, addressCustomFields({ qatarAreaId, latitude, longitude }));
 
     try {
       const { data, token } = await graphqlRequest<CreateCustomerAddressResult>(
@@ -125,7 +127,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "updateAddress") {
-    const { id, fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId } = body;
+    const { id, fullName, streetLine1, streetLine2, city, province, postalCode, phoneNumber, defaultShippingAddress, defaultBillingAddress, qatarAreaId, latitude, longitude } = body;
     if (!id) {
       return json({ error: "Missing address id." }, null, 400);
     }
@@ -139,7 +141,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (phoneNumber !== undefined) input.phoneNumber = phoneNumber;
     if (defaultShippingAddress) input.defaultShippingAddress = defaultShippingAddress === "true";
     if (defaultBillingAddress) input.defaultBillingAddress = defaultBillingAddress === "true";
-    if (qatarAreaId) input.customFields = { qatarAreaId: Number(qatarAreaId) };
+    Object.assign(input, addressCustomFields({ qatarAreaId, latitude, longitude }));
 
     try {
       const { data, token } = await graphqlRequest<UpdateCustomerAddressResult>(

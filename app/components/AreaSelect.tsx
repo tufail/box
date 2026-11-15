@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, X } from "lucide-react";
 
 export interface AreaOption {
 	id: string;
@@ -47,6 +47,8 @@ export default function AreaSelect({
 	required,
 	inputClassName,
 	notListed,
+	selectedAreaId,
+	locked,
 }: {
 	id: string;
 	name: string;
@@ -65,6 +67,12 @@ export default function AreaSelect({
 	// nothing matches): lets a customer whose area isn't listed choose something else instead
 	// of being stuck. Other callers simply don't pass it.
 	notListed?: { label: string; onSelect: () => void };
+	// Optional controlled exact area id (e.g. auto-picked from a map pin). Callers that don't
+	// pass it keep the old behaviour.
+	selectedAreaId?: string;
+	// Read-only display of the committed area (e.g. it was matched from the map pin) -- no
+	// dropdown, no clear button. The hidden input still submits alue as usual.
+	locked?: boolean;
 }) {
 	// Ascending by zone number (1, 2, 3, …) — zone 0 (areas with no official zone
 	// assigned, see qatar-areas.ts) is a catch-all, not really "before zone 1", so it's
@@ -105,13 +113,26 @@ export default function AreaSelect({
 	useEffect(() => {
 		if (value === committedValueRef.current) return;
 		committedValueRef.current = value;
-		const area = bestEffortMatch(sortedAreas, value);
+		const exact = selectedAreaId ? sortedAreas.find((a) => a.id === selectedAreaId && `${a.zoneNumber}` === value) : undefined;
+		const area = exact ?? bestEffortMatch(sortedAreas, value);
 		setCommitted(area);
 		if (!open) setQuery(area ? labelFor(area) : "");
 		// `open` is intentionally excluded — this effect only reacts to an outside change
 		// to `value`, not to the dropdown's own open/close state.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [value, sortedAreas]);
+
+	// An exact area set from outside (e.g. auto-picked from a map pin) -- can differ from the
+	// committed one even within the same zone, which the `value` effect above can't see.
+	useEffect(() => {
+		if (!selectedAreaId || selectedAreaId === committed?.id) return;
+		const area = sortedAreas.find((a) => a.id === selectedAreaId);
+		if (!area) return;
+		committedValueRef.current = `${area.zoneNumber}`;
+		setCommitted(area);
+		if (!open) setQuery(labelFor(area));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedAreaId, sortedAreas]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -199,7 +220,9 @@ export default function AreaSelect({
 					setQuery(e.target.value);
 					setOpen(true);
 				}}
+				readOnly={locked}
 				onFocus={(e) => {
+					if (locked) return;
 					setOpen(true);
 					e.target.select();
 				}}
@@ -207,10 +230,10 @@ export default function AreaSelect({
 					setOpen(false);
 					setQuery(committedLabel);
 				}}
-				onKeyDown={onKeyDown}
-				className={`${inputClassName} ${committed ? "pe-16" : "pe-10"}`}
+				onKeyDown={locked ? undefined : onKeyDown}
+				className={`${inputClassName} ${locked ? "pe-10 bg-gray-50 cursor-default" : committed ? "pe-16" : "pe-10"}`}
 			/>
-			{committed && (
+			{committed && !locked && (
 				<button
 					type="button"
 					tabIndex={-1}
@@ -225,8 +248,12 @@ export default function AreaSelect({
 					<X size={14} />
 				</button>
 			)}
+			{locked ? (
+				<CheckCircle2 size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-primary pointer-events-none" />
+			) : (
 			<ChevronDown size={16} className={`absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${open ? "rotate-180" : ""}`} />
-			{open && (
+			)}
+			{open && !locked && (
 				<ul id={`${id}-listbox`} role="listbox" aria-label={placeholder} className="absolute start-0 end-0 top-full mt-2 max-h-64 overflow-y-auto bg-white border border-gray-100 shadow-lg rounded-xl z-50 py-1">
 					{filtered.length === 0 && <li className="px-4 py-2 text-sm text-gray-400">{noMatchesLabel[locale]}</li>}
 					{filtered.map((area, i) => (

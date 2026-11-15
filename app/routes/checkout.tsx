@@ -13,6 +13,8 @@ import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
 import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
+import MapPinField, { MAP_PIN_ENABLED, areaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
+import type { PickedLocation } from "~/components/MapPinPicker";
 import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
 import type { SadadPaymentMetadata } from "~/types/sadad";
@@ -31,6 +33,32 @@ const DEFAULT_ONE_STEP = false;
 const SKIPCASH_METHOD_CODE = "skipcash-payment";
 // Code of the PayLater PaymentMethod in the Vendure admin (see PAYLATER_METHOD_CODE in api.checkout.ts).
 const PAYLATER_METHOD_CODE = "pay-later";
+
+// Ineligible payment methods are hidden, except PayLater: it stays listed but disabled, with a
+// hint, so customers below its minimum know they can reach it by adding to the order.
+const isPayMethodShown = (m: PaymentMethod) => m.isEligible || m.code === PAYLATER_METHOD_CODE;
+
+/**
+ * Localized reason a payment method can't be used. For PayLater, the backend's message
+ * ("PayLater is available for orders of QAR 300 or more" / "...up to QAR 25000") carries the
+ * limit, so the hint here follows whatever range the server is configured with.
+ */
+function payMethodHint(m: PaymentMethod, orderTotal: number, locale: Locale): string | null {
+	if (m.isEligible || !m.eligibilityMessage) return null;
+	const min = /QAR\s*([\d,.]+)\s*or more/i.exec(m.eligibilityMessage);
+	const max = /up to QAR\s*([\d,.]+)/i.exec(m.eligibilityMessage);
+	if (min) {
+		const minQar = Number(min[1].replace(/,/g, ""));
+		const remaining = Math.max(0, Math.ceil(minQar - orderTotal / 100));
+		return locale === "ar"
+			? `أضف ${remaining} ر.ق إلى طلبك لاستخدام PayLater (متاح للطلبات من ${minQar} ر.ق)`
+			: `Add QAR ${remaining} more to use PayLater (available on orders of QAR ${minQar}+)`;
+	}
+	if (max) {
+		return locale === "ar" ? `PayLater متاح للطلبات حتى ${max[1]} ر.ق` : `PayLater is available on orders up to QAR ${max[1]}`;
+	}
+	return m.eligibilityMessage;
+}
 
 // Same accepted-payment-method logos shown in the footer (public/images/payments/).
 const PAYMENT_ICON_IDS = [1, 2, 3, 4, 5];
@@ -100,11 +128,11 @@ const CHECKOUT_COPY = {
 		firstNamePlaceholder: "Enter your first name",
 		lastNamePlaceholder: "Enter your last name",
 		addressPlaceholder: "E.g. Villa 12, Building 5, Block 3",
-		streetPlaceholder: "Street name (optional)",
+		streetPlaceholder: "E.g. Door 4, Villa 12, Building 5, Block 3",
 		saveAddressForFutureOrders: "Save this address for future orders",
 		backToCustomerInformation: "← Back to Customer Information",
-		addressLabel: "Address (Villa, Flat, Building & Block, etc.)",
-		street: "Street",
+		addressLabel: "Select location",
+		street: "Address detail (Door, Villa, Flat, Building & Block, etc.)",
 		zone: "Area / Zone",
 		selectZone: "Select your area...",
 		savedAddresses: "Choose a delivery address",
@@ -201,11 +229,11 @@ const CHECKOUT_COPY = {
 		firstNamePlaceholder: "أدخل اسمك الأول",
 		lastNamePlaceholder: "أدخل اسم عائلتك",
 		addressPlaceholder: "مثال: فيلا 12، مبنى 5، بلوك 3",
-		streetPlaceholder: "اسم الشارع (اختياري)",
+		streetPlaceholder: "مثال: باب 4، فيلا 12، مبنى 5، بلوك 3",
 		saveAddressForFutureOrders: "حفظ هذا العنوان للطلبات المستقبلية",
 		backToCustomerInformation: "← الرجوع إلى معلومات العميل",
-		addressLabel: "العنوان (فيلا، شقة، مبنى وبلوك، إلخ.)",
-		street: "الشارع",
+		addressLabel: "حدد الموقع",
+		street: "تفاصيل العنوان (الباب، فيلا، شقة، مبنى وبلوك، إلخ.)",
 		zone: "المنطقة / النطاق",
 		selectZone: "اختر منطقتك...",
 		savedAddresses: "اختر عنوان التوصيل",
@@ -316,7 +344,7 @@ function estimatedDeliveryLabel(t: (typeof CHECKOUT_COPY)[keyof typeof CHECKOUT_
 
 // Maps an order shipping address or a customer address-book entry to the Shipping step's
 // form shape — both share the same field names, just from different API sources.
-function addressToShippingValues(addr: { fullName?: string | null; streetLine1: string | null; streetLine2?: string | null; city?: string | null; postalCode?: string | null; phoneNumber?: string | null; customFields?: { qatarAreaId: number | null } | null } | null | undefined): ShippingAddressValues | null {
+function addressToShippingValues(addr: { fullName?: string | null; streetLine1: string | null; streetLine2?: string | null; city?: string | null; postalCode?: string | null; phoneNumber?: string | null; customFields?: { qatarAreaId: number | null; latitude?: number | null; longitude?: number | null } | null } | null | undefined): ShippingAddressValues | null {
 	if (!addr?.streetLine1) return null;
 	const [firstName = "", ...rest] = (addr.fullName ?? "").trim().split(" ");
 	return {
@@ -328,6 +356,8 @@ function addressToShippingValues(addr: { fullName?: string | null; streetLine1: 
 		postalCode: addr.postalCode ?? "",
 		phoneNumber: addr.phoneNumber ?? undefined,
 		qatarAreaId: addr.customFields?.qatarAreaId != null ? String(addr.customFields.qatarAreaId) : undefined,
+		latitude: addr.customFields?.latitude ?? null,
+		longitude: addr.customFields?.longitude ?? null,
 	};
 }
 
@@ -414,6 +444,9 @@ function StepSection({
 function FieldGroup({ children }: { children: React.ReactNode }) {
 	return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>;
 }
+
+const ADDRESS_INPUT_CLS = "w-full border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
+const ADDRESS_INPUT_ERROR_CLS = "w-full border border-red-400 bg-red-50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent";
 
 function Field({ label, name, type = "text", required, placeholder, className = "sm:col-span-2", defaultValue, readOnly, icon: Icon }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; className?: string; defaultValue?: string; readOnly?: boolean; icon?: LucideIcon }) {
 	return (
@@ -786,7 +819,19 @@ interface ShippingAddressValues {
 	postalCode: string;
 	phoneNumber?: string;
 	qatarAreaId?: string;
+	/** Map pin; distance-based delivery is priced from it */
+	latitude?: number | null;
+	longitude?: number | null;
 }
+
+/** Adds the map pin (if any) to a setShippingAddress / saveAddressToAccount request body. */
+function withPin<T extends Record<string, unknown>>(body: T, pin: MapPinValue | null | undefined): T {
+	if (pin) Object.assign(body, { latitude: String(pin.latitude), longitude: String(pin.longitude) });
+	return body;
+}
+
+const pinOf = (v: { latitude?: number | null; longitude?: number | null } | null | undefined): MapPinValue | null =>
+	v?.latitude != null && v?.longitude != null ? { latitude: v.latitude, longitude: v.longitude } : null;
 
 function ShippingStep({
 	currency,
@@ -840,6 +885,12 @@ function ShippingStep({
 	// The specific area's backend row id -- pricing is looked up by this on the backend,
 	// alongside postalCode (zone number) which keeps flowing exactly as before.
 	const [areaId, setAreaId] = useState<string>(initialValues?.qatarAreaId ?? "");
+	// Map pin for distance-based delivery (required when the map is available)
+	const [pin, setPin] = useState<MapPinValue | null>(() => pinOf(initialValues));
+	const [pinError, setPinError] = useState(false);
+	// True while the area came from the map pin (a fresh match, or a pinned address loaded with
+	// its area) -- the area select is then locked.
+	const [areaFromPin, setAreaFromPin] = useState(() => !!pinOf(initialValues) && !!initialValues?.qatarAreaId);
 	const [addressSaved, setAddressSaved] = useState(false);
 	const [saveAddressChecked, setSaveAddressChecked] = useState(true);
 	// A saved-address picker only makes sense for a logged-in customer who actually has
@@ -886,7 +937,7 @@ function ShippingStep({
 	// handleZoneChange, carries the zone/label just picked directly — the hidden input's
 	// DOM value lags a render behind the `zone` state right after setZone(), so reading
 	// FormData in that same tick would still see the previous value.
-	function saveAddress(overrides?: { postalCode?: string; areaLabel?: string; areaId?: string }) {
+	function saveAddress(overrides?: { postalCode?: string; areaLabel?: string; areaId?: string; pin?: MapPinValue | null }) {
 		// Guards on the full `busy` flag (not just savingAddress) so this live-preview
 		// auto-save can't fire concurrently with handleSubmit's own authoritative
 		// save->fetch->confirm sequence and race it -- e.g. blurring the phone field
@@ -896,6 +947,7 @@ function ShippingStep({
 		const fd = new FormData(formRef.current);
 		const postalCode = overrides?.postalCode ?? zone;
 		const pickedAreaId = overrides?.areaId ?? areaId;
+		const pickedPin = overrides?.pin !== undefined ? overrides.pin : pin;
 		const values: ShippingAddressValues = {
 			firstName: (fd.get("firstName") as string) ?? "",
 			lastName: (fd.get("lastName") as string) ?? "",
@@ -906,6 +958,8 @@ function ShippingStep({
 			city: postalCode ? municipalityForZone(Number(postalCode), locale) : "",
 			postalCode,
 			phoneNumber: (fd.get("phoneNumber") as string) || undefined,
+			latitude: pickedPin?.latitude ?? null,
+			longitude: pickedPin?.longitude ?? null,
 		};
 		onDraftChange?.(values);
 		// Only the zone is required to kick off a live rate quote — name/street can still be
@@ -918,9 +972,42 @@ function ShippingStep({
 		if (values.streetLine2) body.streetLine2 = values.streetLine2;
 		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
 		if (pickedAreaId) body.qatarAreaId = pickedAreaId;
+		withPin(body, pickedPin);
 		setError(null);
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 		return true;
+	}
+
+	// Map pin confirmed (MapPinField already wrote its address into streetLine1): remember it, and auto-pick
+	// the matching delivery area (which re-saves the address and refreshes the rates).
+	function handlePinPicked(loc: PickedLocation) {
+		const next = { latitude: loc.latitude, longitude: loc.longitude };
+		setPin(next);
+		setPinError(false);
+		const matched = areaForLocation(areas, loc);
+		if (matched) {
+			const name = locale === "ar" ? matched.nameAr : matched.nameEn;
+			setZone(String(matched.zoneNumber));
+			setAreaId(matched.id);
+			setSelectedAreaName(name);
+			setAreaFromPin(true);
+			setMethods([]);
+			setSelectedMethod(null);
+			saveAddress({ postalCode: String(matched.zoneNumber), areaLabel: name, areaId: matched.id, pin: next });
+		} else if (areaFromPin) {
+			// The area came from the previous pin and no longer applies -- clear it so the
+			// customer picks one from the (now unlocked) area select.
+			setAreaFromPin(false);
+			setZone("");
+			setAreaId("");
+			setSelectedAreaName("");
+			setMethods([]);
+			setSelectedMethod(null);
+		} else if (zone) {
+			setMethods([]);
+			setSelectedMethod(null);
+			saveAddress({ pin: next });
+		}
 	}
 
 	// Confirms a customer's saved address-book entry against THIS order -- mirrors
@@ -957,6 +1044,7 @@ function ShippingStep({
 		if (values.streetLine2) body.streetLine2 = values.streetLine2;
 		if (values.phoneNumber) body.phoneNumber = values.phoneNumber;
 		if (resolvedAreaId) body.qatarAreaId = resolvedAreaId;
+		withPin(body, pinOf(values));
 		setError(null);
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
@@ -1114,9 +1202,14 @@ function ShippingStep({
 			if (addrValues.streetLine2) addressBody.streetLine2 = addrValues.streetLine2;
 			if (addrValues.phoneNumber) addressBody.phoneNumber = addrValues.phoneNumber;
 			if (resolvedAreaId) addressBody.qatarAreaId = resolvedAreaId;
+			withPin(addressBody, pinOf(addrValues));
 			addressSummaryRef.current = `${addrValues.firstName} ${addrValues.lastName} · ${addrValues.streetLine1}, ${addrValues.city}, ${areaName}`;
 		} else {
 			if (!formRef.current) return;
+			if (MAP_PIN_ENABLED && !pin) {
+				setPinError(true);
+				return;
+			}
 			if (!zone.trim()) {
 				setError(t.selectZonePrompt);
 				return;
@@ -1131,6 +1224,8 @@ function ShippingStep({
 				city: municipalityForZone(Number(postalCode), locale),
 				postalCode,
 				phoneNumber: (fd.get("phoneNumber") as string) || undefined,
+				latitude: pin?.latitude ?? null,
+				longitude: pin?.longitude ?? null,
 			};
 			const area = selectedAreaName || areaLabelForZone(Number(postalCode), locale);
 			addressSummaryRef.current = `${values.firstName} ${values.lastName} · ${values.streetLine1}, ${values.city}, ${area}`;
@@ -1138,6 +1233,7 @@ function ShippingStep({
 			if (values.streetLine2) addressBody.streetLine2 = values.streetLine2;
 			if (values.phoneNumber) addressBody.phoneNumber = values.phoneNumber;
 			if (areaId) addressBody.qatarAreaId = areaId;
+			withPin(addressBody, pin);
 		}
 
 		onDraftChange?.(values);
@@ -1227,6 +1323,8 @@ function ShippingStep({
 						postalCode: values.postalCode,
 						phoneNumber: values.phoneNumber,
 						qatarAreaId: areaId || undefined,
+						latitude: pin?.latitude,
+						longitude: pin?.longitude,
 					}),
 				})
 					.then((res) => res.json() as Promise<{ createCustomerAddress?: CustomerAddress; error?: string }>)
@@ -1359,8 +1457,8 @@ function ShippingStep({
 
 					{mode === "address" ? (
 						<>
-							<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialValues?.streetLine1} placeholder={t.addressPlaceholder} icon={Home} />
-							<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialValues?.streetLine2} placeholder={t.streetPlaceholder} icon={MapPin} />
+							<MapPinField locale={locale} pin={pin} error={pinError} onPicked={handlePinPicked} label={t.addressLabel} id="checkout-streetLine1" defaultValue={initialValues?.streetLine1} placeholder={t.addressPlaceholder} inputClassName={ADDRESS_INPUT_CLS} errorInputClassName={ADDRESS_INPUT_ERROR_CLS} />
+							<Field label={t.street} name="streetLine2" required className="sm:col-span-2" defaultValue={initialValues?.streetLine2} placeholder={t.streetPlaceholder} icon={Home} />
 							<div className="sm:col-span-1">
 								<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
 									{t.zone}
@@ -1377,6 +1475,8 @@ function ShippingStep({
 										required
 										value={zone}
 										initialAreaId={initialValues?.qatarAreaId}
+										selectedAreaId={areaId}
+										locked={MAP_PIN_ENABLED && areaFromPin && !!zone}
 										onChange={handleZoneChange}
 										inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
 									/>
@@ -1508,11 +1608,12 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 	useEffect(() => {
 		if (!loadFetcher.data) return;
 		if (loadFetcher.data.paymentMethods) {
-			const eligible = loadFetcher.data.paymentMethods.filter((m) => m.isEligible);
+			const shown = loadFetcher.data.paymentMethods.filter(isPayMethodShown);
 			// Online Payment (SkipCash) always sorts first, regardless of API order.
-			const sorted = eligible.slice().sort((a, b) => Number(b.code === SKIPCASH_METHOD_CODE) - Number(a.code === SKIPCASH_METHOD_CODE));
+			const sorted = shown.slice().sort((a, b) => Number(b.code === SKIPCASH_METHOD_CODE) - Number(a.code === SKIPCASH_METHOD_CODE));
 			setMethods(sorted);
-			if (sorted.length > 0) setSelected(sorted[0].code);
+			const firstEligible = sorted.find((m) => m.isEligible);
+			if (firstEligible) setSelected(firstEligible.code);
 		}
 		if (loadFetcher.data.error) setError(loadFetcher.data.error);
 	}, [loadFetcher.data]);
@@ -1595,8 +1696,8 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 			{methods.length > 0 && (
 				<div className="grid grid-cols-1 gap-3 mb-2">
 					{methods.map((m) => (
-						<label key={m.code} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selected === m.code ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
-							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} onChange={() => setSelected(m.code)} className="accent-lime-400 flex-shrink-0" />
+						<label key={m.code} aria-disabled={!m.isEligible} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-colors ${!m.isEligible ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed" : selected === m.code ? "border-lime-400 bg-lime-50 cursor-pointer" : "border-gray-200 hover:border-gray-300 cursor-pointer"}`}>
+							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} disabled={!m.isEligible} onChange={() => setSelected(m.code)} className="accent-lime-400 flex-shrink-0" />
 							{paymentIcons[m.code] ?? paymentIcons.default}
 							<div className="flex-1">
 								<div className="flex items-center gap-2 flex-wrap">
@@ -1609,7 +1710,7 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 										</div>
 									)}
 								</div>
-								{m.eligibilityMessage && <p className="text-sm text-yellow-600 mt-0.5">{m.eligibilityMessage}</p>}
+								{!m.isEligible && m.eligibilityMessage && <p className="text-sm text-gray-600 mt-0.5">{payMethodHint(m, total, locale)}</p>}
 							</div>
 						</label>
 					))}
@@ -2152,6 +2253,12 @@ function OneStepCheckout({
 		return initialDraft?.postalCode ? areaLabelForZone(Number(initialDraft.postalCode), locale) : "";
 	});
 	const [saveAddressChecked, setSaveAddressChecked] = useState(true);
+	// Map pin for distance-based delivery (required for a new address when the map is available)
+	const [pin, setPin] = useState<MapPinValue | null>(() => pinOf(initialDraft));
+	const [pinError, setPinError] = useState(false);
+	// True while the area came from the map pin (a fresh match, or a pinned address loaded with
+	// its area) -- the area select is then locked.
+	const [areaFromPin, setAreaFromPin] = useState(() => !!pinOf(initialDraft) && !!initialDraft?.qatarAreaId);
 	// "My area isn't listed": the customer picks a ZONE instead (every zone has a single delivery
 	// price, so the fee stays exact) and names their area, which is added to the address for the driver.
 	const [notListed, setNotListed] = useState(false);
@@ -2202,7 +2309,7 @@ function OneStepCheckout({
 		return (el?.value ?? "").trim();
 	}
 
-	function resolveAddress(overrides?: { zone?: string; areaId?: string; areaLabel?: string }): { values: ShippingAddressValues; areaLabel: string; qatarAreaId: string } | null {
+	function resolveAddress(overrides?: { zone?: string; areaId?: string; areaLabel?: string; pin?: MapPinValue | null }): { values: ShippingAddressValues; areaLabel: string; qatarAreaId: string } | null {
 		if (mode === "pickup") {
 			return {
 				values: { firstName: readField("firstName"), lastName: readField("lastName"), phoneNumber: readField("phoneNumber") || undefined, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, postalCode: STORE_PICKUP_ADDRESS.postalCode },
@@ -2222,8 +2329,11 @@ function OneStepCheckout({
 		}
 		const postalCode = overrides?.zone ?? zone;
 		if (!postalCode.trim()) return null;
+		const usePin = overrides?.pin !== undefined ? overrides.pin : pin;
 		return {
 			values: {
+				latitude: usePin?.latitude ?? null,
+				longitude: usePin?.longitude ?? null,
 				firstName: readField("firstName"),
 				lastName: readField("lastName"),
 				streetLine1: readField("streetLine1"),
@@ -2243,7 +2353,7 @@ function OneStepCheckout({
 		if (v.streetLine2) body.streetLine2 = v.streetLine2;
 		if (v.phoneNumber) body.phoneNumber = v.phoneNumber;
 		if (r.qatarAreaId) body.qatarAreaId = r.qatarAreaId;
-		return body;
+		return withPin(body, pinOf(v));
 	}
 
 	function pickMethod(all: ShippingMethod[]): ShippingMethod | undefined {
@@ -2275,11 +2385,12 @@ function OneStepCheckout({
 		try {
 			const d = await fetch(`/api/checkout?intent=paymentMethods&lang=${locale}`).then((r) => r.json() as Promise<{ paymentMethods?: PaymentMethod[] }>);
 			// Online Payment (SkipCash) always sorts first, regardless of API order.
-			const list = (d.paymentMethods ?? []).filter((m) => m.isEligible).sort((a, b) => Number(b.code === SKIPCASH_METHOD_CODE) - Number(a.code === SKIPCASH_METHOD_CODE));
+			const list = (d.paymentMethods ?? []).filter(isPayMethodShown).sort((a, b) => Number(b.code === SKIPCASH_METHOD_CODE) - Number(a.code === SKIPCASH_METHOD_CODE));
 			setPayMethods(list);
-			const keep = list.find((m) => m.code === selectedPayRef.current);
-			setSelectedPay(keep ? keep.code : (list[0]?.code ?? null));
-			return list;
+			const eligible = list.filter((m) => m.isEligible);
+			const keep = eligible.find((m) => m.code === selectedPayRef.current);
+			setSelectedPay(keep ? keep.code : (eligible[0]?.code ?? null));
+			return eligible;
 		} catch {
 			return [];
 		}
@@ -2289,7 +2400,7 @@ function OneStepCheckout({
 	// only the area is needed for a quote), list the eligible methods, select one, and set it
 	// so the summary's shipping and total are real. The submit handler re-runs the same
 	// sequence authoritatively; this exists only so the customer sees real numbers early.
-	async function previewRates(overrides?: { zone?: string; areaId?: string; areaLabel?: string }) {
+	async function previewRates(overrides?: { zone?: string; areaId?: string; areaLabel?: string; pin?: MapPinValue | null }) {
 		const resolved = resolveAddress(overrides);
 		if (!resolved) return;
 		const seq = ++previewSeq.current;
@@ -2379,7 +2490,7 @@ function OneStepCheckout({
 		const hasNames = !!readField("firstName") && !!readField("lastName") && !!readField("phoneNumber");
 		if (mode === "pickup") setAddressComplete(hasNames);
 		else if (addressMode === "saved") setAddressComplete(!!selectedSavedId);
-		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1") && (!notListed || !!readField("fallbackArea")));
+		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1") && !!readField("streetLine2") && (!notListed || !!readField("fallbackArea")));
 	}
 	useEffect(() => {
 		syncAddressComplete();
@@ -2393,6 +2504,37 @@ function OneStepCheckout({
 		setMethods([]);
 		setSelectedMethod(null);
 		if (zoneNumber) void previewRates({ zone: zoneNumber, areaId: pickedAreaId, areaLabel: name });
+	}
+
+	// Map pin confirmed (MapPinField already wrote its address into streetLine1): remember it, and auto-pick the
+	// matching delivery area (which refreshes the rates); otherwise just re-quote with the pin.
+	function handlePinPicked(loc: PickedLocation) {
+		const next = { latitude: loc.latitude, longitude: loc.longitude };
+		setPin(next);
+		setPinError(false);
+		const matched = notListed ? null : areaForLocation(areas, loc);
+		if (matched) {
+			const name = locale === "ar" ? matched.nameAr : matched.nameEn;
+			setZone(String(matched.zoneNumber));
+			setAreaId(matched.id);
+			setAreaName(name);
+			setAreaFromPin(true);
+			setMethods([]);
+			setSelectedMethod(null);
+			void previewRates({ zone: String(matched.zoneNumber), areaId: matched.id, areaLabel: name, pin: next });
+		} else if (areaFromPin) {
+			// The area came from the previous pin and no longer applies -- clear it so the
+			// customer picks one from the (now unlocked) area select.
+			setAreaFromPin(false);
+			setZone("");
+			setAreaId("");
+			setAreaName("");
+			setMethods([]);
+			setSelectedMethod(null);
+		} else if (zone) {
+			void previewRates({ pin: next });
+		}
+		syncAddressComplete();
 	}
 
 	function handleModeChange(next: "address" | "pickup") {
@@ -2523,6 +2665,10 @@ function OneStepCheckout({
 		if (!form) return;
 		if (!form.reportValidity()) return;
 
+		if (MAP_PIN_ENABLED && mode === "address" && addressMode === "new" && !pin) {
+			setPinError(true);
+			return;
+		}
 		const resolved = resolveAddress();
 		if (!resolved) {
 			setError(mode === "address" ? t.selectZonePrompt : t.couldNotSaveAddress);
@@ -2576,7 +2722,7 @@ function OneStepCheckout({
 			// never store pickup) -- same conditions as the multi-step flow.
 			if (customer && addresses !== null && addresses.length === 0 && mode === "address" && addressMode === "new" && saveAddressChecked) {
 				const v = resolved.values;
-				postCheckout<{ createCustomerAddress?: CustomerAddress; error?: string }>({ _intent: "saveAddressToAccount", firstName: v.firstName, lastName: v.lastName, streetLine1: v.streetLine1, streetLine2: v.streetLine2, city: v.city, countryCode: "QA", province: "Doha", postalCode: v.postalCode, phoneNumber: v.phoneNumber, qatarAreaId: resolved.qatarAreaId || undefined })
+				postCheckout<{ createCustomerAddress?: CustomerAddress; error?: string }>({ _intent: "saveAddressToAccount", firstName: v.firstName, lastName: v.lastName, streetLine1: v.streetLine1, streetLine2: v.streetLine2, city: v.city, countryCode: "QA", province: "Doha", postalCode: v.postalCode, phoneNumber: v.phoneNumber, qatarAreaId: resolved.qatarAreaId || undefined, latitude: v.latitude ?? undefined, longitude: v.longitude ?? undefined })
 					.then((d) => {
 						if (d.createCustomerAddress) setAddresses((prev) => [...(prev ?? []), d.createCustomerAddress!]);
 						else if (d.error) notify(t.couldNotSaveToAccount, "error");
@@ -2825,6 +2971,7 @@ function OneStepCheckout({
 							<PhoneField label={t.phoneNumber} required defaultValue={initialDraft?.phoneNumber} className="sm:col-span-2" />
 							{mode === "address" ? (
 								<>
+									<MapPinField locale={locale} pin={pin} error={pinError} onPicked={handlePinPicked} label={t.addressLabel} id="checkout-streetLine1" defaultValue={initialDraft?.streetLine1} placeholder={t.addressPlaceholder} inputClassName={ADDRESS_INPUT_CLS} errorInputClassName={ADDRESS_INPUT_ERROR_CLS} />
 									<div className="sm:col-span-2">
 										<label htmlFor="checkout-postalCode" className="block text-sm font-medium text-gray-700 mb-1">
 											{t.zone}
@@ -2865,6 +3012,8 @@ function OneStepCheckout({
 													required
 													value={zone}
 													initialAreaId={initialDraft?.qatarAreaId}
+												selectedAreaId={areaId}
+												locked={MAP_PIN_ENABLED && areaFromPin && !!zone}
 													onChange={handleZoneChange}
 													notListed={{ label: o.notListed, onSelect: openNotListed }}
 													inputClassName="w-full border border-gray-300 rounded-full ps-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -2872,8 +3021,7 @@ function OneStepCheckout({
 											</div>
 										)}
 									</div>
-									<Field label={t.addressLabel} name="streetLine1" required defaultValue={initialDraft?.streetLine1} placeholder={t.addressPlaceholder} icon={Home} />
-									<Field label={t.street} name="streetLine2" className="sm:col-span-2" defaultValue={initialDraft?.streetLine2} placeholder={t.streetPlaceholder} icon={MapPin} />
+									<Field label={t.street} name="streetLine2" required className="sm:col-span-2" defaultValue={initialDraft?.streetLine2} placeholder={t.streetPlaceholder} icon={Home} />
 								</>
 							) : (
 								<div className="sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
@@ -2945,8 +3093,8 @@ function OneStepCheckout({
 					) : (
 						<div className="space-y-2.5">
 							{payMethods.map((m) => (
-								<label key={m.code} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${selectedPay === m.code ? "border-lime-400 bg-lime-50" : "border-gray-200 hover:border-gray-300"}`}>
-									<input type="radio" name="paymentMethod" value={m.code} checked={selectedPay === m.code} onChange={() => setSelectedPay(m.code)} className="accent-lime-400 flex-shrink-0" />
+								<label key={m.code} aria-disabled={!m.isEligible} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-colors ${!m.isEligible ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed" : selectedPay === m.code ? "border-lime-400 bg-lime-50 cursor-pointer" : "border-gray-200 hover:border-gray-300 cursor-pointer"}`}>
+									<input type="radio" name="paymentMethod" value={m.code} checked={selectedPay === m.code} disabled={!m.isEligible} onChange={() => setSelectedPay(m.code)} className="accent-lime-400 flex-shrink-0" />
 									{paymentIcons[m.code] ?? paymentIcons.default}
 									<div className="flex-1 min-w-0">
 										<div className="flex items-center gap-2 flex-wrap">
@@ -2959,7 +3107,7 @@ function OneStepCheckout({
 												</div>
 											)}
 										</div>
-										{m.eligibilityMessage && <p className="text-xs text-yellow-600 mt-0.5">{m.eligibilityMessage}</p>}
+										{!m.isEligible && m.eligibilityMessage && <p className="text-xs text-gray-600 mt-0.5">{payMethodHint(m, order.totalWithTax, locale)}</p>}
 									</div>
 								</label>
 							))}
