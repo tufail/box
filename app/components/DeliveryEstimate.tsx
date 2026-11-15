@@ -49,6 +49,7 @@ const COPY = {
 		orderWithin: (t: string) => `Order within ${t} to get it today`,
 		deliverTo: "Deliver to",
 		yourLocation: "your current location",
+		zone: (n: number) => `Zone ${n}`,
 		selectLocation: "Select your delivery location",
 		selectLocationHint: "to see the delivery fee",
 		checking: "Checking delivery to your location…",
@@ -76,6 +77,7 @@ const COPY = {
 		orderWithin: (t: string) => `اطلب خلال ${t} لتصلك اليوم`,
 		deliverTo: "التوصيل إلى",
 		yourLocation: "موقعك الحالي",
+		zone: (n: number) => `المنطقة ${n}`,
 		selectLocation: "حدد موقع التوصيل",
 		selectLocationHint: "لمعرفة رسوم التوصيل",
 		checking: "جارٍ التحقق من التوصيل إلى موقعك...",
@@ -276,7 +278,10 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 
 	// "Order within <2 hrs 54 mins> to get it today" with just the time in green.
 	const [orderBefore, orderAfter] = t.orderWithin("\u0001").split("\u0001");
-	const placeName = loc ? loc.label.replace(/,?\s*Qatar$/i, "") || t.yourLocation : "";
+	// Only the zone ("Zone 95") -- a full Google address is too long for the buy box. Falls back
+	// to the first part of the address when Google gave no zone, then to "your current location".
+	const zoneMatch = loc ? /zone\s*0*(\d+)/i.exec(loc.label) : null;
+	const placeName = !loc ? "" : zoneMatch ? t.zone(Number(zoneMatch[1])) : loc.label.split(",")[0]?.trim() || t.yourLocation;
 
 	return (
 		<div className="flex flex-col gap-1 text-sm text-gray-800" aria-live="polite">
@@ -299,8 +304,8 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 						<button
 							type="button"
 							onClick={() => (canMap ? setPickerOpen(true) : onUseLocation())}
-							className={`text-start truncate ${LINK}`}
-							title={placeName}
+							className={`text-start truncate min-w-0 ${LINK}`}
+							title={loc.label || placeName}
 						>
 							{t.deliverTo} {placeName}
 						</button>
