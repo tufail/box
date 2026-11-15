@@ -1,9 +1,9 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "~/components/LocaleLink";
-import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, ArrowUpRight } from "lucide-react";
+import { Headphones, RotateCcw, Truck, ShieldCheck, MapPin, Phone, Mail, ArrowUpRight, ArrowRight, CheckCircle2 } from "lucide-react";
 import type { PageSection } from "~/graphql/pages";
-import { useLocation, useFetcher } from "react-router";
-import { getLocaleFromPathname } from "~/lib/i18n";
+import { useLocation, useFetcher, Link as RouterLink } from "react-router";
+import { getLocaleFromPathname, toggleLocalePath } from "~/lib/i18n";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
 
@@ -79,6 +79,7 @@ const FOOTER_COPY = {
 		here: "here",
 		copyright: (year: number) => `Copyright © ${year} NutriBox. All rights reserved.`,
 		acceptedPaymentMethods: "Accepted payment methods",
+		language: "Language",
 		paymentMethod: (n: number) => `Payment method ${n}`,
 		chatOnWhatsapp: "Chat with us on WhatsApp",
 	},
@@ -106,12 +107,14 @@ const FOOTER_COPY = {
 		here: "هنا",
 		copyright: (year: number) => `جميع الحقوق محفوظة © ${year} نوتري بوكس.`,
 		acceptedPaymentMethods: "طرق الدفع المقبولة",
+		language: "اللغة",
 		paymentMethod: (n: number) => `طريقة الدفع ${n}`,
 		chatOnWhatsapp: "تحدث معنا عبر واتساب",
 	},
 } as const;
 
-const paymentMethods = [1, 2, 3, 4, 5];
+// PAY-1.jpg (NAPS) is rendered separately from public/images/payments/naps.svg.
+const paymentMethods = [2, 3, 4, 5];
 
 // PageSection.name comes from the CMS pages plugin and has no `translations` field on
 // the backend at all (confirmed via introspection — unlike CmsPage.title, which has the
@@ -158,7 +161,8 @@ interface FooterProps {
 
 export default function Footer({ pageSections, hideNewsletter = false }: FooterProps) {
 	const [email, setEmail] = useState("");
-	const locale = getLocaleFromPathname(useLocation().pathname);
+	const location = useLocation();
+	const locale = getLocaleFromPathname(location.pathname);
 	const t = FOOTER_COPY[locale];
 	const newsletterFetcher = useFetcher<{ ok?: boolean; error?: string }>();
 	const subscribing = newsletterFetcher.state !== "idle";
@@ -190,84 +194,85 @@ export default function Footer({ pageSections, hideNewsletter = false }: FooterP
 					</div>
 				</div>
 
-				{/* Newsletter banner — the one embossed/raised element; everything else in the
-				    footer matches the page body's own background instead of its own block color. */}
+				{/* Newsletter — full-bleed band (edge to edge), dark teal with a soft lime glow
+				    and a faint dot texture; heading on one side, a single pill form on the other. */}
 				{!hideNewsletter && (
-				<div className="bg-stone-100 pt-6 md:pt-12 pb-6 md:pb-10">
-					<div className="container mx-auto px-4">
-						<div className="relative rounded-3xl bg-gradient-to-br from-primary to-[#08191c] shadow-[0_25px_60px_-15px_rgba(34,77,83,0.45)] ps-6 pe-6 md:ps-[210px] md:pe-12 lg:ps-[270px] py-8 md:py-10">
-							{/* Illustration deliberately bleeds above (and slightly below) the box,
-							    same composition as the reference — needs the ancestors to allow
-							    overflow, which they do (no overflow-hidden above this). */}
-							<img
-								src="/images/healthy-smile.webp"
-								alt="both smiling with supplements in hand"
-								aria-hidden="true"
-								width={420}
-								height={436}
-								className="hidden md:block absolute bottom-0 start-4 lg:start-10 w-40 lg:w-52 h-auto object-contain pointer-events-none select-none"
-							/>
-							<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-								<div className="max-w-md">
-									<h2 className="text-xl md:text-2xl font-bold text-white leading-snug">{t.newsletterBannerTitle}</h2>
-									<p className="text-sm text-white/80 mt-2">{t.newsletterBlurb}</p>
-								</div>
-								<div className="w-full md:w-auto md:min-w-[380px]">
-									{subscribed ? (
-										<p className="text-sm font-medium text-lime-300 py-3">{t.subscribed}</p>
-									) : (
-										<form
-											onSubmit={(e) => {
-												e.preventDefault();
-												const fd = new FormData(e.currentTarget);
-												newsletterFetcher.submit(
-													{ email, company: String(fd.get("company") ?? ""), renderedAt: formRenderedAt.current },
-													{ method: "post", encType: "application/json", action: "/api/newsletter" }
-												);
-												setEmail("");
-											}}
-											className="flex"
-											aria-label={t.newsletterSignup}
-										>
-											{/* Honeypot — off-screen and out of tab order, so real users never
-											    see or fill it; bots that blanket-fill every field on the page do. */}
-											<input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
-											<label htmlFor="footer-banner-email" className="sr-only">
-												{t.emailAddress}
-											</label>
-											<input id="footer-banner-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" disabled={subscribing} className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-900 bg-white rounded-s-full focus:outline-none focus:ring-2 focus:ring-lime-300 disabled:opacity-70" />
-											<button type="submit" disabled={subscribing} className="bg-lime-300 hover:bg-lime-400 text-primary text-sm font-bold px-6 py-3 rounded-e-full transition-colors whitespace-nowrap cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
-												{subscribing ? t.subscribing : t.subscribe}
-											</button>
-										</form>
-									)}
-									{newsletterFetcher.data?.error && <p className="text-xs text-red-300 mt-1.5">{newsletterFetcher.data.error}</p>}
-									<p className="text-xs text-white/60 mt-2.5">
-										{t.unsubscribeNote}{" "}
-										<Link to="/privacy-policy" className="underline hover:text-white">
-											{t.here}
-										</Link>
+				<section className="relative overflow-hidden bg-gradient-to-br from-primary via-[#173f44] to-[#0a2023] text-white" aria-labelledby="footer-newsletter-title">
+					<div className="pointer-events-none absolute -top-24 -end-16 w-[360px] h-[220px] rounded-full bg-lime-300/15 blur-3xl" aria-hidden="true" />
+					<div className="pointer-events-none absolute -bottom-24 -start-16 w-[320px] h-[200px] rounded-full bg-teal-300/10 blur-3xl" aria-hidden="true" />
+					<div className="pointer-events-none absolute inset-0 opacity-60 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent)]" aria-hidden="true" />
+
+					<div className="relative container mx-auto px-4 py-5 md:py-6">
+						<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-10">
+							<div className="min-w-0">
+								<h2 id="footer-newsletter-title" className="text-base md:text-lg font-bold leading-snug">
+									{t.newsletterBannerTitle}
+								</h2>
+								<p className="mt-0.5 text-xs md:text-sm text-white/65 truncate">{t.newsletterBlurb}</p>
+							</div>
+
+							<div className="w-full md:w-[420px] md:shrink-0">
+								{subscribed ? (
+									<p className="flex items-center gap-2 rounded-full border border-lime-300/40 bg-lime-300/10 px-5 py-2.5 text-sm font-semibold text-lime-300">
+										<CheckCircle2 size={18} aria-hidden="true" />
+										{t.subscribed}
 									</p>
-								</div>
+								) : (
+									<form
+										onSubmit={(e) => {
+											e.preventDefault();
+											const fd = new FormData(e.currentTarget);
+											newsletterFetcher.submit(
+												{ email, company: String(fd.get("company") ?? ""), renderedAt: formRenderedAt.current },
+												{ method: "post", encType: "application/json", action: "/api/newsletter" }
+											);
+											setEmail("");
+										}}
+										className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 p-1 backdrop-blur-sm transition-colors focus-within:border-lime-300/60 focus-within:bg-white/15"
+										aria-label={t.newsletterSignup}
+									>
+										{/* Honeypot — off-screen and out of tab order, so real users never
+										    see or fill it; bots that blanket-fill every field on the page do. */}
+										<input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden" />
+										<Mail size={18} className="ms-3 shrink-0 text-white/50" aria-hidden="true" />
+										<label htmlFor="footer-banner-email" className="sr-only">
+											{t.emailAddress}
+										</label>
+										<input id="footer-banner-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailAddress} required autoComplete="email" disabled={subscribing} className="flex-1 min-w-0 bg-transparent px-1 py-2 text-sm text-white placeholder:text-white/45 focus:outline-none disabled:opacity-70" />
+										<button type="submit" disabled={subscribing} className="group inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-5 py-2 text-sm font-bold text-primary whitespace-nowrap transition-colors hover:bg-lime-200 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
+											{subscribing ? t.subscribing : t.subscribe}
+											{!subscribing && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden="true" />}
+										</button>
+									</form>
+								)}
+								{newsletterFetcher.data?.error && <p className="text-xs text-red-300 mt-2 ps-4">{newsletterFetcher.data.error}</p>}
+								<p className="text-[11px] text-white/45 mt-1.5 ps-4">
+									{t.unsubscribeNote}{" "}
+									<Link to="/privacy-policy" className="underline underline-offset-2 hover:text-white">
+										{t.here}
+									</Link>
+								</p>
 							</div>
 						</div>
 					</div>
-				</div>
+				</section>
 				)}
-
 				{/* Main footer section — matches the page body background (bg-stone-100), not
 				    its own dark block; the newsletter banner above is the only raised/colored
 				    element. */}
 				<div className="bg-stone-100 text-gray-900">
 					<div className="container mx-auto px-4 py-10">
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-6">
+						{/* 2 columns from mobile up: Shop | Help, then Company | Contact Us; only the
+						    logo/tagline block spans the full row on mobile. */}
+						<div className="grid grid-cols-2 lg:grid-cols-5 gap-x-4 gap-y-8 sm:gap-8 lg:gap-6">
 							{/* Col 1 — Logo, tagline, social */}
-							<div>
+							<div className="col-span-2 sm:col-span-1">
 								<Link to="/" className="inline-block mb-3">
 									<img src="/images/logo.png" alt="NutriBox Logo" width={772} height={223} className="h-8 w-auto" />
 								</Link>
 								<p className="text-xs text-gray-600 leading-relaxed mb-5">{t.tagline}</p>
-								<div className="flex items-center gap-3">
+								{/* Mobile/tablet only — on desktop the socials live in the bottom bar */}
+								<div className="flex lg:hidden items-center gap-3">
 									{socialLinks.map(({ href, label, Icon }) => (
 										<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-gray-500 hover:text-primary transition-colors">
 											<Icon />
@@ -336,7 +341,7 @@ export default function Footer({ pageSections, hideNewsletter = false }: FooterP
 								: null}
 
 							{/* Col 5 — Contact Us */}
-							<address className="not-italic">
+							<address className="not-italic min-w-0">
 								<h3 className="font-bold text-gray-900 mb-2 text-sm">
 									<Link to="/contact-us" className="hover:text-primary transition-colors">
 										{t.contactUs}
@@ -371,16 +376,57 @@ export default function Footer({ pageSections, hideNewsletter = false }: FooterP
 						</div>
 					</div>
 
-					{/* Bottom bar */}
+					{/* Bottom bar — light band (matches the footer): payment chips row, then socials · copyright · EN/AR.
+					    Stacked and centred on mobile; two spread rows on desktop. */}
 					<div className="border-t border-gray-200">
-						<div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-							<p className="text-xs text-gray-500">{t.copyright(new Date().getFullYear())}</p>
-							<div className="flex items-center gap-1 flex-wrap justify-center" aria-label={t.acceptedPaymentMethods}>
-								{paymentMethods.map((m) => (
-									<span key={m} className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs font-bold text-gray-700 tracking-tight">
-										<img src={`/images/payments/PAY-${m}.jpg`} alt={t.paymentMethod(m)} className="h-6" width={40} height={24} />
-									</span>
-								))}
+						<div className="container mx-auto px-4 py-6 lg:py-8">
+							{/* Row 1 — accepted payment methods */}
+							<div className="flex flex-col lg:flex-row items-center justify-center gap-3 lg:gap-8 pb-6 lg:pb-7 border-b border-gray-200">
+								<p className="text-[11px] lg:text-xs font-bold uppercase tracking-[0.18em] text-gray-500 shrink-0">{t.acceptedPaymentMethods}</p>
+								<ul className="flex items-center flex-wrap justify-center gap-2 lg:gap-3" aria-label={t.acceptedPaymentMethods}>
+									<li className="bg-white border border-gray-200 shadow-sm rounded-lg h-10 lg:h-14 px-3 lg:px-4 flex items-center">
+										<img src="/images/paylater-logo-color.webp" alt="PayLater" className="h-3.5 lg:h-5 w-auto" width={3276} height={742} loading="lazy" />
+									</li>
+									{/* NAPS as a vector (crisp at any size) — replaces the blurry PAY-1.jpg */}
+									<li className="bg-white border border-gray-200 shadow-sm rounded-lg h-10 lg:h-14 px-3 lg:px-4 flex items-center">
+										<img src="/images/payments/naps.svg" alt="NAPS" className="h-3.5 lg:h-5 w-auto" width={269} height={66} loading="lazy" />
+									</li>
+									{paymentMethods.map((m) => (
+										<li key={m} className="bg-white border border-gray-200 shadow-sm rounded-lg h-10 lg:h-14 px-1.5 lg:px-2 flex items-center">
+											<img src={`/images/payments/PAY-${m}.jpg`} alt={t.paymentMethod(m)} className="h-7 lg:h-10 w-auto" width={142} height={84} loading="lazy" />
+										</li>
+									))}
+								</ul>
+							</div>
+
+							{/* Row 2 — socials (desktop; mobile keeps them under the logo above) · copyright · language */}
+							{/* lg:pe-20 keeps the EN/AR toggle clear of the fixed WhatsApp button (bottom-end corner) */}
+							<div className="flex flex-col lg:flex-row items-center justify-between gap-4 pt-5 lg:pt-7 lg:pe-20">
+								<div className="hidden lg:flex items-center gap-3">
+									{socialLinks.map(({ href, label, Icon }) => (
+										<a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="w-12 h-12 rounded-full border border-gray-300 bg-white flex items-center justify-center text-gray-600 hover:text-primary hover:border-primary transition-colors [&_svg]:w-5 [&_svg]:h-5">
+											<Icon />
+										</a>
+									))}
+									<a href="https://wa.me/97470157900" target="_blank" rel="noopener noreferrer" aria-label={t.chatOnWhatsapp} className="w-12 h-12 rounded-full border border-gray-300 bg-white flex items-center justify-center text-gray-600 hover:text-primary hover:border-primary transition-colors [&_svg]:w-5 [&_svg]:h-5">
+										<WhatsAppIcon />
+									</a>
+								</div>
+								<p className="text-xs lg:text-sm text-gray-500 text-center">{t.copyright(new Date().getFullYear())}</p>
+								{/* Plain links (crawlable) to this same page in each locale */}
+								<div className="flex rounded-full border border-gray-300 bg-white overflow-hidden text-sm font-bold" aria-label={t.language}>
+									{(["en", "ar"] as const).map((lng) => (
+										<RouterLink
+											key={lng}
+											to={toggleLocalePath(location.pathname, location.search, lng)}
+											hrefLang={lng}
+											aria-current={lng === locale ? "true" : undefined}
+											className={`px-4 py-1.5 transition-colors ${lng === locale ? "bg-primary text-white" : "text-gray-500 hover:text-primary"}`}
+										>
+											{lng.toUpperCase()}
+										</RouterLink>
+									))}
+								</div>
 							</div>
 						</div>
 					</div>

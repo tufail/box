@@ -8,6 +8,7 @@ import HomeTrending from "~/components/HomeTrending";
 import RecentlyViewed from "~/components/RecentlyViewed";
 import HomeTopBrands from "~/components/HomeTopBrands";
 import HomeWellnessBanner from "~/components/HomeWellnessBanner";
+import HomePayLaterBanner from "~/components/HomePayLaterBanner";
 import type { SearchProductItem } from "~/graphql/product";
 import type { BannerItem } from "~/graphql/banner";
 import type { HomeCollectionItem } from "~/graphql/collection";
@@ -22,9 +23,6 @@ import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
 const WELCOME_COPY = {
 	en: {
 		h1: "NutriBox Qatar: Sports Nutrition, Supplements, Beauty & Vitamins Store",
-		personalizedStackAlt: "Personalized Stack",
-		buildYourStack: "Find your perfect supplement stack",
-		takeGoalQuiz: "Take a Goal Quiz",
 		fastDeliveryAlt: "Fast Delivery",
 		quickDeliveryAcrossQatar: "Quick Delivery Across Qatar",
 		fastDeliveryFrom: "Fast Delivery from",
@@ -33,9 +31,6 @@ const WELCOME_COPY = {
 	},
 	ar: {
 		h1: "نوتري بوكس قطر: متجر التغذية الرياضية والمكملات ومستحضرات التجميل والفيتامينات",
-		personalizedStackAlt: "باقة مخصصة",
-		buildYourStack: "اعثر على باقتك المثالية من المكملات",
-		takeGoalQuiz: "خذ اختبار الأهداف",
 		fastDeliveryAlt: "توصيل سريع",
 		quickDeliveryAcrossQatar: "توصيل سريع في جميع أنحاء قطر",
 		fastDeliveryFrom: "توصيل سريع خلال",
@@ -43,27 +38,6 @@ const WELCOME_COPY = {
 		newArrivals: "وصل حديثًا",
 	},
 } as const;
-
-function StackBanner({ locale }: { locale: Locale }) {
-	const t = WELCOME_COPY[locale];
-	return (
-		<Link to="/wellness" aria-label={locale === "ar" ? "خذ اختبار العافية للحصول على باقة مخصصة" : "Take the wellness quiz for a personalized stack"} className="flex-1 rounded-xl overflow-hidden border border-gray-200 bg-gradient-to-r from-pink-100 to-cyan-100 flex items-center px-4 gap-3 min-h-0 cursor-pointer group shadow-md shadow-black/10">
-			<div className="flex-shrink-0 w-14 flex items-center justify-center">
-				<img src="/images/stack.webp" alt={t.personalizedStackAlt} width={224} height={224} className="w-full h-full object-contain animate-float" />
-			</div>
-			<div className="flex-1 min-w-0 flex flex-col justify-center">
-				<p className="text-primary font-extrabold text-base leading-snug">{t.buildYourStack}</p>
-				<p className="text-gray-500 text-xs leading-tight mt-0.5">{t.takeGoalQuiz}</p>
-			</div>
-			<div className="flex-shrink-0 flex items-center">
-				<div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md flex items-center justify-center group-hover:brightness-110 transition-all relative overflow-hidden">
-					<div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full" />
-					<ChevronRight size={16} className="text-white relative z-10 drop-shadow rtl:rotate-180" />
-				</div>
-			</div>
-		</Link>
-	);
-}
 
 interface WelcomeProps {
 	products: SearchProductItem[];
@@ -105,6 +79,11 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 						<HomeCarousel items={slides.length > 0 ? slides : undefined} vendureBase={vendureBase} />
 					</div>
 
+					{/* PayLater banner on mobile — the side-banner column below is hidden there */}
+					<div className="flex md:hidden mt-3">
+						<HomePayLaterBanner locale={locale} />
+					</div>
+
 					{/* Side banners — row below on tablet, column beside on desktop */}
 					<div className="hidden md:flex flex-row lg:flex-col lg:w-[30%] w-full gap-4 mt-2 lg:mt-0 lg:ps-6 self-stretch">
 						{/* NutriQuick delivery banner */}
@@ -125,8 +104,8 @@ export function Welcome({ products, newProducts, vendureBase, carouselItems, col
 							</div>
 						</Link>
 
-						{/* Personalized stack banner */}
-						<StackBanner locale={locale} />
+						{/* PayLater (buy now, pay later) banner */}
+						<HomePayLaterBanner locale={locale} />
 					</div>
 				</div>
 			</div>

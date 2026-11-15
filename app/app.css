@@ -185,6 +185,46 @@ html[dir="rtl"] .font-heading2 {
   animation: float 3s linear infinite;
 }
 
+/* Homepage PayLater banner (HomePayLaterBanner.tsx) */
+@keyframes plSpin {
+  0%   { transform: rotateY(-14deg) rotateX(6deg) rotateZ(-3deg); }
+  50%  { transform: rotateY(14deg)  rotateX(0deg) rotateZ(3deg); }
+  100% { transform: rotateY(-14deg) rotateX(6deg) rotateZ(-3deg); }
+}
+@keyframes plBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+@keyframes plShine {
+  0%, 60% { transform: translateX(0) skewX(-20deg); }
+  100%    { transform: translateX(450%) skewX(-20deg); }
+}
+@keyframes plWave {
+  /* Height only: anchored bottom-right, so it never pulls away from the right edge */
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.88); }
+}
+@keyframes plGlow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.9;  transform: scale(1.15); }
+}
+/* 4 instalments fill one after another (0.6s apart), hold, then reset — 4s cycle */
+@keyframes plStep {
+  0%       { width: 0; }
+  15%, 85% { width: 100%; }
+  100%     { width: 0; }
+}
+.pl-ring-wrap { perspective: 300px; animation: plBob 3s ease-in-out infinite; }
+.pl-ring { transform-style: preserve-3d; animation: plSpin 6s ease-in-out infinite; }
+.pl-shine { animation: plShine 4.5s ease-in-out infinite; }
+.pl-wave { transform-origin: bottom right; animation: plWave 7s ease-in-out infinite; }
+.pl-glow { animation: plGlow 5s ease-in-out infinite; }
+.pl-step { width: 0; animation: plStep 4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-ring-wrap, .pl-ring, .pl-shine, .pl-wave, .pl-glow { animation: none; }
+  .pl-step { animation: none; width: 100%; }
+}
+
 @keyframes dotFill {
   from { width: 0%; }
   to   { width: 100%; }

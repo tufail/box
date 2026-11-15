@@ -62,6 +62,8 @@ function payMethodHint(m: PaymentMethod, orderTotal: number, locale: Locale): st
 
 // Same accepted-payment-method logos shown in the footer (public/images/payments/).
 const PAYMENT_ICON_IDS = [1, 2, 3, 4, 5];
+// 1 = NAPS: served as a sharp vector (the old PAY-1.jpg is blurry at these small sizes).
+const paymentIconSrc = (id: number) => (id === 1 ? "/images/payments/naps.svg" : `/images/payments/PAY-${id}.jpg`);
 
 // Confirmed against Vendure Admin: manual-fulfillment shipping method, code "store-pickup".
 const STORE_PICKUP_METHOD_CODE = "store-pickup";
@@ -423,7 +425,7 @@ function StepSection({
 	const clickable = completed && !active;
 	const dim = !active && !completed;
 	return (
-		<div className={`bg-white rounded-2xl border shadow-sm p-5 sm:p-6 transition-colors ${active ? "border-primary/40" : "border-gray-100"}`}>
+		<div id={`checkout-step-${num}`} className={`scroll-mt-4 bg-white rounded-2xl border shadow-sm p-5 sm:p-6 transition-colors ${active ? "border-primary/40" : "border-gray-100"}`}>
 			<button type="button" onClick={clickable ? onNavigate : undefined} className={`flex items-center gap-3.5 w-full text-start ${clickable ? "cursor-pointer" : "cursor-default"}`}>
 				<div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${dim ? "bg-gray-100" : "bg-primary/10"}`}>
 					<Icon size={18} className={dim ? "text-gray-400" : "text-primary"} />
@@ -793,7 +795,7 @@ function CustomerStep({ initialValues, onComplete }: { initialValues?: { firstNa
 					</span>
 					<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
 						{PAYMENT_ICON_IDS.map((id) => (
-							<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain rounded-md" style={{ height: "22px", width: "34px" }} width={34} height={22} />
+							<img key={id} src={paymentIconSrc(id)} alt="" className="border border-[#ccc] bg-white object-contain rounded-md" style={{ height: "22px", width: "34px" }} width={34} height={22} />
 						))}
 					</div>
 				</div>
@@ -1705,7 +1707,7 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 									{m.code === SKIPCASH_METHOD_CODE && (
 										<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
 											{PAYMENT_ICON_IDS.map((id) => (
-												<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain" style={{ height: "24px", width: "40px" }} width={40} height={24} />
+												<img key={id} src={paymentIconSrc(id)} alt="" className="border border-[#ccc] bg-white object-contain" style={{ height: "24px", width: "40px" }} width={40} height={24} />
 											))}
 										</div>
 									)}
@@ -3102,7 +3104,7 @@ function OneStepCheckout({
 											{m.code === SKIPCASH_METHOD_CODE && (
 												<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
 													{PAYMENT_ICON_IDS.map((id) => (
-														<img key={id} src={`/images/payments/PAY-${id}.jpg`} alt="" className="border border-[#ccc] object-contain" style={{ height: "20px", width: "32px" }} width={32} height={20} />
+														<img key={id} src={paymentIconSrc(id)} alt="" className="border border-[#ccc] bg-white object-contain" style={{ height: "20px", width: "32px" }} width={32} height={20} />
 													))}
 												</div>
 											)}
@@ -3196,6 +3198,21 @@ export default function CheckoutPage() {
 		window.addEventListener("pageshow", handlePageShow);
 		return () => window.removeEventListener("pageshow", handlePageShow);
 	}, []);
+
+	// Moving to another step collapses the previous one (often the long shipping form), so the
+	// page gets much shorter while the browser keeps its scroll offset -- which used to leave
+	// the customer looking at the footer instead of the step that just opened. Bring the newly
+	// active step's header into view on every step change (not on first render).
+	const stepScrollReady = useRef(false);
+	useEffect(() => {
+		if (oneStep) return;
+		if (!stepScrollReady.current) {
+			stepScrollReady.current = true;
+			return;
+		}
+		const el = document.getElementById(`checkout-step-${step}`);
+		if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+	}, [step, oneStep]);
 
 	function complete(n: number) {
 		setCompleted((prev) => [...new Set([...prev, n])]);
