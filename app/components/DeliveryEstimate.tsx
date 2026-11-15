@@ -62,10 +62,6 @@ const COPY = {
 		tooFar: (max: number | null) => `Sorry, we don't deliver this far${max ? ` (max ${max} km)` : ""}.`,
 		free: "FREE",
 		km: (n: number) => `${n} km`,
-		estimatedTotal: "Estimated total",
-		forThisItem: "this item",
-		forCart: "your cart",
-		confirmedAtCheckout: "Final delivery fee is confirmed at checkout.",
 		hr: (n: number) => `${n} hr${n === 1 ? "" : "s"}`,
 		min: (n: number) => `${n} min${n === 1 ? "" : "s"}`,
 	},
@@ -90,10 +86,6 @@ const COPY = {
 		tooFar: (max: number | null) => `عذراً، لا نوصل إلى هذه المسافة${max ? ` (الحد الأقصى ${max} كم)` : ""}.`,
 		free: "مجاني",
 		km: (n: number) => `${n} كم`,
-		estimatedTotal: "الإجمالي التقديري",
-		forThisItem: "هذا المنتج",
-		forCart: "سلتك",
-		confirmedAtCheckout: "يتم تأكيد رسوم التوصيل النهائية عند إتمام الطلب.",
 		hr: (n: number) => `${n} ساعة`,
 		min: (n: number) => `${n} دقيقة`,
 	},
@@ -233,7 +225,6 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 
 	const deliverable = !!quote && quote.deliverable && quote.price !== null;
 	const fee = deliverable ? quote!.price! : null;
-	const total = orderValue !== null && fee !== null ? orderValue + fee : null;
 	const money = (cents: number) => formatPrice(cents, currencyCode, locale);
 	// Shown in front of the headline once a fee is known: "FREE delivery Today" / "QAR 15 delivery Today".
 	const feeLabel = fee !== null ? (fee === 0 ? t.free : money(fee)) : null;
@@ -315,7 +306,6 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 					{quote && !quote.deliverable && (
 						<p className="text-xs text-red-600">{quote.reason === "TOO_FAR" ? t.tooFar(quote.maximumDistanceKm) : t.outside}</p>
 					)}
-					{canMap && <p className="text-xs">{locateLink}</p>}
 					{locateError}
 				</div>
 			) : (
@@ -329,21 +319,14 @@ export default function DeliveryEstimate({ priceCents, qty, currencyCode, isExpr
 							<span className="text-gray-500 text-xs">{t.selectLocationHint}</span>
 						</p>
 					)}
-					<p className="text-xs">{locateLink}</p>
-					<p className="text-[11px] text-gray-400">{t.locationPrivacy}</p>
-					{locateError}
-				</div>
-			)}
-
-			{deliverable && (
-				<div className="flex flex-col gap-0.5">
-					{total !== null && orderValue !== null && (
-						<p>
-							<span className="text-gray-600">{t.estimatedTotal}: </span>
-							<span className="font-semibold text-gray-900">{money(total)}</span> <span className="text-xs text-gray-400">({usingCart ? t.forCart : t.forThisItem})</span>
-						</p>
+					{/* Device location is only a fallback for when the Google map picker isn't available */}
+					{!canMap && (
+						<>
+							<p className="text-xs">{locateLink}</p>
+							<p className="text-[11px] text-gray-400">{t.locationPrivacy}</p>
+						</>
 					)}
-					<p className="text-[11px] text-gray-400 leading-snug">{t.confirmedAtCheckout}</p>
+					{locateError}
 				</div>
 			)}
 

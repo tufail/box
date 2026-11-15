@@ -1509,7 +1509,7 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 												</div>
 											</div>
 										)}
-										{/* Delivery promise, area fee and estimated total (cart total when there is a cart, else this item's price) */}
+										{/* Delivery promise and area fee for the picked location */}
 										<DeliveryEstimate priceCents={price} qty={qty} currencyCode={activeVariant?.currencyCode ?? "QAR"} isExpress={isExpressDelivery} inStock={inStock} />
 
 										{/* Quantity stepper */}
