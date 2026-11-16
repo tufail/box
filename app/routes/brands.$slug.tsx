@@ -26,7 +26,7 @@ import {
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME, SITE_URL, withPageSuffix } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, cleanInternalLinks, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -521,7 +521,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 								<div className="mb-10">
 									<div
 										className="prose prose-sm max-w-none text-gray-600 prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900"
-										dangerouslySetInnerHTML={{ __html: demoteHeadingLevels(brandContent.description) }}
+										dangerouslySetInnerHTML={{ __html: cleanInternalLinks(demoteHeadingLevels(brandContent.description)) }}
 									/>
 								</div>
 							)}

@@ -13,7 +13,7 @@ import {
 	type BlogPostBySlugData, type RelatedBlogPostsData, type BlogRelatedVariantsData,
 } from "~/graphql/blog";
 import { blogRelatedVariantToSearchItem, type SearchProductItem } from "~/graphql/product";
-import { SITE_URL, SITE_NAME } from "~/lib/seo";
+import { SITE_URL, SITE_NAME, cleanInternalLinks } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 
 const COPY = {
@@ -192,7 +192,7 @@ export default function BlogPostDetail({ loaderData }: Route.ComponentProps) {
 			<div className="container mx-auto px-4 py-10 max-w-3xl">
 				<div
 					className="prose prose-gray prose-headings:font-heading prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-gray-700 prose-strong:text-gray-900 prose-h2:text-xl md:prose-h2:text-2xl max-w-none"
-					dangerouslySetInnerHTML={{ __html: post.content }}
+					dangerouslySetInnerHTML={{ __html: cleanInternalLinks(post.content) }}
 				/>
 
 				{post.tags.length > 0 && (

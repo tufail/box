@@ -19,7 +19,7 @@ import {
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
 import { vendureImageUrl } from "~/components/VendureImage";
-import { SITE_NAME, SITE_URL, withPagePrefix, withPageSuffix } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, cleanInternalLinks, withPagePrefix, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -474,7 +474,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
       {/* ── Collection description ── page 1 only, so pages 2+ don't repeat the same
           long copy (near-duplicate content competing with page 1 for the same queries). */}
       {collection?.description && page === 1 && (
-        <div className="mt-10 pt-6 border-t border-gray-100 max-w-3xl mx-auto prose prose-sm text-gray-500" dangerouslySetInnerHTML={{ __html: collection.description }} />
+        <div className="mt-10 pt-6 border-t border-gray-100 max-w-3xl mx-auto prose prose-sm text-gray-500" dangerouslySetInnerHTML={{ __html: cleanInternalLinks(collection.description) }} />
       )}
 
       {/* Mobile filter drawer */}

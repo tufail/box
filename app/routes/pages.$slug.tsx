@@ -4,7 +4,7 @@ import Link from "~/components/LocaleLink";
 import { ChevronRight, Home } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import { GET_CMS_PAGE_BY_SLUG, type CmsPageData } from "~/graphql/pages";
-import { SITE_NAME, SITE_URL } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, cleanInternalLinks } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, hreflangTags } from "~/lib/i18n";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ export default function PageDetail({ loaderData }: Route.ComponentProps) {
 					{translation.description ? (
 						<div
 							className="prose prose-gray prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-gray-700 prose-strong:text-gray-900 prose-h2:text-2xl prose-h3:text-xl max-w-none"
-							dangerouslySetInnerHTML={{ __html: translation.description }}
+							dangerouslySetInnerHTML={{ __html: cleanInternalLinks(translation.description) }}
 						/>
 					) : (
 						<p className="text-gray-500 italic">{locale === "ar" ? "لا يوجد محتوى لهذه الصفحة." : "No content available for this page."}</p>
