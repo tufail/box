@@ -922,16 +922,22 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const rootData = useSession();
 
 	// React Router keeps this component mounted across client-side navigations
-	// between two /products/:slug URLs (same route), so useState(initialSelected)
-	// only applies on first mount — without this, clicking a "You may also like"
-	// card left the PREVIOUS product's flavor selected, which then couldn't match
-	// any option on the new product and broke activeVariant (price/stock/etc.)
-	// entirely.
-	useEffect(() => {
+	// between two /products/:slug URLs -- including the EN <-> AR language switch,
+	// since /products/:slug and /ar/products/:slug render this same component -- so
+	// useState(initialSelected) only applies on first mount. `selected` holds option
+	// NAMES, which are translated ("Vanilla" vs "فانيلا"), so a stale selection from
+	// the previous product OR the previous language matches no variant and blanks
+	// activeVariant (price/stock/etc.). Re-derive it whenever product, variant or
+	// locale changes -- during render (React's "reset state on prop change" pattern),
+	// not in an effect, so there's no intermediate render with no variant.
+	const selectionKey = `${product.id}|${selectedVariantId ?? ""}|${locale}`;
+	const [selectionFor, setSelectionFor] = useState(selectionKey);
+	if (selectionFor !== selectionKey) {
+		setSelectionFor(selectionKey);
 		setSelected(initialSelected);
 		setQty(1);
 		setCartFeedback("idle");
-	}, [product.id, selectedVariantId]);
+	}
 
 	// Fire-and-forget, client-side only (deliberately not in the loader) -- a
 	// server-side loader call would also fire on prefetch (hovering a product

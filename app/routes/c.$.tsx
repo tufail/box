@@ -19,7 +19,7 @@ import {
 } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
 import { vendureImageUrl } from "~/components/VendureImage";
-import { SITE_NAME, SITE_URL, withPageSuffix } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, withPagePrefix, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -87,7 +87,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     locale === "ar"
       ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
       : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
-  const description = customMetaDescription || rawDescription || fallbackDescription;
+  const description = withPagePrefix(customMetaDescription || rawDescription || fallbackDescription, page, locale);
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";
 
@@ -471,8 +471,9 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      {/* ── Collection description ── */}
-      {collection?.description && (
+      {/* ── Collection description ── page 1 only, so pages 2+ don't repeat the same
+          long copy (near-duplicate content competing with page 1 for the same queries). */}
+      {collection?.description && page === 1 && (
         <div className="mt-10 pt-6 border-t border-gray-100 max-w-3xl mx-auto prose prose-sm text-gray-500" dangerouslySetInnerHTML={{ __html: collection.description }} />
       )}
 

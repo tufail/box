@@ -27,3 +27,10 @@ export function withPageSuffix(title: string, page: number, locale: "en" | "ar")
   const siteSuffix = ` - ${SITE_NAME}`;
   return title.endsWith(siteSuffix) ? `${title.slice(0, -siteSuffix.length)} - ${label}${siteSuffix}` : `${title} - ${label}`;
 }
+
+// Same idea for meta descriptions: page 2+ get a "Page N:" prefix so the paginated
+// pages don't share page 1's exact description. Page 1 is returned untouched.
+export function withPagePrefix(description: string, page: number, locale: "en" | "ar"): string {
+  if (page <= 1) return description;
+  return `${locale === "ar" ? "صفحة" : "Page"} ${page}: ${description}`;
+}

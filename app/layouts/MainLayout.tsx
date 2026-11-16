@@ -9,7 +9,7 @@ import CartSidePanel from "../components/CartSidePanel";
 import Footer from "../components/Footer";
 import SeoFooterContent from "../components/SeoFooterContent";
 import { useCart } from "../context/CartContext";
-import { Link, useFetcher, useLocation, useNavigate } from "react-router";
+import { Link, useFetcher, useLocation } from "react-router";
 import LocaleLink from "../components/LocaleLink";
 import { CircleUser, ChevronDown, ChevronRight, Languages, Heart, Menu, ShoppingCart, ShieldCheck, Tag, Truck, Phone, X, Check } from "lucide-react";
 import SocialAuthButtons from "../components/SocialAuthButtons";
@@ -538,7 +538,6 @@ export default function MainLayout({ children, megaMenu, pageSections }: MainLay
 	const [profilePromptDismissed, setProfilePromptDismissed] = useState(false);
 	const [headerVisible, setHeaderVisible] = useState(true);
 	const lastScrollY = useRef(0);
-	const navigate = useNavigate();
 	// Derived straight from the URL (/ar/* prefix), not client state — this is
 	// what actually determines which translated content the current page shows,
 	// so it can never drift out of sync the way a separate cookie/state could.
@@ -587,11 +586,6 @@ export default function MainLayout({ children, megaMenu, pageSections }: MainLay
 	// Real navigation to the equivalent page in the other locale (not a machine
 	// translation overlay) — Vendure serves genuinely translated content for
 	// whichever language the URL resolves to, via /ar/* (see app/lib/i18n.ts).
-	function toggleLanguage() {
-		const nextLang = currentLang === "en" ? "ar" : "en";
-		navigate(toggleLocalePath(routerLocation.pathname, routerLocation.search, nextLang));
-	}
-
 	return (
 		<div className="min-h-screen flex flex-col">
 			<a
@@ -605,16 +599,19 @@ export default function MainLayout({ children, megaMenu, pageSections }: MainLay
 					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
 						<TopBarNewsPills />
 					</div>
-					<button onClick={toggleLanguage} translate="no" className="border rounded-xl px-2 flex-shrink-0 flex items-center gap-1.5 text-white hover:text-black hover:bg-white cursor-pointer transition-colors text-sm">
-						<Languages size={16} strokeWidth={1.5} />
-						{currentLang === "en" ? (
-							<span lang="ar" className="font-arabic">
-								العربية
-							</span>
-						) : (
-							<span>English</span>
-						)}
-					</button>
+					{/* A real link (not a JS-only button) to this same page in the other language,
+					    so crawlers can follow it; hreflang/lang mark the target language. Still a
+					    client-side navigation for users. */}
+					<Link
+						to={toggleLocalePath(routerLocation.pathname, routerLocation.search, currentLang === "en" ? "ar" : "en")}
+						hrefLang={currentLang === "en" ? "ar" : "en"}
+						lang={currentLang === "en" ? "ar" : "en"}
+						translate="no"
+						className="border rounded-xl px-2 flex-shrink-0 flex items-center gap-1.5 text-white hover:text-black hover:bg-white cursor-pointer transition-colors text-sm"
+					>
+						<Languages size={16} strokeWidth={1.5} aria-hidden="true" />
+						{currentLang === "en" ? <span className="font-arabic">العربية</span> : <span>English</span>}
+					</Link>
 				</div>
 			</div>
 			<header className={`bg-white/95 border-b border-stone-200 shadow-md sticky top-0 z-40 transition-transform duration-300 ${headerVisible ? "translate-y-0" : "-translate-y-full"}`}>
