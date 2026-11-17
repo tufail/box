@@ -72,7 +72,8 @@ export function matchAreas<T extends MatchableArea>(names: string[], areas: T[])
 		if (list) list.push(area);
 		else byKey.set(key, [area]);
 	}
-	const sorted = (list: T[]) => [...list].sort((a, b) => a.zoneNumber - b.zoneNumber);
+	// Zone 0 is the "no official zone" catch-all -- rank it after real zones.
+	const sorted = (list: T[]) => [...list].sort((a, b) => (a.zoneNumber === 0 ? 1e6 : a.zoneNumber) - (b.zoneNumber === 0 ? 1e6 : b.zoneNumber));
 
 	for (const name of names) {
 		const key = normalizeAreaName(name);

@@ -33,14 +33,32 @@ const COPY = {
  * first, then any place-name match, then nothing (the customer keeps/picks the area).
  */
 export function areaForLocation(areas: AreaOption[], loc: PickedLocation): AreaOption | null {
+	return matchAreaForLocation(areas, loc)?.area ?? null;
+}
+
+/**
+ * Like areaForLocation, plus whether the match is certain. `exact: false` means only the
+ * zone was known and the place names didn't say which of its areas -- the zone's first area
+ * is picked (same zone = same delivery price) but callers should leave the area editable
+ * instead of locking it.
+ */
+export function matchAreaForLocation(areas: AreaOption[], loc: PickedLocation): { area: AreaOption; exact: boolean } | null {
 	const inZone = loc.zoneNumber != null ? areas.filter((a) => a.zoneNumber === loc.zoneNumber) : [];
-	if (inZone.length === 1) return inZone[0];
+	if (inZone.length === 1) return { area: inZone[0], exact: true };
 	if (inZone.length > 1) {
 		const m = matchAreas(loc.areaHints, inZone).matches;
-		if (m.length) return m[0];
+		if (m.length) return { area: m[0], exact: true };
 	}
 	const m = matchAreas(loc.areaHints, areas).matches;
-	return m[0] ?? null;
+	if (m.length) {
+		// A name match that contradicts a known zone is less trustworthy than the zone itself.
+		if (inZone.length === 0 || m[0].zoneNumber === loc.zoneNumber) return { area: m[0], exact: true };
+	}
+	if (inZone.length > 1) {
+		const first = [...inZone].sort((a, b) => a.nameEn.localeCompare(b.nameEn))[0];
+		return { area: first, exact: false };
+	}
+	return m.length ? { area: m[0], exact: true } : null;
 }
 
 export default function MapPinField({
@@ -58,7 +76,10 @@ export default function MapPinField({
 	errorInputClassName,
 	fieldError,
 	className = "sm:col-span-2",
+	nextFieldName = "streetLine2",
 }: {
+	/** Form field focused after a location is confirmed (the address-detail input). */
+	nextFieldName?: string;
 	locale: "en" | "ar";
 	pin: MapPin | null;
 	/** Show the "pin required" message (set by the caller on a failed submit) */
@@ -133,6 +154,17 @@ export default function MapPinField({
 						// so callers that read the form's DOM values in onPicked see the new address.
 						if (inputRef.current && loc.address) inputRef.current.value = loc.address;
 						onPicked(loc);
+						// Next thing the customer has to type is the address detail (door, villa,
+						// building…) -- move them straight there. Deferred so it runs after the map
+						// dialog has closed (which would otherwise hand focus back to this field).
+						const form = inputRef.current?.form;
+						window.setTimeout(() => {
+							const next = form?.elements.namedItem(nextFieldName);
+							if (next instanceof HTMLInputElement && !next.disabled) {
+								next.focus({ preventScroll: true });
+								next.scrollIntoView({ behavior: "smooth", block: "center" });
+							}
+						}, 50);
 					}}
 				/>
 			)}

@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+
+// useLayoutEffect on the client (runs before paint), plain useEffect during SSR.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { useLoaderData, useFetcher, useNavigate, useLocation, redirect } from "react-router";
 import Link from "~/components/LocaleLink";
 import type { Route } from "./+types/checkout";
@@ -13,7 +16,7 @@ import { useCart } from "~/context/CartContext";
 import { useNotification } from "~/context/NotificationContext";
 import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
 import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
-import MapPinField, { MAP_PIN_ENABLED, areaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
+import MapPinField, { MAP_PIN_ENABLED, matchAreaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
 import type { PickedLocation } from "~/components/MapPinPicker";
 import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { SadadCheckoutForm } from "~/components/SadadCheckoutForm";
@@ -24,9 +27,11 @@ import { formatPrice } from "~/lib/currency";
 
 // Which checkout customers get by default: true = the one-page checkout, false = the original
 // multi-step flow (kept intact in this file; reachable at /checkout?classic=1 either way).
-// Set back to false after orders stopped coming in on the one-page flow; the one-page
-// version is still reachable at /checkout?onestep=1 for debugging.
-const DEFAULT_ONE_STEP = false;
+// History: one-page was default 25-28 Oct 2026, then switched off when orders stopped arriving
+// (cause never pinned down). Re-enabled 17 Nov 2026 after fixing the Pickup <-> Address stale-
+// mode bug and an end-to-end test (guest -> address/pickup -> method -> COD -> PaymentSettled)
+// passed locally. If orders drop again, set this back to false -- classic stays at ?classic=1.
+const DEFAULT_ONE_STEP = true;
 
 // Must match the `code` the SkipCash PaymentMethod is created with in the
 // Vendure admin (see SKIPCASH_METHOD_CODE in api.checkout.ts).
@@ -403,6 +408,12 @@ function deriveCheckoutState(order: ActiveOrder, activeCustomer: ActiveCustomer 
 
 // ── Step section (numbered header + collapsible content, one per step) ────────
 
+// What's still missing in the one-page checkout's address section (null = complete).
+type AddressGap = "contact" | "saved" | "location" | "area" | "detail" | null;
+
+// Duration of the step accordion (collapse/expand) and the matching page scroll.
+const STEP_ANIM_MS = 350;
+
 function StepSection({
 	num,
 	label,
@@ -411,11 +422,14 @@ function StepSection({
 	active,
 	completed,
 	onNavigate,
+	summary,
 	children,
 }: {
 	num: number;
 	label: string;
 	subtitle: string;
+	/** What the customer entered — replaces the subtitle once the step is completed and collapsed. */
+	summary?: string | null;
 	icon: React.ComponentType<{ size?: number; className?: string }>;
 	active: boolean;
 	completed: boolean;
@@ -424,6 +438,39 @@ function StepSection({
 }) {
 	const clickable = completed && !active;
 	const dim = !active && !completed;
+	const showSummary = clickable && !!summary;
+
+	// Accordion: the body animates its height open/closed (CSS grid 0fr <-> 1fr) instead of
+	// mounting/unmounting instantly, so the step being left shrinks while the next one grows
+	// in the same motion. `mounted` keeps a closing step's content rendered until its
+	// collapse finishes; `settled` lifts overflow clipping once fully open so dropdowns
+	// (area picker, etc.) aren't cut off.
+	const [mounted, setMounted] = useState(active);
+	const [open, setOpen] = useState(active);
+	const [settled, setSettled] = useState(active);
+	useEffect(() => {
+		if (active) {
+			setMounted(true);
+			// Two frames: the first paints the collapsed (0fr) state, the second starts the
+			// transition to 1fr -- otherwise the browser skips straight to the end.
+			let raf2 = 0;
+			const raf1 = requestAnimationFrame(() => {
+				raf2 = requestAnimationFrame(() => setOpen(true));
+			});
+			// Timer rather than transitionend: it also fires under reduced motion (no transition).
+			const settleId = window.setTimeout(() => setSettled(true), STEP_ANIM_MS + 80);
+			return () => {
+				cancelAnimationFrame(raf1);
+				cancelAnimationFrame(raf2);
+				window.clearTimeout(settleId);
+			};
+		}
+		setSettled(false);
+		setOpen(false);
+		const id = window.setTimeout(() => setMounted(false), STEP_ANIM_MS + 50);
+		return () => window.clearTimeout(id);
+	}, [active]);
+
 	return (
 		<div id={`checkout-step-${num}`} className={`scroll-mt-4 bg-white rounded-2xl border shadow-sm p-5 sm:p-6 transition-colors ${active ? "border-primary/40" : "border-gray-100"}`}>
 			<button type="button" onClick={clickable ? onNavigate : undefined} className={`flex items-center gap-3.5 w-full text-start ${clickable ? "cursor-pointer" : "cursor-default"}`}>
@@ -432,11 +479,24 @@ function StepSection({
 				</div>
 				<div className="flex-1 min-w-0">
 					<span className={`block text-lg font-bold ${dim ? "text-gray-400" : "text-gray-900"}`}>{label}</span>
-					<span className={`block text-sm ${dim ? "text-gray-300" : "text-gray-500"}`}>{subtitle}</span>
+					{showSummary ? (
+						<span className="block text-sm text-gray-700 line-clamp-3 break-words whitespace-pre-line">{summary}</span>
+					) : (
+						<span className={`block text-sm ${dim ? "text-gray-300" : "text-gray-500"}`}>{subtitle}</span>
+					)}
 				</div>
 				{!active && <ChevronRight size={18} className={`flex-shrink-0 rtl:rotate-180 ${dim ? "text-gray-300" : "text-gray-400"}`} />}
 			</button>
-			{active && <div className="mt-5 ps-0 sm:ps-[52px]">{children}</div>}
+			{mounted && (
+				<div
+					className={`grid transition-[grid-template-rows,opacity] ease-in-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+					style={{ transitionDuration: `${STEP_ANIM_MS}ms` }}
+				>
+					<div className={`min-h-0 ${open && settled ? "overflow-visible" : "overflow-hidden"}`}>
+						<div className="pt-5 ps-0 sm:ps-[52px]">{children}</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -867,6 +927,12 @@ function ShippingStep({
 	const t = CHECKOUT_COPY[locale];
 	const { notify } = useNotification();
 	const [mode, setMode] = useState<"address" | "pickup">(initialMode ?? "address");
+	// Latest mode, readable from fetcher effects without waiting for a re-render.
+	const modeRef = useRef(mode);
+	// Which mode the in-flight address save (and therefore the shipping-methods list that
+	// follows it) belongs to. A reply from before a Pickup <-> Address switch must be ignored,
+	// or it shows "Store pickup unavailable" (an address list has no pickup method) and sticks.
+	const savedForModeRef = useRef<"address" | "pickup">(mode);
 	const [error, setError] = useState<string | null>(null);
 	// Display-only label for the currently selected area -- kept in sync with the
 	// AreaSelect so the order summary shows the actual neighborhood name picked (a zone
@@ -976,6 +1042,7 @@ function ShippingStep({
 		if (pickedAreaId) body.qatarAreaId = pickedAreaId;
 		withPin(body, pickedPin);
 		setError(null);
+		savedForModeRef.current = "address";
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 		return true;
 	}
@@ -986,13 +1053,15 @@ function ShippingStep({
 		const next = { latitude: loc.latitude, longitude: loc.longitude };
 		setPin(next);
 		setPinError(false);
-		const matched = areaForLocation(areas, loc);
+		const match = matchAreaForLocation(areas, loc);
+		const matched = match?.area;
 		if (matched) {
 			const name = locale === "ar" ? matched.nameAr : matched.nameEn;
 			setZone(String(matched.zoneNumber));
 			setAreaId(matched.id);
 			setSelectedAreaName(name);
-			setAreaFromPin(true);
+			// Locked only when certain; a zone-only guess stays editable.
+			setAreaFromPin(match.exact);
 			setMethods([]);
 			setSelectedMethod(null);
 			saveAddress({ postalCode: String(matched.zoneNumber), areaLabel: name, areaId: matched.id, pin: next });
@@ -1048,6 +1117,7 @@ function ShippingStep({
 		if (resolvedAreaId) body.qatarAreaId = resolvedAreaId;
 		withPin(body, pinOf(values));
 		setError(null);
+		savedForModeRef.current = "address";
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
 
@@ -1066,12 +1136,14 @@ function ShippingStep({
 		const body: Record<string, string> = { _intent: "setShippingAddress", firstName, lastName, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, countryCode: STORE_PICKUP_ADDRESS.countryCode, province: STORE_PICKUP_ADDRESS.province, postalCode: STORE_PICKUP_ADDRESS.postalCode };
 		if (phoneNumber) body.phoneNumber = phoneNumber;
 		setError(null);
+		savedForModeRef.current = "pickup";
 		addressFetcher.submit(body, { method: "post", encType: "application/json", action: "/api/checkout" });
 	}
 
 	function handleModeChange(next: "address" | "pickup") {
 		if (next === mode) return;
 		setMode(next);
+		modeRef.current = next;
 		setAddressSaved(false);
 		setMethods([]);
 		setSelectedMethod(null);
@@ -1136,12 +1208,16 @@ function ShippingStep({
 	// Ship to Address filters that same method OUT of the list the customer picks from.
 	useEffect(() => {
 		if (!methodsFetcher.data) return;
+		// Stale reply from before a Pickup <-> Address switch: the fresh request is already
+		// on its way, so drop this one instead of judging it against the new mode.
+		if (savedForModeRef.current !== modeRef.current) return;
 		if (methodsFetcher.data.shippingMethods) {
 			const list = methodsFetcher.data.shippingMethods;
 			setMethods(list);
-			if (mode === "pickup") {
+			if (modeRef.current === "pickup") {
 				const pickupMethod = list.find((m) => m.code === STORE_PICKUP_METHOD_CODE);
 				if (pickupMethod) {
+					setError(null);
 					setSelectedMethod(pickupMethod.id);
 					onMethodChange?.(pickupMethod.id);
 				} else {
@@ -1150,6 +1226,7 @@ function ShippingStep({
 			} else {
 				const deliveryOnly = list.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
 				if (deliveryOnly.length > 0) {
+					setError(null);
 					const prev = selectedMethodRef.current;
 					const next = prev && deliveryOnly.some((m) => m.id === prev) ? prev : deliveryOnly[0].id;
 					setSelectedMethod(next);
@@ -1354,7 +1431,9 @@ function ShippingStep({
 				subTotalWithTax: methodResult.subTotalWithTax as number,
 			};
 			const methodLabel = `${methodToUse.name} - ${methodToUse.priceWithTax === 0 ? t.free : fmt(methodToUse.priceWithTax, currency, locale)}`;
-			onComplete(`${addressSummaryRef.current} · ${methodLabel}`, methodToUse, totals);
+			// Newline-separated: address on the first line, delivery method on its own line
+			// (StepSection renders the collapsed summary with whitespace-pre-line).
+			onComplete(`${addressSummaryRef.current}\n${methodLabel}`, methodToUse, totals);
 		} catch {
 			setError(t.couldNotSaveAddress);
 		} finally {
@@ -1702,10 +1781,10 @@ function PaymentStep({ isActive, total, currency, orderCode, onComplete }: { isA
 							<input type="radio" name="paymentMethod" value={m.code} checked={selected === m.code} disabled={!m.isEligible} onChange={() => setSelected(m.code)} className="accent-lime-400 flex-shrink-0" />
 							{paymentIcons[m.code] ?? paymentIcons.default}
 							<div className="flex-1">
-								<div className="flex items-center gap-2 flex-wrap">
+								<div className="flex items-center justify-between gap-x-3 gap-y-1.5 flex-wrap">
 									<p className="font-medium text-gray-900">{m.name}</p>
 									{m.code === SKIPCASH_METHOD_CODE && (
-										<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
+										<div className="flex items-center gap-1 flex-wrap ms-auto" aria-label={t.acceptedPaymentMethods}>
 											{PAYMENT_ICON_IDS.map((id) => (
 												<img key={id} src={paymentIconSrc(id)} alt="" className="border border-[#ccc] bg-white object-contain" style={{ height: "24px", width: "40px" }} width={40} height={24} />
 											))}
@@ -2144,6 +2223,15 @@ const ONESTEP_COPY = {
 		plusDelivery: "+ delivery",
 		placeOrder: "Place order",
 		placeOrderHint: "Add your delivery address and choose a delivery method to place your order.",
+		// Specific "what's still missing" hints under the Place order button.
+		missingContact: "Enter your first name, last name and phone number to continue.",
+		missingSaved: "Choose one of your saved addresses to continue.",
+		missingLocation: "Tap \"Select location\" to pin your delivery address on the map.",
+		missingArea: "Choose your area / zone to continue.",
+		missingDetail: "Add your address detail (door, villa, flat, building or block).",
+		missingMethod: "Choose a delivery method to continue.",
+		missingPickup: "Store pickup isn't available for this order right now. Please choose Ship to Address.",
+		calculatingDelivery: "Calculating delivery…",
 		placingOrder: "Placing order…",
 		finalTotalNote: "Final total and payment requirements are confirmed before submission.",
 		enterEmail: "Please enter a valid email address.",
@@ -2189,6 +2277,14 @@ const ONESTEP_COPY = {
 		plusDelivery: "+ التوصيل",
 		placeOrder: "إتمام الطلب",
 		placeOrderHint: "أضف عنوان التوصيل واختر طريقة التوصيل لإتمام طلبك.",
+		missingContact: "أدخل الاسم الأول واسم العائلة ورقم الهاتف للمتابعة.",
+		missingSaved: "اختر أحد عناوينك المحفوظة للمتابعة.",
+		missingLocation: "اضغط على \"حدد الموقع\" لتحديد عنوان التوصيل على الخريطة.",
+		missingArea: "اختر المنطقة للمتابعة.",
+		missingDetail: "أضف تفاصيل العنوان (الباب، الفيلا، الشقة، المبنى أو البلوك).",
+		missingMethod: "اختر طريقة التوصيل للمتابعة.",
+		missingPickup: "الاستلام من المتجر غير متاح لهذا الطلب حاليًا. يرجى اختيار التوصيل إلى عنوان.",
+		calculatingDelivery: "جارٍ حساب رسوم التوصيل…",
 		placingOrder: "جارٍ إتمام الطلب…",
 		finalTotalNote: "يتم تأكيد الإجمالي النهائي ومتطلبات الدفع قبل الإرسال.",
 		enterEmail: "يرجى إدخال بريد إلكتروني صحيح.",
@@ -2241,6 +2337,11 @@ function OneStepCheckout({
 
 	// ── Delivery ──
 	const [mode, setMode] = useState<"address" | "pickup">(initialMode);
+	// previewRates() runs from closures created before a mode switch re-renders (the toggle
+	// handler defers it a tick, but the deferred call still holds the OLD render's functions),
+	// so the address/method logic reads the mode from this ref, not the state variable.
+	const modeRef = useRef(initialMode);
+	modeRef.current = mode;
 	const hasSaved = !!addresses && addresses.length > 0;
 	const [addressMode, setAddressMode] = useState<"saved" | "new">(hasSaved && !initialDraft ? "saved" : "new");
 	const [selectedSavedId, setSelectedSavedId] = useState<string | null>(() => {
@@ -2312,7 +2413,7 @@ function OneStepCheckout({
 	}
 
 	function resolveAddress(overrides?: { zone?: string; areaId?: string; areaLabel?: string; pin?: MapPinValue | null }): { values: ShippingAddressValues; areaLabel: string; qatarAreaId: string } | null {
-		if (mode === "pickup") {
+		if (modeRef.current === "pickup") {
 			return {
 				values: { firstName: readField("firstName"), lastName: readField("lastName"), phoneNumber: readField("phoneNumber") || undefined, streetLine1: STORE_PICKUP_ADDRESS.streetLine1, city: STORE_PICKUP_ADDRESS.city, postalCode: STORE_PICKUP_ADDRESS.postalCode },
 				areaLabel: t.storePickup,
@@ -2359,7 +2460,7 @@ function OneStepCheckout({
 	}
 
 	function pickMethod(all: ShippingMethod[]): ShippingMethod | undefined {
-		if (mode === "pickup") return all.find((m) => m.code === STORE_PICKUP_METHOD_CODE);
+		if (modeRef.current === "pickup") return all.find((m) => m.code === STORE_PICKUP_METHOD_CODE);
 		const deliveryOnly = all.filter((m) => m.code !== STORE_PICKUP_METHOD_CODE);
 		return deliveryOnly.find((m) => m.id === selectedMethodRef.current) ?? deliveryOnly[0];
 	}
@@ -2422,7 +2523,7 @@ function OneStepCheckout({
 			setMethods(all);
 			const method = pickMethod(all);
 			if (!method) {
-				setError(mode === "pickup" ? t.pickupUnavailable : t.noShippingMethods);
+				setError(modeRef.current === "pickup" ? t.pickupUnavailable : t.noShippingMethods);
 				return;
 			}
 			setSelectedMethod(method.id);
@@ -2488,11 +2589,20 @@ function OneStepCheckout({
 	// "Is there a usable delivery address yet?" -- the form's fields are uncontrolled, so this is
 	// recomputed from the DOM on every input event (and when the mode / saved choice / area changes).
 	const [addressComplete, setAddressComplete] = useState(false);
+	const [addressGap, setAddressGap] = useState<AddressGap>(null);
+	// Also records WHICH piece is missing, so the hint under "Place order" can say exactly
+	// what to do instead of one generic sentence.
 	function syncAddressComplete() {
 		const hasNames = !!readField("firstName") && !!readField("lastName") && !!readField("phoneNumber");
-		if (mode === "pickup") setAddressComplete(hasNames);
-		else if (addressMode === "saved") setAddressComplete(!!selectedSavedId);
-		else setAddressComplete(hasNames && !!zone && !!readField("streetLine1") && !!readField("streetLine2") && (!notListed || !!readField("fallbackArea")));
+		let missing: AddressGap = null;
+		if (modeRef.current === "pickup") missing = hasNames ? null : "contact";
+		else if (addressMode === "saved") missing = selectedSavedId ? null : "saved";
+		else if (!hasNames) missing = "contact";
+		else if (!readField("streetLine1")) missing = "location";
+		else if (!zone || (notListed && !readField("fallbackArea"))) missing = "area";
+		else if (!readField("streetLine2")) missing = "detail";
+		setAddressGap(missing);
+		setAddressComplete(missing === null);
 	}
 	useEffect(() => {
 		syncAddressComplete();
@@ -2514,13 +2624,15 @@ function OneStepCheckout({
 		const next = { latitude: loc.latitude, longitude: loc.longitude };
 		setPin(next);
 		setPinError(false);
-		const matched = notListed ? null : areaForLocation(areas, loc);
+		const match = notListed ? null : matchAreaForLocation(areas, loc);
+		const matched = match?.area;
 		if (matched) {
 			const name = locale === "ar" ? matched.nameAr : matched.nameEn;
 			setZone(String(matched.zoneNumber));
 			setAreaId(matched.id);
 			setAreaName(name);
-			setAreaFromPin(true);
+			// Locked only when certain; a zone-only guess stays editable.
+			setAreaFromPin(match.exact);
 			setMethods([]);
 			setSelectedMethod(null);
 			void previewRates({ zone: String(matched.zoneNumber), areaId: matched.id, areaLabel: name, pin: next });
@@ -2542,11 +2654,11 @@ function OneStepCheckout({
 	function handleModeChange(next: "address" | "pickup") {
 		if (next === mode) return;
 		setMode(next);
+		modeRef.current = next;
 		setMethods([]);
 		setSelectedMethod(null);
 		setError(null);
-		// mode isn't updated yet when previewRates runs synchronously below, so defer a tick.
-		setTimeout(() => void previewRates(), 0);
+		void previewRates();
 	}
 
 	function pickSavedAddress(id: string) {
@@ -2784,6 +2896,16 @@ function OneStepCheckout({
 	// The button only enables once there's a usable address AND a delivery method has actually
 	// been set on the order (a shipping line exists) -- not merely listed.
 	const canPlaceOrder = addressComplete && selectedMethod !== null && order.shippingLines.length > 0;
+	const placeOrderHint = (() => {
+		if (addressGap === "contact") return o.missingContact;
+		if (addressGap === "saved") return o.missingSaved;
+		if (addressGap === "location") return o.missingLocation;
+		if (addressGap === "area") return o.missingArea;
+		if (addressGap === "detail") return o.missingDetail;
+		if (loadingMethods) return o.calculatingDelivery;
+		if (mode === "pickup") return o.missingPickup;
+		return o.missingMethod;
+	})();
 	const areaKnown = mode === "pickup" || (addressMode === "saved" ? !!selectedSavedId : !!zone);
 	const paymentIcons: Record<string, React.ReactNode> = {
 		[SKIPCASH_METHOD_CODE]: <CreditCard size={18} className="text-gray-500 flex-shrink-0" />,
@@ -3099,10 +3221,10 @@ function OneStepCheckout({
 									<input type="radio" name="paymentMethod" value={m.code} checked={selectedPay === m.code} disabled={!m.isEligible} onChange={() => setSelectedPay(m.code)} className="accent-lime-400 flex-shrink-0" />
 									{paymentIcons[m.code] ?? paymentIcons.default}
 									<div className="flex-1 min-w-0">
-										<div className="flex items-center gap-2 flex-wrap">
+										<div className="flex items-center justify-between gap-x-3 gap-y-1.5 flex-wrap">
 											<p className="font-medium text-gray-900 text-sm">{m.name}</p>
 											{m.code === SKIPCASH_METHOD_CODE && (
-												<div className="flex items-center gap-1" aria-label={t.acceptedPaymentMethods}>
+												<div className="flex items-center gap-1 flex-wrap ms-auto" aria-label={t.acceptedPaymentMethods}>
 													{PAYMENT_ICON_IDS.map((id) => (
 														<img key={id} src={paymentIconSrc(id)} alt="" className="border border-[#ccc] bg-white object-contain" style={{ height: "20px", width: "32px" }} width={32} height={20} />
 													))}
@@ -3131,7 +3253,8 @@ function OneStepCheckout({
 						<ShieldCheck size={18} />
 						{submitting ? o.placingOrder : o.placeOrder}
 					</button>
-					{!canPlaceOrder && !submitting && <p className="text-center text-xs text-gray-500 mt-2.5">{o.placeOrderHint}</p>}
+					{/* Hidden when an error above already explains the problem (no duplicate message). */}
+					{!canPlaceOrder && !submitting && !(error && !addressGap) && <p className="text-center text-xs text-gray-500 mt-2.5">{placeOrderHint}</p>}
 					<p className="text-center text-xs text-gray-400 mt-3">{o.finalTotalNote}</p>
 					<TermsHint t={t} />
 				</section>
@@ -3157,7 +3280,16 @@ export default function CheckoutPage() {
 	const [step, setStep] = useState(initialState.step);
 	const [completed, setCompleted] = useState<number[]>(initialState.completed);
 	const [order, setOrder] = useState(initialOrder!);
-	const [customerName, setCustomerName] = useState<{ firstName: string; lastName: string; email?: string; isGuest?: boolean } | null>(initialState.orderCustomer ? { firstName: initialState.orderCustomer.firstName, lastName: initialState.orderCustomer.lastName } : null);
+	const [customerName, setCustomerName] = useState<{ firstName: string; lastName: string; email?: string; isGuest?: boolean } | null>(initialState.orderCustomer ? { firstName: initialState.orderCustomer.firstName, lastName: initialState.orderCustomer.lastName, email: initialState.orderCustomer.emailAddress } : null);
+	// One-line recap shown on the collapsed Delivery card. Set from the Shipping step on
+	// submit; on a resumed session (shipping already confirmed) it's rebuilt from the order.
+	const [shippingSummary, setShippingSummary] = useState<string | null>(() => {
+		const a = initialOrder?.shippingAddress;
+		if (!a?.streetLine1) return null;
+		const method = initialOrder?.shippingLines[0]?.shippingMethod.name;
+		const addressLine = [a.fullName, [a.streetLine1, a.city].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+		return method ? `${addressLine}\n${method}` : addressLine;
+	});
 	const [shippingAddressDraft, setShippingAddressDraft] = useState<ShippingAddressValues | null>(initialState.shippingAddressDraft);
 	const [shippingMethodDraft, setShippingMethodDraft] = useState<string | null>(initialState.shippingMethodDraft);
 	// null = not logged in (guest); an array (possibly empty) = a real customer's address
@@ -3203,15 +3335,54 @@ export default function CheckoutPage() {
 	// page gets much shorter while the browser keeps its scroll offset -- which used to leave
 	// the customer looking at the footer instead of the step that just opened. Bring the newly
 	// active step's header into view on every step change (not on first render).
+	// The steps animate as an accordion (see StepSection), so the page has to glide along
+	// with them: each frame re-measures where the new step's header currently is (it moves
+	// as the old step shrinks above it) and eases the scroll toward it. Because the target
+	// is re-read every frame, the motion ends exactly on the header's final position -- one
+	// continuous movement, no jump. Browser scroll anchoring is paused meanwhile so it
+	// doesn't fight the animation.
 	const stepScrollReady = useRef(false);
-	useEffect(() => {
+	useIsomorphicLayoutEffect(() => {
 		if (oneStep) return;
 		if (!stepScrollReady.current) {
 			stepScrollReady.current = true;
 			return;
 		}
 		const el = document.getElementById(`checkout-step-${step}`);
-		if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+		if (!el) return;
+		const targetY = () => window.scrollY + el.getBoundingClientRect().top - 16;
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			window.scrollTo({ top: targetY(), behavior: "instant" });
+			return;
+		}
+		const root = document.documentElement;
+		const prevAnchor = root.style.overflowAnchor;
+		const prevMinHeight = document.body.style.minHeight;
+		root.style.overflowAnchor = "none";
+		// Hold the page height while the step above collapses -- otherwise the document
+		// shrinks under the viewport and the browser clamps the scroll (a visible jump).
+		document.body.style.minHeight = `${document.body.scrollHeight}px`;
+		const restore = () => {
+			root.style.overflowAnchor = prevAnchor;
+			document.body.style.minHeight = prevMinHeight;
+		};
+		const startY = window.scrollY;
+		const duration = STEP_ANIM_MS + 120;
+		const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+		let start = 0;
+		let raf = 0;
+		const tick = (now: number) => {
+			if (!start) start = now;
+			const p = Math.min(1, (now - start) / duration);
+			window.scrollTo({ top: startY + (targetY() - startY) * ease(p), behavior: "instant" });
+			if (p < 1) raf = requestAnimationFrame(tick);
+			else restore();
+		};
+		raf = requestAnimationFrame(tick);
+		return () => {
+			cancelAnimationFrame(raf);
+			restore();
+		};
 	}, [step, oneStep]);
 
 	function complete(n: number) {
@@ -3268,7 +3439,7 @@ export default function CheckoutPage() {
 						<StepProgressBar step={step} completed={completed} t={t} />
 
 						<div className="flex flex-col gap-4">
-						<StepSection num={1} label={t.customerInformation} subtitle={t.customerInformationSubtitle} icon={UserRound} active={step === 1} completed={completed.includes(1)} onNavigate={() => goTo(1)}>
+						<StepSection num={1} label={t.customerInformation} subtitle={t.customerInformationSubtitle} icon={UserRound} active={step === 1} completed={completed.includes(1)} onNavigate={() => goTo(1)} summary={customerName ? [`${customerName.firstName} ${customerName.lastName}`.trim(), customerName.email].filter(Boolean).join(" · ") : null}>
 							<CustomerStep
 								initialValues={initialState.orderCustomer}
 								onComplete={(s) => {
@@ -3279,7 +3450,7 @@ export default function CheckoutPage() {
 							/>
 						</StepSection>
 
-						<StepSection num={2} label={t.shippingStepLabel} subtitle={t.shippingStepSubtitle} icon={Truck} active={step === 2} completed={completed.includes(2)} onNavigate={() => goTo(2)}>
+						<StepSection num={2} label={t.shippingStepLabel} subtitle={t.shippingStepSubtitle} icon={Truck} active={step === 2} completed={completed.includes(2)} onNavigate={() => goTo(2)} summary={shippingSummary}>
 							<ShippingStep
 								currency={order.currencyCode}
 								areas={qatarAreas}
@@ -3291,7 +3462,8 @@ export default function CheckoutPage() {
 								onDraftChange={setShippingAddressDraft}
 								onMethodChange={setShippingMethodDraft}
 								onAddressSavedToAccount={(addr) => setCustomerAddresses((prev) => [...(prev ?? []), addr])}
-								onComplete={(_summary, _method, totals) => {
+								onComplete={(summary, _method, totals) => {
+									setShippingSummary(summary);
 									setOrder((prev) => ({ ...prev, ...totals }));
 									complete(2);
 								}}

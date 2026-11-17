@@ -281,11 +281,26 @@ export function MapPinPicker({
 			const res = await new Geocoder().geocode({ location: center, language: "en" });
 			const results: any[] = res.results ?? [];
 			address = buildReadableAddress(results);
-			for (const r of results) {
-				const m = /zone\s*0*(\d+)/i.exec(r.formatted_address ?? "");
-				if (m) {
-					zoneNumber = parseInt(m[1], 10);
-					break;
+			// Qatar's zone usually comes back as its own address component ("Zone 55", type
+			// administrative_area_level_2) and only sometimes inside formatted_address, so check
+			// the components first, then fall back to the formatted text.
+			const zoneRe = /zone\s*0*(\d+)/i;
+			outer: for (const r of results) {
+				for (const c of r.address_components ?? []) {
+					const m = zoneRe.exec(c.long_name ?? "") ?? zoneRe.exec(c.short_name ?? "");
+					if (m) {
+						zoneNumber = parseInt(m[1], 10);
+						break outer;
+					}
+				}
+			}
+			if (zoneNumber == null) {
+				for (const r of results) {
+					const m = zoneRe.exec(r.formatted_address ?? "");
+					if (m) {
+						zoneNumber = parseInt(m[1], 10);
+						break;
+					}
 				}
 			}
 			for (const type of ["neighborhood", "sublocality_level_2", "sublocality_level_1", "sublocality", "locality"]) {

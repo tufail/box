@@ -6,7 +6,7 @@ import { GET_CUSTOMER_PROFILE_QUERY, type CustomerProfileData, type CustomerAddr
 import AccountLayout from "~/layouts/AccountLayout";
 import { municipalityForZone, areaLabelForZone, qatarAreasSorted } from "~/constants/qatar-areas";
 import AreaSelect, { type AreaOption } from "~/components/AreaSelect";
-import MapPinField, { MAP_PIN_ENABLED, areaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
+import MapPinField, { MAP_PIN_ENABLED, matchAreaForLocation, type MapPin as MapPinValue } from "~/components/MapPinField";
 import type { PickedLocation } from "~/components/MapPinPicker";
 import { GET_QATAR_SHIPPING_AREAS_QUERY, type QatarShippingAreasData } from "~/graphql/qatarShippingAreas";
 import { MapPin, Plus, Pencil, Trash2, Star, X } from "lucide-react";
@@ -167,11 +167,13 @@ function AddressForm({ areas, initial, isFirstAddress, onSaved, onCancel }: { ar
 		setPin({ latitude: loc.latitude, longitude: loc.longitude });
 		setPinError(false);
 		// MapPinField has already written the picked address into the streetLine1 input.
-		const matched = areaForLocation(areas, loc);
+		const match = matchAreaForLocation(areas, loc);
+		const matched = match?.area;
 		if (matched) {
 			setPostalCode(String(matched.zoneNumber));
 			setAreaId(matched.id);
-			setAreaFromPin(true);
+			// Locked only when certain; a zone-only guess stays editable.
+			setAreaFromPin(match.exact);
 			setFieldErrors((prev) => (prev.postalCode ? { ...prev, postalCode: "" } : prev));
 		} else if (areaFromPin) {
 			// The area came from the previous pin and no longer applies -- clear it so the
