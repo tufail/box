@@ -474,6 +474,16 @@ const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"icy-blue-raz": "applied-nutrition-creatine-monohydrate-flavoured-250g-icy-blue-razz",
 };
 
+// Whole-brand slug renames: [old prefix, new prefix]. Only tried AFTER the requested slug
+// has failed to resolve, and only redirected to if the rewritten slug really exists -- so a
+// product that still legitimately carries the old prefix is never touched.
+// Rule 1 products were renamed "rule-1-proteins-..." -> "rule-1-..." (e.g. the PreLift
+// pre-workout), leaving the old indexed/linked URLs on 404.
+const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
+	["rule-1-proteins-", "rule-1-"],
+	["rule-one-proteins-", "rule-1-"],
+];
+
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const slugParam = params.slug!;
 	const url = new URL(request.url);
@@ -519,6 +529,18 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			if (productResult.status === "rejected" || variantResult.status === "rejected") {
 				console.error("[products.$slug] product lookup failed:", productResult.status === "rejected" ? productResult.reason : (variantResult as PromiseRejectedResult).reason);
 				throw new Response("Service Unavailable", { status: 503, headers: { "Retry-After": "120" } });
+			}
+			// Renamed brand prefix? Redirect only if the rewritten slug resolves to a real
+			// product or variant.
+			for (const [oldPrefix, newPrefix] of LEGACY_PRODUCT_SLUG_PREFIXES) {
+				if (!slugParam.startsWith(oldPrefix)) continue;
+				const candidate = newPrefix + slugParam.slice(oldPrefix.length);
+				const [p2, v2] = await Promise.allSettled([
+					graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: candidate }, edgeCached(request, 60)),
+					graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: candidate }, edgeCached(request, 60)),
+				]);
+				const exists = (p2.status === "fulfilled" && !!p2.value.data.product) || (v2.status === "fulfilled" && !!v2.value.data.productVariantBySlug);
+				if (exists) throw redirect(`${localizePath(`/products/${candidate}`, locale)}${url.search}`, 301);
 			}
 			throw new Response("Not Found", { status: 404 });
 		}
