@@ -472,6 +472,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // slug changes and the old one might still be crawled or bookmarked somewhere.
 const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"icy-blue-raz": "applied-nutrition-creatine-monohydrate-flavoured-250g-icy-blue-razz",
+	"dragon-fruit-melon": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-dragon-fruit-melon",
+	"cola-blast": "applied-nutrition-creatine-gummies-3000mg-cola-blast",
 };
 
 // Whole-brand slug renames: [old prefix, new prefix]. Only tried AFTER the requested slug
