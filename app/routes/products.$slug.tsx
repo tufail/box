@@ -474,6 +474,8 @@ const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"icy-blue-raz": "applied-nutrition-creatine-monohydrate-flavoured-250g-icy-blue-razz",
 	"dragon-fruit-melon": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-dragon-fruit-melon",
 	"cola-blast": "applied-nutrition-creatine-gummies-3000mg-cola-blast",
+	// 887ml size was dropped from the catalogue; nearest live product is the 450ml.
+	"maryruths-liquid-morning-multivitamin-hair-growth-887ml-peach-mango": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-peach-mango",
 };
 
 // Whole-brand slug renames: [old prefix, new prefix]. Only tried AFTER the requested slug
