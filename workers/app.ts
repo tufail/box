@@ -63,6 +63,15 @@ export default {
       return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": cacheControl } });
     }
 
+    // A doubled locale prefix ("/ar/ar/search?q=...") has no route and 404s, yet such URLs
+    // got crawled. Collapse any repeat of "/ar" to a single prefix, keeping the query string.
+    const doubledLocale = /^\/ar(?:\/ar)+(?=\/|$)/.exec(url.pathname);
+    if (doubledLocale) {
+      const fixed = new URL(url.toString());
+      fixed.pathname = "/ar" + url.pathname.slice(doubledLocale[0].length);
+      return Response.redirect(fixed.toString(), 301);
+    }
+
     const bannerMatch = BANNER_ROUTE.exec(url.pathname);
     if (bannerMatch) {
       try {

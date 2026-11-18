@@ -35,6 +35,8 @@ export function stripLocalePrefix(pathname: string): string {
 export function localizePath(path: string, locale: Locale): string {
 	if (locale === "en") return path;
 	if (path === "/") return "/ar";
+	// Already-localized input must not become "/ar/ar/..." (a 404 that Google had crawled).
+	if (path === "/ar" || path.startsWith("/ar/")) return path;
 	return `/ar${path}`;
 }
 

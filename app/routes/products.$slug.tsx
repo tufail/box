@@ -27,6 +27,7 @@ import { useNotification } from "~/context/NotificationContext";
 import { useWishlist, type WishlistItem } from "~/context/WishlistContext";
 import { SITE_NAME, SITE_URL } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags } from "~/lib/i18n";
+import { LEGACY_PRODUCT_SLUG_REDIRECTS, legacyPrefixCandidates } from "~/lib/legacyProductSlugs";
 import { buildCollectionPath } from "~/graphql/collection";
 import { formatPrice as formatCurrency } from "~/lib/currency";
 import { parseServings } from "~/lib/shopCopy";
@@ -466,31 +467,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 // ── Loader ─────────────────────────────────────────────────────────────────
 
-// Old -> current slug for products renamed after they'd already been indexed/linked
-// externally — a plain 404 on the old URL drops whatever ranking/links it had, where a
-// 301 here carries it over to the real page instead. Add an entry whenever a product's
-// slug changes and the old one might still be crawled or bookmarked somewhere.
-const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
-	"icy-blue-raz": "applied-nutrition-creatine-monohydrate-flavoured-250g-icy-blue-razz",
-	"dragon-fruit-melon": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-dragon-fruit-melon",
-	"cola-blast": "applied-nutrition-creatine-gummies-3000mg-cola-blast",
-	// 887ml size was dropped from the catalogue; nearest live product is the 450ml.
-	"maryruths-liquid-morning-multivitamin-hair-growth-887ml-peach-mango": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-peach-mango",
-	// Renamed from the 13 oz / 372 g size to 16 oz / 450 g.
-	"thorne-creatine-13-oz-372-g-strawberry": "thorne-creatine-16-oz-450-g-strawberry",
-};
-
-// Whole-brand slug renames: [old prefix, new prefix]. Only tried AFTER the requested slug
-// has failed to resolve, and only redirected to if the rewritten slug really exists -- so a
-// product that still legitimately carries the old prefix is never touched.
-// Rule 1 products were renamed "rule-1-proteins-..." -> "rule-1-..." (e.g. the PreLift
-// pre-workout), leaving the old indexed/linked URLs on 404.
-const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
-	["rule-1-proteins-", "rule-1-"],
-	["rule-one-proteins-", "rule-1-"],
-	// Thorne Creatine tub resized 13 oz / 372 g -> 16 oz / 450 g (all flavours).
-	["thorne-creatine-13-oz-372-g-", "thorne-creatine-16-oz-450-g-"],
-];
+// Renamed-product redirects (exact map + prefix rules) live in ~/lib/legacyProductSlugs.
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
 	const slugParam = params.slug!;
@@ -540,9 +517,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 			}
 			// Renamed brand prefix? Redirect only if the rewritten slug resolves to a real
 			// product or variant.
-			for (const [oldPrefix, newPrefix] of LEGACY_PRODUCT_SLUG_PREFIXES) {
-				if (!slugParam.startsWith(oldPrefix)) continue;
-				const candidate = newPrefix + slugParam.slice(oldPrefix.length);
+			for (const candidate of legacyPrefixCandidates(slugParam)) {
 				const [p2, v2] = await Promise.allSettled([
 					graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: candidate }, edgeCached(request, 60)),
 					graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: candidate }, edgeCached(request, 60)),

@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useFetcher, useLocation } from "react-router";
 import { useSession } from "~/context/SessionContext";
 import Link from "~/components/LocaleLink";
-import { data } from "react-router";
+import { data, redirect } from "react-router";
+import { LEGACY_PRODUCT_SLUG_REDIRECTS, legacyPrefixCandidates } from "~/lib/legacyProductSlugs";
 import type { ActiveCustomer } from "~/graphql/checkout";
 import { ChevronLeft, Star, BadgeCheck, ThumbsUp, ThumbsDown, X, ImagePlus, ChevronRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
@@ -12,7 +13,7 @@ import {
 	type ProductDetailData, type ProductDetailByVariantSlugData, type ProductRatingSummaryData, type ProductRatingSummary,
 	type ProductReviewsData, type ReviewItem, type ReviewSortOrder,
 } from "~/graphql/product";
-import { getLocaleFromPathname, type Locale } from "~/lib/i18n";
+import { getLocaleFromPathname, localizePath, type Locale } from "~/lib/i18n";
 import { useFocusTrap } from "~/hooks/useFocusTrap";
 
 const TAKE = 10;
@@ -158,7 +159,23 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 		const variantLookup = await graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: slugParam }, { request }).catch(() => null);
 		product = variantLookup?.data.productVariantBySlug?.product ?? null;
 	}
-	if (!product) throw data(null, { status: 404 });
+	if (!product) {
+		// Renamed product? Send the old reviews URL (filters kept) to the current product's
+		// reviews page -- same redirect rules as the product page itself.
+		const locale = getLocaleFromPathname(url.pathname);
+		const toReviews = (s: string) => `${localizePath(`/products/${s}/reviews`, locale)}${url.search}`;
+		const mapped = LEGACY_PRODUCT_SLUG_REDIRECTS[slugParam];
+		if (mapped) throw redirect(toReviews(mapped), 301);
+		for (const candidate of legacyPrefixCandidates(slugParam)) {
+			const [p2, v2] = await Promise.allSettled([
+				graphqlRequest<ProductDetailData>(env, PRODUCT_DETAIL_QUERY, { slug: candidate }, { request, cf: { cacheTtl: 300, cacheEverything: true } }),
+				graphqlRequest<ProductDetailByVariantSlugData>(env, PRODUCT_DETAIL_BY_VARIANT_SLUG_QUERY, { slug: candidate }, { request }),
+			]);
+			const exists = (p2.status === "fulfilled" && !!p2.value.data.product) || (v2.status === "fulfilled" && !!v2.value.data.productVariantBySlug);
+			if (exists) throw redirect(toReviews(candidate), 301);
+		}
+		throw data(null, { status: 404 });
+	}
 
 	// Reviews are a product-level resource (one shared pool across every
 	// variant, not per-flavor) — so the aggregate queries always key off the
