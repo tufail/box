@@ -25,6 +25,8 @@ export const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
 	["thorne-creatine-13-oz-372-g-", "thorne-creatine-16-oz-450-g-"],
 	// MaryRuth's Liquid Morning 887ml dropped; the 450ml is the live size (product + flavours).
 	["maryruths-liquid-morning-multivitamin-hair-growth-887ml", "maryruths-liquid-morning-multivitamin-hair-growth-450ml"],
+	// Bloom Greens slugs gained the "180g" size (all flavours).
+	["bloom-greens-superfoods-30-servings", "bloom-greens-superfoods-180g-30-servings"],
 ];
 
 /** Rewritten slugs to try for an unresolved slug, in order (existence not checked). */
