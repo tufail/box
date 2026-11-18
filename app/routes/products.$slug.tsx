@@ -476,6 +476,8 @@ const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"cola-blast": "applied-nutrition-creatine-gummies-3000mg-cola-blast",
 	// 887ml size was dropped from the catalogue; nearest live product is the 450ml.
 	"maryruths-liquid-morning-multivitamin-hair-growth-887ml-peach-mango": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-peach-mango",
+	// Renamed from the 13 oz / 372 g size to 16 oz / 450 g.
+	"thorne-creatine-13-oz-372-g-strawberry": "thorne-creatine-16-oz-450-g-strawberry",
 };
 
 // Whole-brand slug renames: [old prefix, new prefix]. Only tried AFTER the requested slug
