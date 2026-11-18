@@ -488,6 +488,8 @@ const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
 	["rule-1-proteins-", "rule-1-"],
 	["rule-one-proteins-", "rule-1-"],
+	// Thorne Creatine tub resized 13 oz / 372 g -> 16 oz / 450 g (all flavours).
+	["thorne-creatine-13-oz-372-g-", "thorne-creatine-16-oz-450-g-"],
 ];
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
