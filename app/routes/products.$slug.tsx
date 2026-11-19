@@ -262,8 +262,27 @@ function findVariant(variants: ProductDetailVariant[], selected: Record<string, 
 	return variants.find((v) => v.options.every((opt) => selected[opt.group.code] === opt.name)) ?? null;
 }
 
+// The variant a click on `value` (in `groupCode`) leads to: the exact combination with the
+// other current selections if it exists, otherwise the closest variant carrying that value
+// (most other options in common, in-stock first). Without the fallback, products whose
+// option groups don't form a full grid (e.g. Strawberry Swirl only in 5lbs, Chocolate PB
+// only in 1lb) left every other pill unclickable. Callers then adopt the variant's own
+// options, so the other groups switch along with it.
 function findVariantForValue(variants: ProductDetailVariant[], selected: Record<string, string>, groupCode: string, value: string) {
-	return variants.find((v) => v.options.some((o) => o.group.code === groupCode && o.name === value) && v.options.every((o) => o.group.code === groupCode || selected[o.group.code] === o.name)) ?? null;
+	const withValue = variants.filter((v) => v.options.some((o) => o.group.code === groupCode && o.name === value));
+	const exact = withValue.find((v) => v.options.every((o) => o.group.code === groupCode || selected[o.group.code] === o.name));
+	if (exact) return exact;
+	let best: ProductDetailVariant | null = null;
+	let bestScore = -1;
+	for (const v of withValue) {
+		const shared = v.options.filter((o) => o.group.code !== groupCode && selected[o.group.code] === o.name).length;
+		const score = shared * 2 + (isInStock(v.stockLevel) ? 1 : 0);
+		if (score > bestScore) {
+			best = v;
+			bestScore = score;
+		}
+	}
+	return best;
 }
 
 function groupHasPriceVariation(variants: ProductDetailVariant[], selected: Record<string, string>, groupCode: string, values: string[]) {
@@ -1387,7 +1406,9 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 																		e.preventDefault();
 																		return;
 																	}
-																	setSelected({ ...selected, [group.code]: val });
+																	// The matched variant's own options -- it may be a different
+																	// combination than the current selection (see findVariantForValue).
+																	setSelected({ ...selected, ...Object.fromEntries(matchedVariant.options.map((o) => [o.group.code, o.name])) });
 																}}
 																className={`relative rounded-full border text-sm transition-colors min-w-[80px] ${thumbSrc ? "flex items-center gap-2.5 text-start ps-1.5 pe-4 py-1.5" : "text-center px-4 py-2.5"} ${isActive ? "border-primary bg-white text-black font-bold ring-2 ring-primary" : available ? "border-gray-300 text-gray-700 hover:border-primary hover:text-primary bg-white" : "border-gray-200 text-gray-400 cursor-pointer hover:border-primary hover:text-primary bg-gray-50"}`}
 															>
