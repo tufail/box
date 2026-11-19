@@ -29,9 +29,23 @@ export const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
 	["bloom-greens-superfoods-30-servings", "bloom-greens-superfoods-180g-30-servings"],
 ];
 
-/** Rewritten slugs to try for an unresolved slug, in order (existence not checked). */
+// Pairs of slugs where either one may be the live one. Only consulted when the requested
+// slug does NOT resolve, and callers redirect only if the other slug exists -- so both
+// directions can be listed without a loop, and the entry stays correct whichever way the
+// slug is set in Vendure. Use this when a rename is likely to be reverted.
+const INTERCHANGEABLE_PRODUCT_SLUGS: [string, string][] = [
+	// The ranked URL was "...-unflavored"; the variant was then renamed to
+	// "...-unflavored-284-g-unflavoured" (also crawled). Intended to go back to the original.
+	["vital-proteins-collagen-peptides-unflavored", "vital-proteins-collagen-peptides-unflavored-284-g-unflavoured"],
+];
+
+/** Slugs to try for an unresolved slug, in order (existence not checked -- callers must). */
 export function legacyPrefixCandidates(slug: string): string[] {
 	const out: string[] = [];
+	for (const [a, b] of INTERCHANGEABLE_PRODUCT_SLUGS) {
+		if (slug === a) out.push(b);
+		else if (slug === b) out.push(a);
+	}
 	for (const [oldPrefix, newPrefix] of LEGACY_PRODUCT_SLUG_PREFIXES) {
 		if (slug.startsWith(oldPrefix)) out.push(newPrefix + slug.slice(oldPrefix.length));
 	}
