@@ -10,6 +10,8 @@ export const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"cherry-chill": "applied-nutrition-creatine-gummies-3000mg-cherry-chill",
 	// Single-variant product; the old long variant slug no longer exists.
 	"ghost-bcaa-amino-acids-powder-7g-bcaa-kiwi-strawberry-30-servings": "ghost-bcaa",
+	// Variant slug gained its size on 2026-11-19.
+	"basix-whey-protein-strawberry-swirl": "basix-whey-protein-strawberry-swirl-5lbs",
 	// Renamed from the 13 oz / 372 g size to 16 oz / 450 g.
 	"thorne-creatine-13-oz-372-g-strawberry": "thorne-creatine-16-oz-450-g-strawberry",
 };
