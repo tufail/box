@@ -8,8 +8,6 @@ export const LEGACY_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
 	"dragon-fruit-melon": "maryruths-liquid-morning-multivitamin-hair-growth-450ml-dragon-fruit-melon",
 	"cola-blast": "applied-nutrition-creatine-gummies-3000mg-cola-blast",
 	"cherry-chill": "applied-nutrition-creatine-gummies-3000mg-cherry-chill",
-	// Single-variant product; the old long variant slug no longer exists.
-	"ghost-bcaa-amino-acids-powder-7g-bcaa-kiwi-strawberry-30-servings": "ghost-bcaa",
 	// Renamed from the 13 oz / 372 g size to 16 oz / 450 g.
 	"thorne-creatine-13-oz-372-g-strawberry": "thorne-creatine-16-oz-450-g-strawberry",
 };
