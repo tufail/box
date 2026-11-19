@@ -29,22 +29,26 @@ export const LEGACY_PRODUCT_SLUG_PREFIXES: [string, string][] = [
 	["bloom-greens-superfoods-30-servings", "bloom-greens-superfoods-180g-30-servings"],
 ];
 
-// Pairs of slugs where either one may be the live one. Only consulted when the requested
-// slug does NOT resolve, and callers redirect only if the other slug exists -- so both
-// directions can be listed without a loop, and the entry stays correct whichever way the
-// slug is set in Vendure. Use this when a rename is likely to be reverted.
-const INTERCHANGEABLE_PRODUCT_SLUGS: [string, string][] = [
-	// The ranked URL was "...-unflavored"; the variant was then renamed to
-	// "...-unflavored-284-g-unflavoured" (also crawled). Intended to go back to the original.
-	["vital-proteins-collagen-peptides-unflavored", "vital-proteins-collagen-peptides-unflavored-284-g-unflavoured"],
+// Groups of slugs that all mean the same page, any one of which may be the live one. Only
+// consulted when the requested slug does NOT resolve, and callers redirect only to a slug
+// that exists -- so every old/new spelling can be listed without a loop, and the group stays
+// correct whichever slug is currently set in Vendure. Put the current slug first (tried first).
+const INTERCHANGEABLE_PRODUCT_SLUGS: string[][] = [
+	// Ranked as "...-unflavored"; renamed (all crawled) to "...-unflavored-284-g-unflavoured",
+	// then on 2026-11-19 to "...-284g-unflavoured". The bare product slug changed too.
+	[
+		"vital-proteins-collagen-peptides-284g-unflavoured",
+		"vital-proteins-collagen-peptides-unflavored",
+		"vital-proteins-collagen-peptides-unflavored-284-g-unflavoured",
+		"vital-proteins-collagen-peptides-unflavored-284-g",
+	],
 ];
 
 /** Slugs to try for an unresolved slug, in order (existence not checked -- callers must). */
 export function legacyPrefixCandidates(slug: string): string[] {
 	const out: string[] = [];
-	for (const [a, b] of INTERCHANGEABLE_PRODUCT_SLUGS) {
-		if (slug === a) out.push(b);
-		else if (slug === b) out.push(a);
+	for (const group of INTERCHANGEABLE_PRODUCT_SLUGS) {
+		if (group.includes(slug)) out.push(...group.filter((s) => s !== slug));
 	}
 	for (const [oldPrefix, newPrefix] of LEGACY_PRODUCT_SLUG_PREFIXES) {
 		if (slug.startsWith(oldPrefix)) out.push(newPrefix + slug.slice(oldPrefix.length));
