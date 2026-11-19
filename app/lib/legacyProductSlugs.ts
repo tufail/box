@@ -42,6 +42,8 @@ const INTERCHANGEABLE_PRODUCT_SLUGS: string[][] = [
 		"vital-proteins-collagen-peptides-unflavored-284-g-unflavoured",
 		"vital-proteins-collagen-peptides-unflavored-284-g",
 	],
+	// Switched back and forth between these two on 2026-11-19.
+	["basix-whey-protein-strawberry-swirl-5lbs", "basix-whey-protein-strawberry-swirl"],
 ];
 
 /** Slugs to try for an unresolved slug, in order (existence not checked -- callers must). */
