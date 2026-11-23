@@ -169,8 +169,18 @@ export default function ProductHighlights({ highlights, title, scroll = false }:
 
 	// The API pre-sorts by group then type sortOrder, so same-group items are
 	// always contiguous — just chunk consecutive runs, no re-sorting needed.
+	// Some variants carry the same highlight twice (e.g. two "Total Servings"
+	// entries) -- keep only the first (top-most) one per label.
+	const seen = new Set<string>();
+	const unique = highlights.filter((h) => {
+		const key = h.highlightType.label.trim().toLowerCase();
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+
 	const groups: { label: string | null; items: ProductHighlightValue[] }[] = [];
-	for (const highlight of highlights) {
+	for (const highlight of unique) {
 		const label = highlight.highlightType.group?.label ?? null;
 		const last = groups[groups.length - 1];
 		if (last && last.label === label) last.items.push(highlight);

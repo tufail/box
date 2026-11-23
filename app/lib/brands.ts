@@ -22,6 +22,6 @@ export const TOP_BRANDS: TopBrand[] = [
 	{ name: "Ghost", code: "ghost" },
 	{ name: "Bloom", code: "bloom" },
 	{ name: "Maryruth's Organics", code: "maryruths-organics" },
-	{ name: "Life Extension", code: "life-extension" },
+	{ name: "Basix", code: "basix" },
 	{ name: "California Gold Nutrition", code: "california-gold-nutrition" },
 ];
