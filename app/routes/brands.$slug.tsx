@@ -1,7 +1,7 @@
 import type { Route } from "./+types/brands.$slug";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
-import { SlidersHorizontal, X, Check, Tag, ChevronDown, ArrowUpRight } from "lucide-react";
+import { SlidersHorizontal, X, Check, ChevronDown, ArrowUpRight } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
 import { vendureImageUrl } from "~/components/VendureImage";
@@ -9,6 +9,7 @@ import Breadcrumb from "~/components/Breadcrumb";
 import SortDropdown from "~/components/SortDropdown";
 import Pagination from "~/components/Pagination";
 import BrandNavBar from "~/components/BrandNavBar";
+import BrandLogo from "~/components/BrandLogo";
 import {
 	GET_BRAND_FACET_QUERY,
 	BRAND_PRODUCTS_QUERY,
@@ -17,6 +18,7 @@ import {
 	brandCategoryPath,
 	topBrandCategories,
 	type BrandCategoriesData,
+	type BrandCategory,
 	type BrandFacetData,
 	type BrandPageData,
 	type BrandPageVariables,
@@ -80,13 +82,46 @@ function groupFacets(facetValues: BrandPageFacetValue[]): FacetGroup[] {
 	return sortFacetGroups([...map.values()]);
 }
 
+// The brand's most specific categories, biggest first ("Whey Protein",
+// "Creatine"), not the broad parents ("Sports Nutrition", "Protein") that
+// topBrandCategories' count sort puts on top — the specific ones are what
+// people actually search alongside a brand name. A category is a leaf here if
+// no other category in the list has it as an ancestor.
+function leafCategoryNames(categories: BrandCategory[], limit: number): string[] {
+	const ancestorSlugs = new Set<string>();
+	for (const c of categories) {
+		for (const b of c.collection.breadcrumbs ?? []) if (b.slug !== c.collection.slug) ancestorSlugs.add(b.slug);
+	}
+	return categories.filter((c) => !ancestorSlugs.has(c.collection.slug)).slice(0, limit).map((c) => c.collection.name);
+}
+
+// "A", "A & B", "A, B & C" / Arabic "أ، ب و ج".
+function joinNames(names: string[], locale: Locale): string {
+	if (names.length <= 1) return names[0] ?? "";
+	const sep = locale === "ar" ? "، " : ", ";
+	const last = locale === "ar" ? " و" : " & ";
+	return `${names.slice(0, -1).join(sep)}${last}${names[names.length - 1]}`;
+}
+
+// Short intro shown under the H1, above the products (the admin's
+// metaDescription when set, since that's already a hand-written summary).
+// SITE_NAME already ends in "Qatar", so the delivery clause says
+// "Doha and nationwide" rather than repeating "Qatar".
+function brandIntro(brandName: string, leafNames: string[], metaDescription: string | null | undefined, locale: Locale): string {
+	if (metaDescription) return metaDescription;
+	const list = leafNames.length ? joinNames(leafNames, locale) : "";
+	return locale === "ar"
+		? `تسوق منتجات ${brandName} الأصلية${list ? `: ${list}` : ""} من ${SITE_NAME}، مع توصيل سريع إلى الدوحة وجميع أنحاء الدولة.`
+		: `Shop authentic ${brandName}${list ? ` ${list}` : " products"} at ${SITE_NAME}, with fast delivery to Doha and nationwide. 100% original, sourced through verified distributors.`;
+}
+
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export function meta({ loaderData }: Route.MetaArgs) {
 	const brandName = loaderData?.brandName ?? "Brand";
 	const locale = loaderData?.locale ?? "en";
 	const brandContent = loaderData?.brandContent ?? null;
-	const categoryNames = (loaderData?.categories ?? []).slice(0, 3).map((c) => c.collection.name);
+	const categoryNames = leafCategoryNames(loaderData?.categories ?? [], 3);
 	// Editorial metaTitle/metaDescription (admin-authored, per brand) win when
 	// set; the generic template is the fallback for the many brands that don't
 	// have this content filled in yet, not an error case.
@@ -310,6 +345,13 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 	const { totalItems, items, facetValues, brandName, sort, page, fv, vendureBase, allFacetValues, brandContent, canonicalUrl, locale, categories, brandLinks } = loaderData;
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+	const [introExpanded, setIntroExpanded] = useState(false);
+	const intro = brandIntro(brandName, leafCategoryNames(categories, 4), brandContent?.metaDescription, locale);
+	// Long intros get clamped to two lines behind "Read more" on mobile only — at
+	// full desktop width two lines already fit ~300 chars, so a clamp there would
+	// often hide nothing and leave a dead button. The full text is always in the
+	// HTML (clamping is CSS-only), so crawlers see all of it.
+	const introClampable = intro.length > 180;
 
 	const totalPages = Math.ceil(totalItems / PAGE_SIZE);
 	const facetGroups = groupFacets(allFacetValues ?? facetValues);
@@ -363,6 +405,16 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				{mobileFiltersButton}
 				{!hasBanner && sortDropdown}
 			</div>
+		</div>
+	);
+	const introBlock = (
+		<div>
+			<p className={`text-sm md:text-base text-gray-600 leading-relaxed ${introClampable && !introExpanded ? "line-clamp-2 md:line-clamp-none" : ""}`}>{intro}</p>
+			{introClampable && !introExpanded && (
+				<button type="button" onClick={() => setIntroExpanded(true)} className="md:hidden mt-1 text-sm font-semibold text-gray-900 underline underline-offset-2 hover:text-primary">
+					{locale === "ar" ? "اقرأ المزيد" : "Read more"}
+				</button>
+			)}
 		</div>
 	);
 	const breadcrumbs = [
@@ -424,12 +476,16 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 			{/* The banner (rendered further down, just above the product grid) already
 			    carries the brand's own visual identity — its own overlay — when it's
 			    available, so this plain icon+name header would be redundant. */}
+			{/* Logo on the left, name + short keyword intro stacked beside it, so the
+			    page says what the brand sells before the grid starts without the
+			    header eating much vertical space. */}
 			{!hasBanner && (
-				<div className="mb-6 flex items-center gap-3">
-					<span className="w-11 h-11 rounded-full bg-lime-300 flex items-center justify-center flex-shrink-0">
-						<Tag size={18} className="text-black" strokeWidth={1.5} />
-					</span>
-					<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black">{brandName}</h1>
+				<div className="mb-6 flex items-start gap-4">
+					<BrandLogo code={loaderData.brandCode} name={brandName} className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0 border border-gray-200" />
+					<div className="min-w-0 flex-1">
+						<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black mb-1">{brandName}</h1>
+						{introBlock}
+					</div>
 				</div>
 			)}
 
@@ -486,6 +542,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 						</div>
 					)}
 
+					{hasBanner && <div className="mb-6">{introBlock}</div>}
 					{hasBanner && countAndFiltersBar}
 
 					<BrandNavBar

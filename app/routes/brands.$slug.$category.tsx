@@ -1,6 +1,6 @@
 import type { Route } from "./+types/brands.$slug.$category";
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { SlidersHorizontal, X } from "lucide-react";
 import { graphqlRequest } from "workers/graphqlClient";
 import ProductCard from "~/components/ProductCard";
@@ -9,6 +9,7 @@ import SortDropdown from "~/components/SortDropdown";
 import Pagination from "~/components/Pagination";
 import FilterSidebar, { groupFacets } from "~/components/FacetFilters";
 import BrandNavBar from "~/components/BrandNavBar";
+import BrandLogo from "~/components/BrandLogo";
 import { GET_BRAND_FACET_QUERY, BRAND_CATEGORIES_QUERY, MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS, brandCategoryPath, topBrandCategories, type BrandFacetData, type BrandCategoriesData } from "~/graphql/brand";
 import { COLLECTION_PAGE_QUERY, COLLECTION_FACETS_QUERY, buildCollectionPath, type CollectionPageData, type CollectionFacetsData, type CollectionPageVariables } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
@@ -28,13 +29,13 @@ const COPY = {
 		home: "Home",
 		brands: "Brands",
 		intro: (brand: string, category: string, count: number) =>
-			`Browse ${count} authentic ${brand} ${category} products at ${SITE_NAME}, with delivery across Qatar.`,
+			`Browse ${count} authentic ${brand} ${category} at ${SITE_NAME}, with fast delivery to Doha and nationwide.`,
 	},
 	ar: {
 		home: "الرئيسية",
 		brands: "الماركات",
 		intro: (brand: string, category: string, count: number) =>
-			`تصفح ${count} منتج ${category} أصلي من ${brand} في ${SITE_NAME} مع التوصيل في جميع أنحاء قطر.`,
+			`تصفح ${count} منتج ${category} أصلي من ${brand} في ${SITE_NAME} مع توصيل سريع إلى الدوحة وجميع أنحاء الدولة.`,
 	},
 } as const;
 
@@ -241,8 +242,17 @@ export default function BrandCategoryPage({ loaderData }: Route.ComponentProps) 
 				<Breadcrumb items={breadcrumbs} />
 			</div>
 
-			<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black mb-2">{heading}</h1>
-			<p className="text-sm text-gray-600 mb-6 max-w-3xl">{copy.intro(brandName, categoryName, totalItems)}</p>
+			{/* Same header as the brand page: logo on the left (linking back to the
+			    brand's main page), title + intro stacked beside it. */}
+			<div className="mb-6 flex items-start gap-4">
+				<Link to={localizePath(`/brands/${brandCode}`, locale)} className="flex-shrink-0" aria-label={brandName}>
+					<BrandLogo code={brandCode} name={brandName} className="w-16 h-16 md:w-20 md:h-20 border border-gray-200" />
+				</Link>
+				<div className="min-w-0 flex-1">
+					<h1 className="font-heading text-2xl md:text-3xl font-extrabold text-black mb-1">{heading}</h1>
+					<p className="text-sm md:text-base text-gray-600 leading-relaxed">{copy.intro(brandName, categoryName, totalItems)}</p>
+				</div>
+			</div>
 
 			<div className="flex items-center justify-between flex-wrap gap-3 mb-6">
 				<p className="text-sm text-gray-500">{productCountLabel(totalItems, locale)}</p>
