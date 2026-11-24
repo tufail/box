@@ -13,7 +13,7 @@ import BrandLogo from "~/components/BrandLogo";
 import { GET_BRAND_FACET_QUERY, BRAND_CATEGORIES_QUERY, MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS, brandCategoryPath, topBrandCategories, type BrandFacetData, type BrandCategoriesData } from "~/graphql/brand";
 import { COLLECTION_PAGE_QUERY, COLLECTION_FACETS_QUERY, buildCollectionPath, type CollectionPageData, type CollectionFacetsData, type CollectionPageVariables } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME, SITE_URL, withPageSuffix } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, withPagePrefix, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel } from "~/lib/shopCopy";
 
@@ -65,10 +65,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	// Page 2+ list different products but would otherwise share page 1's exact title.
 	const baseTitle = `${brandName} ${categoryName} - ${SITE_NAME}`;
 	const title = withPageSuffix(baseTitle, page, locale);
-	const description =
+	const description = withPagePrefix(
 		locale === "ar"
 			? `تسوق ${categoryName} من ${brandName} الأصلي من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-			: `Shop authentic ${brandName} ${categoryName} at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
+			: `Shop authentic ${brandName} ${categoryName} at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`,
+		page,
+		locale,
+	);
 	const canonicalPath = stripLocalePrefix(new URL(canonicalUrl).pathname);
 	// Thin pages and out-of-range ?page=N (no items) stay out of the index.
 	const indexable = totalItems >= MIN_INDEXABLE_BRAND_CATEGORY_PRODUCTS && items.length > 0;

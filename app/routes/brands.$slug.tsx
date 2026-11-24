@@ -28,7 +28,7 @@ import {
 } from "~/graphql/brand";
 import { COLLECTION_FACETS_QUERY, type CollectionFacetsData } from "~/graphql/collection";
 import type { SortKey } from "~/graphql/product";
-import { SITE_NAME, SITE_URL, cleanInternalLinks, withPageSuffix } from "~/lib/seo";
+import { SITE_NAME, SITE_URL, cleanInternalLinks, withPagePrefix, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
 
@@ -129,11 +129,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
 	const page = loaderData?.page ?? 1;
 	// Page 2+ list different products but would otherwise share page 1's exact title.
 	const title = withPageSuffix(baseTitle, page, locale);
-	const description =
+	// Same for the description: page 2+ get a "Page N:" prefix (as collection pages do).
+	const description = withPagePrefix(
 		brandContent?.metaDescription ||
-		(locale === "ar"
-			? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-			: `Shop authentic ${brandName}${categoryNames.length ? ` ${categoryNames.join(", ")} & more` : " products"} at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`);
+			(locale === "ar"
+				? `تسوق منتجات ${brandName} الأصلية من متجر ${SITE_NAME}. أفضل الأسعار. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
+				: `Shop authentic ${brandName}${categoryNames.length ? ` ${categoryNames.join(", ")} & more` : " products"} at ${SITE_NAME} store. Best prices. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`),
+		page,
+		locale,
+	);
 	const canonicalUrl = loaderData?.canonicalUrl ?? "";
 	const canonicalPath = canonicalUrl ? stripLocalePrefix(new URL(canonicalUrl).pathname) : "";
 	const image = loaderData?.brandImage ?? "";
@@ -450,7 +454,7 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 				})),
 			},
 		},
-		...(brandContent && brandContent.faq.length > 0
+		...(page === 1 && brandContent && brandContent.faq.length > 0
 			? [
 					{
 						"@context": "https://schema.org",
@@ -572,7 +576,10 @@ export default function BrandPage({ loaderData }: Route.ComponentProps) {
 					    filled in yet), so the whole block just doesn't render rather than
 					    showing an empty heading/section. Kept in this same column (not
 					    full page width) so it lines up under the grid, not the sidebar. */}
-					{brandContent && (brandContent.description || brandContent.faq.length > 0) && (
+					{/* Page 1 only (as on collection pages): repeating the same long
+					    editorial text and FAQ on every ?page=N makes those pages
+					    near-duplicates of page 1 and of each other. */}
+					{page === 1 && brandContent && (brandContent.description || brandContent.faq.length > 0) && (
 						<div className="mt-12 pt-8 border-t border-gray-100">
 							{brandContent.description && (
 								<div className="mb-10">
