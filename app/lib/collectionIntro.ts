@@ -75,19 +75,21 @@ const TRUST = {
 // Authenticity + delivery, the two things a Qatar shopper checks before buying
 // supplements online. "Qatar" should appear ONCE per intro, so each promise
 // has a variant without it for text that already says Qatar.
+// "with express delivery in Doha and nationwide" ("…and across Qatar" when the
+// text doesn't mention Qatar yet).
 const PROMISE = {
 	withQatar: {
 		en: "100% original products from verified distributors, with express delivery in Doha and across Qatar.",
-		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع في الدوحة وجميع أنحاء قطر.",
+		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع داخل الدوحة ولجميع أنحاء قطر.",
 	},
 	noQatar: {
-		en: "100% original products from verified distributors, with express delivery across Doha.",
-		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع في الدوحة.",
+		en: "100% original products from verified distributors, with express delivery in Doha and nationwide.",
+		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع داخل الدوحة ولجميع أنحاء الدولة.",
 	},
 };
 const PROMISE_SHORT = {
-	withQatar: { en: "100% original, with express delivery across Qatar.", ar: "منتجات أصلية مع توصيل سريع في جميع أنحاء قطر." },
-	noQatar: { en: "100% original, with express delivery in Doha.", ar: "منتجات أصلية مع توصيل سريع في الدوحة." },
+	withQatar: { en: "100% original, with express delivery in Doha and across Qatar.", ar: "منتجات أصلية مع توصيل سريع داخل الدوحة ولجميع أنحاء قطر." },
+	noQatar: { en: "100% original, with express delivery in Doha and nationwide.", ar: "منتجات أصلية مع توصيل سريع داخل الدوحة ولجميع أنحاء الدولة." },
 };
 
 const saysQatar = (text: string) => /qatar|قطر/i.test(text);
