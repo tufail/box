@@ -65,6 +65,15 @@ export default [
 	route("robots.txt", "routes/robots.txt.ts"),
 	route("llms.txt", "routes/llms.txt.ts"),
 	route("llms-full.txt", "routes/llms-full.txt.ts"),
+	// AI product catalogue (lib/aiCatalogue.ts), English + /ar mirror. Access is
+	// meant for verified bots only, enforced by a Cloudflare WAF rule, not here.
+	...([
+		["ai-products.json", "routes/ai-products.json.ts"],
+		["ai-products.txt", "routes/ai-products.txt.ts"],
+		["ai-products/category/:file", "routes/ai-products.category.$file.ts"],
+		["ai-products/brand/:file", "routes/ai-products.brand.$file.ts"],
+		["ai-products/:file", "routes/ai-products.$file.ts"],
+	] as const).flatMap(([path, file]) => [route(path, file), route(`ar/${path}`, file, { id: `${file}.ar` })]),
 	// Plain-markdown mirrors for AI retrieval (see markdownPage.ts) -- English
 	// only, deliberately not mirrored under /ar/* like CONTENT_ROUTES below.
 	route("pages/:slug.md", "routes/pages.$slug.md.ts"),

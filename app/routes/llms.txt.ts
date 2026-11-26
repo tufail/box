@@ -112,6 +112,19 @@ Orders are handled within 0-1 day and arrive within 0-6 days of handoff, dependi
 - Returns can be dropped off at the store, or arranged by mail through customer support
 - Full policy: ${SITE_URL}/pages/refund-and-return-policy
 
+## AI product catalogue
+
+Live product data (price in QAR, stock, brand, category, size/flavour, GTIN), one entry per product page, refreshed at least hourly:
+
+- Catalogue index (JSON): ${SITE_URL}/ai-products.json
+- Catalogue (readable text): ${SITE_URL}/ai-products.txt
+- One product page, full detail (description, nutrition facts, highlights, other variants): ${SITE_URL}/ai-products/{product-slug}.json, where {product-slug} is the last part of the product URL /products/{product-slug}
+- By category: ${SITE_URL}/ai-products/category/{category-slug}.json
+- By brand: ${SITE_URL}/ai-products/brand/{brand-slug}.json
+- Arabic: the same paths under ${SITE_URL}/ar/ai-products...
+
+For the exact current price and availability, the product page itself is authoritative.
+
 ## Notes for AI assistants
 
 - Every page carries a Store JSON-LD (schema.org) entity naming ${SITE_NAME} as the business, with the address/contact/hours above.

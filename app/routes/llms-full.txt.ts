@@ -161,6 +161,7 @@ ${sectionText}
 - This file is generated from the same live data as the site itself (categories, brands, and CMS policy pages), so it should not drift out of sync with what a shopper actually sees.
 - For store address, contact, hours, delivery pricing by zone, and a concise site index, see ${SITE_URL}/llms.txt.
 - Full catalogue (every collection, product, and brand URL): ${SITE_URL}/sitemap.xml
+- Product data (price, stock, brand, category, size/flavour, GTIN per product page, plus full per-product records): ${SITE_URL}/ai-products.json (readable text: ${SITE_URL}/ai-products.txt; per product: ${SITE_URL}/ai-products/{product-slug}.json; Arabic under ${SITE_URL}/ar/ai-products...)
 `;
 
 	return new Response(body, {
