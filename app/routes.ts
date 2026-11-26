@@ -70,6 +70,10 @@ export default [
 	...([
 		["ai-products.json", "routes/ai-products.json.ts"],
 		["ai-products.txt", "routes/ai-products.txt.ts"],
+		// Static names win over the ai-products/:file param route below.
+		["ai-products/manifest.json", "routes/ai-products.manifest.json.ts"],
+		["ai-products/categories.json", "routes/ai-products.categories.json.ts"],
+		["ai-products/brands.json", "routes/ai-products.brands.json.ts"],
 		["ai-products/category/:file", "routes/ai-products.category.$file.ts"],
 		["ai-products/brand/:file", "routes/ai-products.brand.$file.ts"],
 		["ai-products/:file", "routes/ai-products.$file.ts"],

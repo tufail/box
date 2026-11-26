@@ -116,7 +116,10 @@ Orders are handled within 0-1 day and arrive within 0-6 days of handoff, dependi
 
 Live product data (price in QAR, stock, brand, category, size/flavour, GTIN), one entry per product page, refreshed at least hourly:
 
+- Feed manifest (generation time, counts, all endpoints): ${SITE_URL}/ai-products/manifest.json
 - Catalogue index (JSON): ${SITE_URL}/ai-products.json
+- Category directory: ${SITE_URL}/ai-products/categories.json
+- Brand directory: ${SITE_URL}/ai-products/brands.json
 - Catalogue (readable text index, linking a text file per category): ${SITE_URL}/ai-products.txt
 - One product page, full detail (description, nutrition facts, highlights, other variants): ${SITE_URL}/ai-products/{product-slug}.json, where {product-slug} is the last part of the product URL /products/{product-slug}
 - By category: ${SITE_URL}/ai-products/category/{category-slug}.json, or as readable text: ${SITE_URL}/ai-products/category/{category-slug}.txt (large categories: ?page=2, ?page=3, ...)
