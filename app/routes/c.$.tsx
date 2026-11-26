@@ -296,6 +296,15 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
   const { breadcrumbHome } = COPY[locale];
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  // Short intro under the H1 (same idea as brand pages): the admin-written meta
+  // description, so the page says what it sells before the grid starts. Only
+  // hand-written text is shown -- no auto-generated fallback for collections.
+  const intro = collection?.customFields?.metaDescription?.trim() || null;
+  const [introExpanded, setIntroExpanded] = useState(false);
+  // Mobile only: clamp to two lines behind "Read more" so products stay near the
+  // top of the screen. Desktop always shows it in full. CSS-only clamp, so the
+  // full text is always in the HTML for crawlers.
+  const introClampable = !!intro && intro.length > 120;
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   // Build sidebar from the unfiltered facet list so nothing disappears on selection
@@ -409,6 +418,16 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
           <h1 className="text-2xl font-bold text-gray-900">{collection.name}</h1>
+          {intro && (
+            <div className="mt-1">
+              <p className={`text-sm md:text-base text-gray-600 leading-relaxed ${introClampable && !introExpanded ? "line-clamp-2 md:line-clamp-none" : ""}`}>{intro}</p>
+              {introClampable && !introExpanded && (
+                <button type="button" onClick={() => setIntroExpanded(true)} className="md:hidden mt-1 text-sm font-semibold text-gray-900 underline underline-offset-2 hover:text-primary">
+                  {locale === "ar" ? "اقرأ المزيد" : "Read more"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
