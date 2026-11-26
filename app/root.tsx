@@ -218,16 +218,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="application-name" content="NutriBox" />
 				<Meta />
 				<Links />
-				{/* Google tag (gtag.js) */}
-				<script async src="https://www.googletagmanager.com/gtag/js?id=G-T5GQGKSJM2"></script>
+				{/* Google tag (gtag.js), production hostname only: local dev
+				    (localhost) and preview builds were sending visits and test
+				    conversions into the live GA4 / Google Ads accounts. Off the real
+				    site window.gtag stays undefined, which trackPurchaseConversion
+				    already treats as "don't send". */}
 				<script
 					dangerouslySetInnerHTML={{
 						__html: `
-							window.dataLayer = window.dataLayer || [];
-							function gtag(){dataLayer.push(arguments);}
-							gtag('js', new Date());
-							gtag('config', 'G-T5GQGKSJM2');
-							gtag('config', 'AW-1018264058');
+							if (/^(www\\.)?nutribox\\.qa$/.test(location.hostname)) {
+								var s = document.createElement('script');
+								s.async = true;
+								s.src = 'https://www.googletagmanager.com/gtag/js?id=G-T5GQGKSJM2';
+								document.head.appendChild(s);
+								window.dataLayer = window.dataLayer || [];
+								window.gtag = function(){dataLayer.push(arguments);};
+								gtag('js', new Date());
+								gtag('config', 'G-T5GQGKSJM2');
+								gtag('config', 'AW-1018264058');
+							}
 						`,
 					}}
 				/>
