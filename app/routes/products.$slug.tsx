@@ -1253,9 +1253,14 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 		product.customFields?.aiOverview?.trim() ||
 		product.customFields?.metaDescription?.trim() ||
 		plainText(product.description);
-	// Cap at 500 chars on a word boundary rather than mid-word.
+	// Full text: Google accepts product descriptions up to 5,000 characters and AI
+	// tools answer better with the whole thing. 5,000 is only a safety cap (cut on
+	// a word boundary) against a malformed, enormous description.
+	const JSONLD_DESCRIPTION_MAX = 5000;
 	const jsonLdDescription =
-		rawJsonLdDescription.length <= 500 ? rawJsonLdDescription : `${rawJsonLdDescription.slice(0, 500).replace(/\s+\S*$/, "")}…`;
+		rawJsonLdDescription.length <= JSONLD_DESCRIPTION_MAX
+			? rawJsonLdDescription
+			: `${rawJsonLdDescription.slice(0, JSONLD_DESCRIPTION_MAX).replace(/\s+\S*$/, "")}…`;
 
 	// image is a required field for Product rich results — Search Console flagged
 	// products missing it entirely, which happened whenever featuredAsset wasn't
