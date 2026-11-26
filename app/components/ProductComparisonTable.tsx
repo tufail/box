@@ -51,6 +51,25 @@ function formatCell(type: ComparisonHighlightType, value: { booleanValue: boolea
 	return <span>{type.unit ? `${value.textValue}${type.unit}` : value.textValue}</span>;
 }
 
+// One comparison row, possibly backed by several same-label highlight types.
+interface MergedType {
+	type: ComparisonHighlightType;
+	indices: number[];
+}
+
+// "Total Servings", "Total serving", "Gluten-free" / "Gluten Free" -> same key:
+// lowercase, punctuation to spaces, trailing plural "s" dropped per word.
+function labelKey(label: string) {
+	return label
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.trim()
+		.split(" ")
+		.map((w) => (w.length > 3 ? w.replace(/s$/, "") : w))
+		.join(" ");
+}
+const TOTAL_SERVINGS_KEY = labelKey("Total Servings");
+
 interface FetchedTable {
 	products: ComparisonProductEntry[];
 	highlightTypes: ComparisonHighlightType[];
@@ -137,18 +156,46 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 	// build a lookup from productId to that aligned array once, up front.
 	const highlightsByProductId = new Map(rows.map((r) => [r.productId, r.highlights]));
 
+	// Highlight types are created per group ("creatine-total-servings",
+	// "amino-acid-total-servings"...), so one idea can arrive as several types
+	// with the same label. Merge them into ONE row: the cell shows the first of
+	// its types that has a value for that product.
+	const merged: MergedType[] = [];
+	const byKey = new Map<string, MergedType>();
+	highlightTypes.forEach((type, index) => {
+		const key = labelKey(type.label);
+		const existing = byKey.get(key);
+		if (existing) existing.indices.push(index);
+		else {
+			const entry = { type, indices: [index] };
+			byKey.set(key, entry);
+			merged.push(entry);
+		}
+	});
+	const valueFor = (m: MergedType, productId: string) => {
+		const values = highlightsByProductId.get(productId);
+		if (!values) return undefined;
+		return m.indices.map((i) => values[i]).find((v) => v && (v.booleanValue !== null || (v.textValue ?? "") !== ""));
+	};
+
+	// The fixed "Total servings" row above already covers this, so the highlight
+	// version is not shown again — but its value fills in for products whose size
+	// field has no servings number.
+	const servingsHighlight = merged.find((m) => labelKey(m.type.label) === TOTAL_SERVINGS_KEY);
+	const attributeTypes = merged.filter((m) => m !== servingsHighlight);
+
 	// Image, title, price and price-per-serving always show; every attribute
 	// row stays hidden until "Show all details" is clicked.
-	const visibleTypes = rowsExpanded ? highlightTypes : [];
+	const visibleTypes = rowsExpanded ? attributeTypes : [];
 
 	// Group attribute rows by highlightType.group, same contiguous-chunk approach
 	// as ProductHighlights (the API pre-sorts by group then type sortOrder).
-	const groups: { label: string | null; types: ComparisonHighlightType[] }[] = [];
-	for (const type of visibleTypes) {
-		const label = type.group?.label ?? null;
+	const groups: { label: string | null; types: MergedType[] }[] = [];
+	for (const m of visibleTypes) {
+		const label = m.type.group?.label ?? null;
 		const last = groups[groups.length - 1];
-		if (last && last.label === label) last.types.push(type);
-		else groups.push({ label, types: [type] });
+		if (last && last.label === label) last.types.push(m);
+		else groups.push({ label, types: [m] });
 	}
 
 	return (
@@ -271,7 +318,11 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 							{
 								key: "servings",
 								label: t.totalServings,
-								render: (p: ComparisonProductEntry) => (p.servings !== null ? <span>{p.servings}</span> : <span className="text-gray-300">-</span>),
+								render: (p: ComparisonProductEntry) => {
+									if (p.servings !== null) return <span>{p.servings}</span>;
+									const fallback = servingsHighlight && valueFor(servingsHighlight, p.id);
+									return fallback?.textValue ? <span>{fallback.textValue}</span> : <span className="text-gray-300">-</span>;
+								},
 							},
 						].map((row) => (
 							<tr key={row.key}>
@@ -293,29 +344,23 @@ function ComparisonBody({ highlightTypes, products, rows, vendureBase, currentPr
 										</td>
 									</tr>
 								)}
-								{group.types.map((type) => {
-									const typeIndex = highlightTypes.indexOf(type);
-									return (
-										<tr key={type.id}>
-											<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white border-t border-gray-100 p-3 text-xs font-medium text-gray-600`}>{type.label}</td>
-											{visibleProducts.map((p) => {
-												const value = highlightsByProductId.get(p.id)?.[typeIndex];
-												return (
-													<td key={p.id} className="p-2 sm:p-3 text-center text-gray-700 bg-white border-t border-gray-100">
-														{formatCell(type, value)}
-													</td>
-												);
-											})}
-										</tr>
-									);
-								})}
+								{group.types.map((m) => (
+									<tr key={m.type.id}>
+										<td className={`sticky start-0 z-10 ${LABEL_COL} bg-white border-t border-gray-100 p-3 text-xs font-medium text-gray-600`}>{m.type.label}</td>
+										{visibleProducts.map((p) => (
+											<td key={p.id} className="p-2 sm:p-3 text-center text-gray-700 bg-white border-t border-gray-100">
+												{formatCell(m.type, valueFor(m, p.id))}
+											</td>
+										))}
+									</tr>
+								))}
 							</Fragment>
 						))}
 					</tbody>
 				</table>
 			</div>
 
-			{highlightTypes.length > 0 && (
+			{attributeTypes.length > 0 && (
 				<button
 					type="button"
 					onClick={() => setRowsExpanded((e) => !e)}

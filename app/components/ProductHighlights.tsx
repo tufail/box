@@ -20,20 +20,95 @@ function slugify(label: string) {
 		.replace(/^-+|-+$/g, "");
 }
 
-// Highlight types are created per group, so the same idea has many admin slugs
-// ("creatine-gmp-certified", "amino-gmp-certified", "Creatine-tested-for-athletes",
-// "amnino-tested-for-athletes"...). If the type's slug contains one of these keys,
-// use the one shared icon instead of needing a file per group/label.
-const SHARED_ICONS: { match: string; icon: string }[] = [
-	{ match: "tested-for-athletes", icon: "tested-for-athletes" },
-	{ match: "athlete-tested", icon: "tested-for-athletes" },
-	{ match: "gmp-certified", icon: "gmp-certified" },
+// Highlight types are created per group, so one idea gets many admin slugs:
+// "creatine-gluten-free", "pre-workout-gluten-free", "amino-acid-gluten-free",
+// "amnino-tested-for-athletes" (typo prefixes included). Rather than a copy of
+// the same SVG per group, every slug resolves to ONE shared icon: the longest
+// base icon name the slug ends with (so "pre-workout-sugar-free" picks
+// "sugar-free", not "sugar"). Group prefixes never need listing.
+//
+// Base icons = the unprefixed files in public/icons/. Add a new name here when
+// adding a new icon file.
+const BASE_ICONS = [
+	"banned-substance-tested",
+	"batch-tested-for-athletes",
+	"bcaa",
+	"beta-alanine",
+	"best-by",
+	"bpa-free",
+	"caffeine",
+	"calories",
+	"carbohydrates",
+	"clean-label",
+	"creatine",
+	"dairy-free",
+	"eaa",
+	"endurance-support",
+	"energy-support",
+	"fast-absorption",
+	"focus-support",
+	"gluten-free",
+	"gmp-certified",
+	"halal",
+	"informed-choice-certified",
+	"isoleucine",
+	"l-citrulline",
+	"leucine",
+	"magnesium",
+	"mixes-easily",
+	"nut-free",
+	"potassium",
+	"protein",
+	"protein-content-verified",
+	"protein-type",
+	"pump-support",
+	"serving-size",
+	"sodium",
+	"soy-free",
+	"sugar",
+	"sugar-free",
+	"tested-for-athletes",
+	"third-party-tested",
+	"total-fat",
+	"total-servings",
+	"transparent-formula",
+	"vegan",
 ];
 
+// Different wording for the same idea -> the base icon that shows it.
+// Also matched as a suffix, like BASE_ICONS.
+const ICON_ALIASES: Record<string, string> = {
+	"athlete-tested": "tested-for-athletes",
+	"best-buy": "best-by", // common admin typo of "best by"
+	"total-serving": "total-servings",
+	"bcaas": "bcaa",
+	"amino-acids": "bcaa",
+	"amino-acid": "bcaa",
+	"vegan-vegetarian": "vegan",
+	"vegan-friendly": "vegan",
+	"vegetarian": "vegan", // same leaf icon as vegan-vegetarian
+	"halal-certified": "halal",
+	"soya-free": "soy-free",
+	"mixes-instantly": "mixes-easily",
+	"type": "protein-type", // "creatine-type" etc.
+};
+
+// Longest first, so the most specific name wins.
+const ICON_KEYS = [...BASE_ICONS, ...Object.keys(ICON_ALIASES)].sort((a, b) => b.length - a.length);
+
+function matchIcon(slug: string): string | null {
+	if (!slug) return null;
+	// "leucine-per-serving" -> "leucine", "calories-per-serving" -> "calories".
+	const s = slug.replace(/-per-serving$/, "");
+	const key = ICON_KEYS.find((k) => s === k || s.endsWith(`-${k}`));
+	return key ? (ICON_ALIASES[key] ?? key) : null;
+}
+
+// Prefers the admin slug (name); falls back to the label for types whose slug
+// doesn't end in a known icon, then to the plain label slug so any one-off
+// icon file named after a label still loads.
 function iconKey(type: { name?: string; label: string }) {
-	const name = slugify(type.name ?? "");
-	const hit = SHARED_ICONS.find((s) => name.includes(s.match));
-	return hit ? hit.icon : slugify(type.label);
+	return matchIcon(slugify(type.name ?? "")) ?? matchIcon(slugify(type.label)) ?? slugify(type.label);
 }
 
 // The icon files use fill/stroke="currentColor" so the surrounding badge's
