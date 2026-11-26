@@ -20,12 +20,28 @@ function slugify(label: string) {
 		.replace(/^-+|-+$/g, "");
 }
 
+// Highlight types are created per group, so the same idea has many admin slugs
+// ("creatine-gmp-certified", "amino-gmp-certified", "Creatine-tested-for-athletes",
+// "amnino-tested-for-athletes"...). If the type's slug contains one of these keys,
+// use the one shared icon instead of needing a file per group/label.
+const SHARED_ICONS: { match: string; icon: string }[] = [
+	{ match: "tested-for-athletes", icon: "tested-for-athletes" },
+	{ match: "athlete-tested", icon: "tested-for-athletes" },
+	{ match: "gmp-certified", icon: "gmp-certified" },
+];
+
+function iconKey(type: { name?: string; label: string }) {
+	const name = slugify(type.name ?? "");
+	const hit = SHARED_ICONS.find((s) => name.includes(s.match));
+	return hit ? hit.icon : slugify(type.label);
+}
+
 // The icon files use fill/stroke="currentColor" so the surrounding badge's
 // text color can recolor them -- but that only works for an inline <svg> in
 // the document, not an <img src="...svg">, which renders the file in an
 // isolated context CSS can't reach. Fetched and injected as markup instead,
 // specifically so the teal badge color below actually recolors the icon.
-function HighlightIcon({ label, fallback = null }: { label: string; fallback?: React.ReactNode }) {
+function HighlightIcon({ iconName, fallback = null }: { iconName: string; fallback?: React.ReactNode }) {
 	const [svg, setSvg] = useState<string | null>(null);
 	const [failed, setFailed] = useState(false);
 
@@ -33,7 +49,7 @@ function HighlightIcon({ label, fallback = null }: { label: string; fallback?: R
 		let cancelled = false;
 		setSvg(null);
 		setFailed(false);
-		fetch(`/icons/${slugify(label)}.svg`)
+		fetch(`/icons/${iconName}.svg`)
 			.then((r) => (r.ok ? r.text() : Promise.reject()))
 			.then((text) => {
 				if (!cancelled) setSvg(text);
@@ -44,7 +60,7 @@ function HighlightIcon({ label, fallback = null }: { label: string; fallback?: R
 		return () => {
 			cancelled = true;
 		};
-	}, [label]);
+	}, [iconName]);
 
 	if (failed) return fallback;
 	if (!svg) return null;
@@ -79,7 +95,7 @@ function BooleanIcon({ highlight }: { highlight: ProductHighlightValue }) {
 	}
 	return (
 		<HighlightBadge>
-			<HighlightIcon label={highlight.highlightType.label} fallback={<CheckCircle size={32} />} />
+			<HighlightIcon iconName={iconKey(highlight.highlightType)} fallback={<CheckCircle size={32} />} />
 		</HighlightBadge>
 	);
 }
@@ -97,7 +113,7 @@ function HighlightCard({ highlight }: { highlight: ProductHighlightValue }) {
 	return (
 		<div className="flex items-center gap-2.5 p-3">
 			<HighlightBadge>
-				<HighlightIcon label={highlight.highlightType.label} />
+				<HighlightIcon iconName={iconKey(highlight.highlightType)} />
 			</HighlightBadge>
 			<div className="flex flex-col gap-0.5">
 				<span className="text-[11px] text-gray-400 uppercase tracking-wide leading-none">{highlight.highlightType.label}</span>

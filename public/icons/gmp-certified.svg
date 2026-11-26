@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-48.76 -60.4 353.52 353.52" focusable="false" aria-hidden="true" width="354" height="354">
+<circle cx="128" cy="116.36" r="166.76" fill="none" stroke="currentColor" stroke-width="10.01"/>
+<path d="M128 -8 L220 26 L220 112 C220 170 180 210 128 236 C76 210 36 170 36 112 L36 26 Z" fill="none" stroke="currentColor" stroke-width="12" stroke-linejoin="round"/>
+<text x="128" y="132" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="800" fill="currentColor">GMP</text>
+<path d="M98 160 L120 182 L162 142" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

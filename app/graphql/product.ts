@@ -10,6 +10,7 @@ export interface HighlightGroup {
 }
 
 export interface HighlightTypeInfo {
+  name?: string;
   label: string;
   valueType: HighlightValueType;
   unit: string | null;
@@ -128,7 +129,7 @@ const PRODUCT_DETAIL_FIELDS = `
     highlights {
       booleanValue
       textValue
-      highlightType { label valueType unit group { label sortOrder } }
+      highlightType { name label valueType unit group { label sortOrder } }
     }
   }
   facetValues { name code facet { name code } }
