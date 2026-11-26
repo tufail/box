@@ -4,7 +4,7 @@ import { Fragment, useState, useRef, useEffect, type ComponentType } from "react
 import { createPortal } from "react-dom";
 import type { MegaMenuData, MegaMenuItem, MegaMenuLink, MegaMenuSection } from "../graphql/megamenu";
 import type { BrandValue } from "../graphql/brand";
-import { ArrowRight, Bone, Brain, ChevronDown, ChevronRight, Droplets, Dumbbell, Heart, HeartPulse, Moon, Search, ShieldCheck, Smile, X, Zap } from "lucide-react";
+import { ArrowRight, Backpack, Bone, Brain, ChevronDown, ChevronRight, Droplets, Dumbbell, Heart, HeartPulse, Moon, Search, ShieldCheck, Smile, X, Zap } from "lucide-react";
 import { getLocaleFromPathname, localizePath } from "~/lib/i18n";
 import { TOP_BRANDS } from "~/lib/brands";
 import BrandLogo from "~/components/BrandLogo";
@@ -195,6 +195,7 @@ const SECTION_ICON_RULES: [RegExp, SectionIconComponent][] = [
 	[/hydrat|electrolyte/i, Droplets],
 	[/protein/i, ProteinBottle],
 	[/creatine|strength|muscle|performance|gainer/i, Dumbbell],
+	[/accessor|shaker|bottle|gear|equipment/i, Backpack],
 ];
 
 function sectionIcon(title: string | null): SectionIconComponent {
