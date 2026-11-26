@@ -237,6 +237,50 @@ export function directories(products: CatalogueProduct[], locale: Locale) {
 
 // For the category/brand feed routes: "creatine.json" -> "creatine"; null if not .json.
 export const jsonSlug = (file: string | undefined) => (file && file.endsWith(".json") ? file.slice(0, -5) : null);
+export const txtSlug = (file: string | undefined) => (file && file.endsWith(".txt") ? file.slice(0, -4) : null);
+
+// ── Readable-text (.txt) formatting, shared by the index and category files ──
+
+// Text files are split by category and then paged, so no single file grows
+// past what AI tools reading a page will actually take in.
+export const TXT_PAGE_SIZE = 100;
+
+export const TXT_LABELS = {
+	en: {
+		title: `${SITE_NAME} — Product Catalogue`,
+		intro: "Every product page listed at NutriBox Qatar (in stock and out of stock). Each category below has its own file with the full product list. Machine-readable version:",
+		categories: "Categories", brands: "Brands", other: "Products not in a category",
+		pages: "product pages", page: "Page", of: "of", generated: "Generated", next: "Next page", prev: "Previous page", index: "Catalogue index",
+		brand: "Brand", url: "URL", price: "Price", availability: "Availability", inStock: "In stock", outOfStock: "Out of stock",
+		size: "Size", gtin: "GTIN", details: "Full details",
+	},
+	ar: {
+		title: `${SITE_NAME} — كتالوج المنتجات`,
+		intro: "جميع صفحات المنتجات المدرجة في نيوتري بوكس قطر (المتوفرة وغير المتوفرة). لكل فئة أدناه ملف خاص بقائمة منتجاتها الكاملة. النسخة المقروءة آلياً:",
+		categories: "الفئات", brands: "العلامات التجارية", other: "منتجات غير مصنفة",
+		pages: "صفحة منتج", page: "صفحة", of: "من", generated: "تاريخ الإنشاء", next: "الصفحة التالية", prev: "الصفحة السابقة", index: "فهرس الكتالوج",
+		brand: "العلامة التجارية", url: "الرابط", price: "السعر", availability: "التوفر", inStock: "متوفر", outOfStock: "غير متوفر",
+		size: "الحجم", gtin: "الباركود", details: "التفاصيل الكاملة",
+	},
+};
+
+export function entryText(e: CatalogueEntry, locale: Locale): string {
+	const t = TXT_LABELS[locale];
+	const lines = [`### ${e.name}`];
+	if (e.brand) lines.push(`- ${t.brand}: ${e.brand}`);
+	lines.push(`- ${t.url}: ${e.url}`);
+	lines.push(`- ${t.price}: QAR ${e.price.toFixed(2)}`);
+	lines.push(`- ${t.availability}: ${e.availability === "in_stock" ? t.inStock : t.outOfStock}`);
+	for (const [k, v] of Object.entries(e.options)) lines.push(`- ${k}: ${v}`);
+	if (e.size) lines.push(`- ${t.size}: ${e.size}`);
+	for (const [k, v] of Object.entries(e.attributes)) lines.push(`- ${k}: ${v.join(", ")}`);
+	if (e.gtin) lines.push(`- ${t.gtin}: ${e.gtin}`);
+	lines.push(`- ${t.details}: ${e.data_url}`);
+	return lines.join("\n");
+}
+
+export const categoryTxtUrl = (slug: string, locale: Locale, page = 1) =>
+	`${abs(`/ai-products/category/${slug}.txt`, locale)}${page > 1 ? `?page=${page}` : ""}`;
 
 // ── Store block + usage notes shared by the JSON/TXT outputs ─────────────────
 
