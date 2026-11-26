@@ -79,19 +79,39 @@ const CATALOGUE_QUERY = `
 	}
 `;
 
+// First page tells us the total; the remaining pages are fetched in parallel
+// (a cold build used to make ~5 sequential backend round trips).
 export async function fetchCatalogue(env: VendureEnv, request: Request): Promise<CatalogueProduct[]> {
-	const all: CatalogueProduct[] = [];
-	for (let skip = 0; ; skip += PAGE_SIZE) {
-		const { data } = await graphqlRequest<{ products: { totalItems: number; items: CatalogueProduct[] } }>(
+	const page = (skip: number) =>
+		graphqlRequest<{ products: { totalItems: number; items: CatalogueProduct[] } }>(
 			env,
 			CATALOGUE_QUERY,
 			{ options: { take: PAGE_SIZE, skip } },
 			{ request, cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true } },
-		);
-		all.push(...data.products.items);
-		if (all.length >= data.products.totalItems || data.products.items.length === 0) break;
+		).then((r) => r.data.products);
+	const first = await page(0);
+	const rest = await Promise.all(
+		Array.from({ length: Math.max(0, Math.ceil(first.totalItems / PAGE_SIZE) - 1) }, (_, i) => page((i + 1) * PAGE_SIZE)),
+	);
+	return [first, ...rest].flatMap((p) => p.items);
+}
+
+// Cheap counts for the manifest -- avoids downloading the whole catalogue.
+const COUNTS_QUERY = `
+	query AiCatalogueCounts {
+		products(options: { take: 0 }) { totalItems }
+		collections(options: { take: 0 }) { totalItems }
+		facets(options: { filter: { code: { eq: "brands" } } }) { items { values { id } } }
 	}
-	return all;
+`;
+export async function fetchCounts(env: VendureEnv, request: Request): Promise<{ products: number; categories: number; brands: number }> {
+	const { data } = await graphqlRequest<{ products: { totalItems: number }; collections: { totalItems: number }; facets: { items: { values: { id: string }[] }[] } }>(
+		env,
+		COUNTS_QUERY,
+		undefined,
+		{ request, cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true } },
+	);
+	return { products: data.products.totalItems, categories: data.collections.totalItems, brands: data.facets.items[0]?.values.length ?? 0 };
 }
 
 // ── Shared mapping helpers ───────────────────────────────────────────────────
@@ -332,20 +352,44 @@ export const textResponse = (body: string, status = 200) =>
 	new Response(body, { status, headers: { ...commonHeaders, "Content-Type": "text/plain; charset=utf-8" } });
 
 // Worker responses aren't cached by Cloudflare automatically -- store the built
-// response in the edge cache so rebuilds happen at most hourly per location
-// (important on the Free plan's CPU budget). Errors are never cached.
+// response in the edge cache (per Cloudflare location). Stale-while-revalidate:
+// a copy older than CACHE_SECONDS is still served instantly while a fresh one
+// is built in the background, so only the very first request in a location
+// ever waits for a build (an AI fetcher timed out on exactly that cold build).
+// Copies are kept up to STALE_SECONDS; errors are never cached.
+const STALE_SECONDS = 7 * 24 * 3600;
+const BUILT_AT = "x-ai-built-at";
+
 export async function withEdgeCache(request: Request, ctx: { waitUntil(p: Promise<unknown>): void } | undefined, build: () => Promise<Response>): Promise<Response> {
 	const cache = typeof caches !== "undefined" ? (caches as unknown as { default?: Cache }).default : undefined;
 	const key = new Request(new URL(request.url).toString(), { method: "GET" });
+
+	const store = async (res: Response) => {
+		if (!cache || res.status !== 200) return;
+		const stored = new Response(res.clone().body, res);
+		stored.headers.set("Cache-Control", `public, max-age=${STALE_SECONDS}`);
+		stored.headers.set(BUILT_AT, String(Date.now()));
+		await cache.put(key, stored);
+	};
+	// What the client sees always says "fresh for an hour".
+	const forClient = (res: Response) => {
+		const out = new Response(res.body, res);
+		out.headers.set("Cache-Control", `public, max-age=${CACHE_SECONDS}`);
+		out.headers.delete(BUILT_AT);
+		return out;
+	};
+
 	if (cache) {
 		const hit = await cache.match(key);
-		if (hit) return hit;
+		if (hit) {
+			const age = Date.now() - Number(hit.headers.get(BUILT_AT) ?? 0);
+			if (age > CACHE_SECONDS * 1000 && ctx) ctx.waitUntil(build().then(store).catch(() => {}));
+			return forClient(hit);
+		}
 	}
 	const res = await build();
-	if (cache && res.status === 200) {
-		const put = cache.put(key, res.clone());
-		if (ctx) ctx.waitUntil(put);
-		else await put;
-	}
-	return res;
+	const put = store(res);
+	if (ctx) ctx.waitUntil(put);
+	else await put;
+	return forClient(res);
 }
