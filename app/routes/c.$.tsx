@@ -22,6 +22,7 @@ import { vendureImageUrl } from "~/components/VendureImage";
 import { SITE_NAME, SITE_URL, cleanInternalLinks, withPagePrefix, withPageSuffix } from "~/lib/seo";
 import { getLocaleFromPathname, localizePath, localeHomeUrl, stripLocalePrefix, hreflangTags, type Locale } from "~/lib/i18n";
 import { SHOP_COPY, productCountLabel, sortFacetGroups } from "~/lib/shopCopy";
+import { collectionIntro } from "~/lib/collectionIntro";
 
 const PAGE_SIZE = 24;
 
@@ -70,6 +71,14 @@ function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
   return sortFacetGroups([...map.values()]);
 }
 
+// The collection's brands, most products first (from the unfiltered facets).
+function brandNamesByCount(facetValues: CollectionPageFacetValue[]): string[] {
+  return facetValues
+    .filter((f) => f.facetValue.facet.code === "brands")
+    .sort((a, b) => b.count - a.count)
+    .map((f) => f.facetValue.name);
+}
+
 // ── Meta ───────────────────────────────────────────────────────────────────
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -81,13 +90,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const page = loaderData?.page ?? 1;
   // Page 2+ list different products but would otherwise share page 1's exact title.
   const title = withPageSuffix(baseTitle, page, locale);
-  const customMetaDescription = collection?.customFields?.metaDescription?.trim();
-  const rawDescription = collection?.description?.replace(/<[^>]+>/g, "").trim();
-  const fallbackDescription =
-    locale === "ar"
-      ? `تسوق ${name} الأصلي أونلاين من ${SITE_NAME}. أفضل الأسعار وأفضل الماركات. ✓ تسوق آمن ✓ توصيل إلى الدوحة وجميع أنحاء الدولة.`
-      : `Shop authentic ${name} online at ${SITE_NAME}. Best prices & top brands. ✓ Secure Shopping ✓ Delivery to Doha & nationwide.`;
-  const description = withPagePrefix(customMetaDescription || rawDescription || fallbackDescription, page, locale);
+  // Admin meta description if set, else the best text available (see collectionIntro).
+  const { meta: bestDescription } = collectionIntro({
+    name,
+    metaDescription: collection?.customFields?.metaDescription,
+    descriptionHtml: collection?.description,
+    brands: brandNamesByCount(loaderData?.allFacetValues ?? []),
+    locale,
+  });
+  const description = withPagePrefix(bestDescription, page, locale);
   const canonicalUrl = loaderData?.canonicalUrl ?? "";
   const image = loaderData?.collectionImage ?? "";
 
@@ -296,10 +307,18 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
   const { breadcrumbHome } = COPY[locale];
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  // Short intro under the H1 (same idea as brand pages): the admin-written meta
-  // description, so the page says what it sells before the grid starts. Only
-  // hand-written text is shown -- no auto-generated fallback for collections.
-  const intro = collection?.customFields?.metaDescription?.trim() || null;
+  // Short intro under the H1 (same idea as brand pages), so the page says what
+  // it sells before the grid starts: best available text, generated from the
+  // collection's own brands when nothing is written (see collectionIntro).
+  const intro = collection
+    ? collectionIntro({
+        name: collection.name,
+        metaDescription: collection.customFields?.metaDescription,
+        descriptionHtml: collection.description,
+        brands: brandNamesByCount(allFacetValues ?? []),
+        locale,
+      }).intro
+    : null;
   const [introExpanded, setIntroExpanded] = useState(false);
   // Mobile only: clamp to two lines behind "Read more" so products stay near the
   // top of the screen. Desktop always shows it in full. CSS-only clamp, so the
