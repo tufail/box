@@ -1231,13 +1231,31 @@ export default function ProductDetailPage({ loaderData }: Route.ComponentProps) 
 	const isVariantPage = !!activeVariant?.customFields?.slug;
 	const activeVariantName = variantDisplayTitle(activeVariant);
 	const jsonLdName = isVariantPage && activeVariantName ? activeVariantName : product.name;
-	// Structured-data description should summarize the product, not reproduce the
-	// full page body — prefer the AI Overview field (written specifically for AI
-	// assistants/AI search overviews reading this markup), then the curated meta
-	// description (same one used in <meta name="description">, written for classic
-	// search snippets instead), and only fall back to a truncated plain-text product
-	// description when neither curated field has been filled in yet.
-	const jsonLdDescription = (product.customFields?.aiOverview || product.customFields?.metaDescription || product.description.replace(/<[^>]+>/g, "").trim()).slice(0, 500);
+	// Structured-data description. Every page on this site is a VARIANT page (one
+	// flavour/size), so the variant's own description (customFields.additionalInfo
+	// -- the same text the Description tab shows) is the most accurate text for
+	// it and comes first. Product-level fields are fallbacks for variants without
+	// their own text: the AI Overview (written for AI assistants), then the
+	// curated meta description, then the product description. (Previously only
+	// product-level fields were read, and two-thirds of pages sent an empty
+	// description to Google and AI tools.)
+	const plainText = (html: string | null | undefined) =>
+		(html ?? "")
+			.replace(/<[^>]+>/g, " ")
+			.replace(/&nbsp;/g, " ")
+			.replace(/&amp;/g, "&")
+			.replace(/&quot;/g, '"')
+			.replace(/&#39;|&apos;/g, "'")
+			.replace(/\s+/g, " ")
+			.trim();
+	const rawJsonLdDescription =
+		plainText(activeVariant?.customFields?.additionalInfo) ||
+		product.customFields?.aiOverview?.trim() ||
+		product.customFields?.metaDescription?.trim() ||
+		plainText(product.description);
+	// Cap at 500 chars on a word boundary rather than mid-word.
+	const jsonLdDescription =
+		rawJsonLdDescription.length <= 500 ? rawJsonLdDescription : `${rawJsonLdDescription.slice(0, 500).replace(/\s+\S*$/, "")}…`;
 
 	// image is a required field for Product rich results — Search Console flagged
 	// products missing it entirely, which happened whenever featuredAsset wasn't
