@@ -35,7 +35,10 @@ function decodeEntities(s: string): string {
 // Snippet-style marketing ("✓ Secure Shopping ✓ Best Price", "Shop Now!") reads
 // fine in a search result but odd as page copy under a heading -- strip it.
 export function cleanBlurb(text: string): string {
-	return text
+	// "…at NutriBox Qatar. …delivery across Qatar" says Qatar twice; when it
+	// appears again anyway, the brand name alone is enough.
+	const deduped = (text.match(/qatar/gi) ?? []).length > 1 ? text.replace(/NutriBox Qatar/g, "NutriBox") : text;
+	return deduped
 		.replace(/[✓✔☑]\s*[^✓✔☑.!]*[.!]?/g, " ")
 		.replace(/\bShop now!?/gi, " ")
 		.replace(/\s+([.,!])/g, "$1")
@@ -69,24 +72,34 @@ const TRUST = {
 	en: "100% authentic products from verified distributors, priced in QAR.",
 	ar: "جميع المنتجات أصلية من موزعين معتمدين وبالأسعار بالريال القطري.",
 };
-// Second sentence of a generated intro: authenticity + delivery, the two
-// things a Qatar shopper checks before buying supplements online.
+// Authenticity + delivery, the two things a Qatar shopper checks before buying
+// supplements online. "Qatar" should appear ONCE per intro, so each promise
+// has a variant without it for text that already says Qatar.
 const PROMISE = {
-	en: "100% original products from verified distributors, with express delivery in Doha and across Qatar.",
-	ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع في الدوحة وجميع أنحاء قطر.",
+	withQatar: {
+		en: "100% original products from verified distributors, with express delivery in Doha and across Qatar.",
+		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع في الدوحة وجميع أنحاء قطر.",
+	},
+	noQatar: {
+		en: "100% original products from verified distributors, with express delivery across Doha.",
+		ar: "منتجات أصلية 100% من موزعين معتمدين، مع توصيل سريع في الدوحة.",
+	},
 };
 const PROMISE_SHORT = {
-	en: "100% original, with express delivery in Doha.",
-	ar: "منتجات أصلية مع توصيل سريع في الدوحة.",
+	withQatar: { en: "100% original, with express delivery across Qatar.", ar: "منتجات أصلية مع توصيل سريع في جميع أنحاء قطر." },
+	noQatar: { en: "100% original, with express delivery in Doha.", ar: "منتجات أصلية مع توصيل سريع في الدوحة." },
 };
 
+const saysQatar = (text: string) => /qatar|قطر/i.test(text);
+const promise = (base: string, locale: Locale) => PROMISE[saysQatar(base) ? "noQatar" : "withQatar"][locale];
+const promiseShort = (base: string, locale: Locale) => PROMISE_SHORT[saysQatar(base) ? "noQatar" : "withQatar"][locale];
+
 // "Shop our <name> range" reads naturally for any collection name, including
-// ones that aren't product nouns ("Energy", "Strength", "Accessories").
+// ones that aren't product nouns ("Energy", "Strength", "Accessories"). No
+// "Qatar" here -- the promise sentence after it carries the one mention.
 function generatedLead(name: string, brands: string[], locale: Locale): string {
 	const from = brands.length ? joinBrands(brands, locale) : "";
-	return locale === "ar"
-		? `تسوّق تشكيلة ${name} في قطر${from ? ` من ${from}` : ""}.`
-		: `Shop our ${name} range in Qatar${from ? ` from ${from}` : ""}.`;
+	return locale === "ar" ? `تسوّق تشكيلة ${name}${from ? ` من ${from}` : ""}.` : `Shop our ${name} range${from ? ` from ${from}` : ""}.`;
 }
 
 // Cut at a sentence end within max; failing that, at a word, with an ellipsis.
@@ -111,9 +124,10 @@ export function collectionIntro({ name, metaDescription, descriptionHtml, brands
 		// already mention delivery (also adds the Doha/Qatar local signal),
 		// otherwise just the authenticity line.
 		const mentionsDelivery = /deliver|توصيل/i.test(cleaned);
-		intro = cleaned.length < SHORT_INTRO + 20 ? `${cleaned} ${mentionsDelivery ? TRUST[locale] : PROMISE[locale]}` : cleaned;
+		intro = cleaned.length < SHORT_INTRO + 20 ? `${cleaned} ${mentionsDelivery ? TRUST[locale] : promise(cleaned, locale)}` : cleaned;
 	} else {
-		intro = `${generatedLead(name, top, locale)} ${PROMISE[locale]}`;
+		const lead = generatedLead(name, top, locale);
+		intro = `${lead} ${promise(lead, locale)}`;
 	}
 
 	// The admin's own meta description is used as written; otherwise the best
@@ -122,15 +136,17 @@ export function collectionIntro({ name, metaDescription, descriptionHtml, brands
 	let meta: string;
 	if (custom) meta = custom;
 	else if (cleaned) {
-		const candidates = [intro, `${cleaned} ${PROMISE_SHORT[locale]}`];
+		const candidates = [intro, `${cleaned} ${promiseShort(cleaned, locale)}`];
 		meta = candidates.find((c) => c.length <= META_MAX) ?? fit(cleaned, META_MAX);
 	} else {
+		const withShort = (lead: string) => `${lead} ${promiseShort(lead, locale)}`;
+		const noBrands = generatedLead(name, [], locale);
 		const candidates = [
 			intro,
-			`${generatedLead(name, top, locale)} ${PROMISE_SHORT[locale]}`,
-			`${generatedLead(name, top.slice(0, 2), locale)} ${PROMISE_SHORT[locale]}`,
-			`${generatedLead(name, [], locale)} ${PROMISE[locale]}`,
-			generatedLead(name, top.slice(0, 2), locale),
+			withShort(generatedLead(name, top, locale)),
+			withShort(generatedLead(name, top.slice(0, 2), locale)),
+			`${noBrands} ${promise(noBrands, locale)}`,
+			withShort(noBrands),
 		];
 		meta = candidates.find((c) => c.length <= META_MAX) ?? fit(candidates[candidates.length - 1], META_MAX);
 	}
