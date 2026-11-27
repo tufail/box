@@ -58,18 +58,27 @@ function sortToInput(sort: SortKey): CollectionPageVariables["input"]["sort"] {
 interface FacetGroup {
   facetId: string;
   facetName: string;
+  facetCode: string;
   values: { id: string; name: string; count: number }[];
 }
 
 function groupFacets(facetValues: CollectionPageFacetValue[]): FacetGroup[] {
   const map = new Map<string, FacetGroup>();
   for (const { facetValue, count } of facetValues) {
-    const { id: facetId, name: facetName } = facetValue.facet;
-    if (!map.has(facetId)) map.set(facetId, { facetId, facetName, values: [] });
+    const { id: facetId, name: facetName, code: facetCode } = facetValue.facet;
+    if (!map.has(facetId)) map.set(facetId, { facetId, facetName, facetCode: facetCode ?? "", values: [] });
     map.get(facetId)!.values.push({ id: facetValue.id, name: facetValue.name, count });
   }
   return sortFacetGroups([...map.values()]);
 }
+
+// Brand and category aren't offered as sidebar filters on collection pages:
+// the brand dropdown and sub-category links above the grid already open real,
+// crawlable pages for those (/brands/{brand}/{category}, sub-collections),
+// which is better for shoppers and SEO than a filter URL Google is told to
+// ignore. Matched by code or English name (older data uses "brand").
+const LINKED_FACET = /^(brands?|categor(y|ies))$/i;
+const isLinkedFacet = (g: FacetGroup) => LINKED_FACET.test(g.facetCode) || LINKED_FACET.test(g.facetName);
 
 // The collection's brands, most products first (from the unfiltered facets).
 function brandNamesByCount(facetValues: CollectionPageFacetValue[]): string[] {
@@ -214,6 +223,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
 interface FilterSidebarProps {
   facetGroups: FacetGroup[];
+  /** Every group, including ones not shown as filters -- so an active filter
+   *  from an old URL (e.g. ?fv=<brand>) still shows a chip that can clear it. */
+  chipGroups?: FacetGroup[];
   filteredIds: Set<string>;
   activeFv: string[];
   onToggle: (id: string) => void;
@@ -221,7 +233,7 @@ interface FilterSidebarProps {
   locale: Locale;
 }
 
-function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAll, locale }: FilterSidebarProps) {
+function FilterSidebar({ facetGroups, chipGroups = facetGroups, filteredIds, activeFv, onToggle, onClearAll, locale }: FilterSidebarProps) {
   const t = SHOP_COPY[locale];
   // Collapsed by facetId — undefined/false means expanded, so every group
   // starts open without needing to seed this from facetGroups up front.
@@ -236,7 +248,7 @@ function FilterSidebar({ facetGroups, filteredIds, activeFv, onToggle, onClearAl
           </div>
           <div className="flex flex-wrap gap-1.5">
             {activeFv.map((id) => {
-              const allValues = facetGroups.flatMap((g) => g.values);
+              const allValues = chipGroups.flatMap((g) => g.values);
               const match = allValues.find((v) => v.id === id);
               return match ? (
                 <button
@@ -327,7 +339,8 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   // Build sidebar from the unfiltered facet list so nothing disappears on selection
-  const facetGroups = groupFacets(allFacetValues ?? facetValues);
+  const allFacetGroups = groupFacets(allFacetValues ?? facetValues);
+  const facetGroups = allFacetGroups.filter((g) => !isLinkedFacet(g));
   // Brand dropdown (links to the brand x category landing pages) + this collection's
   // sub-collections, shown just above the grid. No extra query: brands come from the
   // facets already fetched, children from the collection itself.
@@ -479,6 +492,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
           <div className="text-sm font-semibold text-gray-800 mb-4">{t.filters}</div>
           <FilterSidebar
             facetGroups={facetGroups}
+            chipGroups={allFacetGroups}
             filteredIds={filteredIds}
             activeFv={fv as string[]}
             onToggle={toggleFacet}
@@ -529,6 +543,7 @@ export default function CollectionPage({ loaderData }: Route.ComponentProps) {
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <FilterSidebar
                 facetGroups={facetGroups}
+                chipGroups={allFacetGroups}
                 filteredIds={filteredIds}
                 activeFv={fv as string[]}
                 onToggle={(id) => { toggleFacet(id); setMobileFiltersOpen(false); }}
