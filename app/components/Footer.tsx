@@ -57,13 +57,13 @@ function WhatsAppIcon() {
 const FOOTER_COPY = {
 	en: {
 		trustBadges: [
-			{ icon: Headphones, title: "Customer Support", desc: "Sat-Thu, 10am to 8pm" },
+			{ icon: Headphones, title: "Customer Support", desc: "Sat-Thu 11am-10pm, Fri 3:30-9:30pm" },
 			{ icon: RotateCcw, title: "Easy returns and refunds", desc: "Hassle-free returns" },
 			{ icon: Truck, title: "Fast Delivery Service", desc: "Express delivery within 2 hours to same day" },
 			{ icon: ShieldCheck, title: "100% Authentic Products", desc: "We only deal with original products" },
 		],
 		shop: "Shop",
-		hours: "Sat-Thu 10am to 8pm",
+		hours: "Sat-Thu 11am-10pm, Fri 3:30-9:30pm",
 		followUs: "Follow Us",
 		tagline: "Your trusted destination for authentic sports nutrition, health supplements, and wellness products across Qatar.",
 		contactUs: "Contact Us",
@@ -85,13 +85,13 @@ const FOOTER_COPY = {
 	},
 	ar: {
 		trustBadges: [
-			{ icon: Headphones, title: "دعم العملاء", desc: "السبت-الخميس، من 10 صباحًا حتى 8 مساءً" },
+			{ icon: Headphones, title: "دعم العملاء", desc: "السبت-الخميس 11 ص-10 م، الجمعة 3:30-9:30 م" },
 			{ icon: RotateCcw, title: "إرجاع واسترداد سهل", desc: "إرجاع بدون تعقيد" },
 			{ icon: Truck, title: "خدمة توصيل سريعة", desc: "توصيل سريع من ساعتين إلى نفس اليوم" },
 			{ icon: ShieldCheck, title: "منتجات أصلية 100%", desc: "نتعامل فقط مع المنتجات الأصلية" },
 		],
 		shop: "تسوق",
-		hours: "السبت-الخميس من 10 صباحًا حتى 8 مساءً",
+		hours: "السبت-الخميس 11 ص-10 م، الجمعة 3:30-9:30 م",
 		followUs: "تابعنا",
 		tagline: "وجهتك الموثوقة للمكملات الرياضية الأصلية والمكملات الصحية ومنتجات العافية في جميع أنحاء قطر.",
 		contactUs: "تواصل معنا",

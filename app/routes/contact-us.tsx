@@ -38,10 +38,10 @@ const COPY = {
 		contactInfoIntro: "You can reach us anytime through WhatsApp, call or email. We usually respond within a few hours.",
 		whatsappCallLabel: "WhatsApp / Call",
 		emailLabel: "Email",
-		hoursLabel: "Support Hours",
-		hours: "Sat-Thu 10am to 8pm",
+		hoursLabel: "Store & Support Hours",
+		hours: "Sat-Thu 11am-10pm, Fri 3:30-9:30pm",
 		locationLabel: "Our Location",
-		locationCity: "Doha, Qatar",
+		locationCity: "Al Sadd, Doha, Qatar",
 		formHeading: "Send Us a Message",
 		nameLabel: "Your Name",
 		emailFieldLabel: "Your Email",
@@ -49,9 +49,20 @@ const COPY = {
 		subjects: ["Order Inquiry", "Product Question", "Business & Wholesale", "General Enquiry"],
 		messageLabel: "Your Message",
 		send: "Send Message",
-		mapHeading: "Our Doha Store Location",
+		mapHeading: "Visit NutriBox: Sports Nutrition & Supplements Store in Al Sadd, Doha",
+		storeIntro: "Explore whey protein, creatine, pre-workout, vitamins and wellness supplements from leading international brands at our Al Sadd store, or shop online with express delivery in Doha and nationwide.",
 		getDirections: "Get Directions",
 		faqHeading: "Frequently Asked Questions",
+		// Location FAQs, shown before the general ones (and in the FAQPage schema).
+		// Facts only from what the site already states (address, hours, pickup).
+		// Delivery pricing is distance-based (qatar-shipping plugin), so no fixed
+		// fee/zone promise here -- checkout shows the real quote.
+		localFaqs: [
+			{ q: "Where is NutriBox located in Doha?", a: "NutriBox is at AK Group Building, Office No. 2, 1st Floor, Building No. 41, 343 Al Sadd St, Doha, Qatar. Use the Get Directions button above for Google Maps directions." },
+			{ q: "Can I visit the NutriBox store in Al Sadd?", a: "Yes. Our Al Sadd store is open Saturday to Thursday, 11am to 10pm, and Friday, 3:30pm to 9:30pm. You can also choose store pickup for online orders, or have them delivered to your location." },
+			{ q: "What can I find at the NutriBox store?", a: "Sports nutrition and health supplements from leading international brands, including whey protein, creatine, pre-workout, amino acids, vitamins, collagen and wellness products, subject to availability." },
+			{ q: "Does NutriBox deliver outside Al Sadd?", a: "Yes. We deliver across Qatar, with express delivery in Doha. The delivery fee depends on your distance from our store and is shown before you pay at checkout." },
+		],
 		viewAll: "View All",
 		trust: [
 			{ icon: Truck, title: "Fast Doha Delivery" },
@@ -72,10 +83,10 @@ const COPY = {
 		contactInfoIntro: "يمكنك التواصل معنا في أي وقت عبر واتساب أو الاتصال أو البريد الإلكتروني. نرد عادةً خلال ساعات قليلة.",
 		whatsappCallLabel: "واتساب / اتصال",
 		emailLabel: "البريد الإلكتروني",
-		hoursLabel: "ساعات الدعم",
-		hours: "السبت-الخميس من 10 صباحًا حتى 8 مساءً",
+		hoursLabel: "ساعات المتجر والدعم",
+		hours: "السبت-الخميس 11 ص-10 م، الجمعة 3:30-9:30 م",
 		locationLabel: "موقعنا",
-		locationCity: "الدوحة، قطر",
+		locationCity: "السد، الدوحة، قطر",
 		formHeading: "أرسل لنا رسالة",
 		nameLabel: "اسمك",
 		emailFieldLabel: "بريدك الإلكتروني",
@@ -83,9 +94,16 @@ const COPY = {
 		subjects: ["استفسار عن طلب", "سؤال عن منتج", "الأعمال والجملة", "استفسار عام"],
 		messageLabel: "رسالتك",
 		send: "إرسال الرسالة",
-		mapHeading: "موقع متجرنا في الدوحة",
+		mapHeading: "زوروا نوتري بوكس: متجر التغذية الرياضية والمكملات الغذائية في السد، الدوحة",
+		storeIntro: "اكتشفوا بروتين مصل اللبن والكرياتين ومكملات ما قبل التمرين والفيتامينات ومنتجات العافية من أفضل العلامات العالمية في متجرنا بالسد، أو تسوقوا أونلاين مع توصيل سريع داخل الدوحة ولجميع أنحاء الدولة.",
 		getDirections: "احصل على الاتجاهات",
 		faqHeading: "الأسئلة الشائعة",
+		localFaqs: [
+			{ q: "أين يقع نوتري بوكس في الدوحة؟", a: "يقع نوتري بوكس في مبنى AK Group، مكتب رقم 2، الطابق الأول، مبنى رقم 41، 343 شارع السد، الدوحة، قطر. استخدموا زر «احصل على الاتجاهات» أعلاه للوصول عبر خرائط Google." },
+			{ q: "هل يمكنني زيارة متجر نوتري بوكس في السد؟", a: "نعم. متجرنا في السد مفتوح من السبت إلى الخميس من 11 صباحًا حتى 10 مساءً، ويوم الجمعة من 3:30 حتى 9:30 مساءً. ويمكنكم أيضًا اختيار الاستلام من المتجر لطلباتكم الإلكترونية، أو توصيلها إلى موقعكم." },
+			{ q: "ماذا أجد في متجر نوتري بوكس؟", a: "مكملات التغذية الرياضية والمكملات الصحية من أفضل العلامات العالمية، منها بروتين مصل اللبن والكرياتين ومكملات ما قبل التمرين والأحماض الأمينية والفيتامينات والكولاجين ومنتجات العافية، حسب التوفر." },
+			{ q: "هل يوصّل نوتري بوكس خارج منطقة السد؟", a: "نعم. نوصّل لجميع أنحاء قطر، مع توصيل سريع داخل الدوحة. تعتمد رسوم التوصيل على المسافة من متجرنا، وتظهر قبل الدفع عند إتمام الطلب." },
+		],
 		viewAll: "عرض الكل",
 		trust: [
 			{ icon: Truck, title: "توصيل سريع في الدوحة" },
@@ -126,10 +144,13 @@ export function meta({ location }: Route.MetaArgs) {
 	return [{ title }, { name: "description", content: description }, { tagName: "link" as const, rel: "canonical", href: canonicalUrl }, ...hreflangTags(SITE_URL, "/contact-us"), { property: "og:type", content: "website" }, { property: "og:title", content: title }, { property: "og:description", content: description }, { property: "og:url", content: canonicalUrl }, { property: "og:site_name", content: SITE_NAME }, { name: "twitter:card", content: "summary" }, { name: "twitter:title", content: title }, { name: "twitter:description", content: description }];
 }
 
+// Location questions first, then the two top general store FAQs.
+const pageFaqs = (locale: "en" | "ar") => [...COPY[locale].localFaqs, ...FAQS[locale].slice(0, 2)];
+
 function buildJsonLd(locale: "en" | "ar") {
 	const { title, description, breadcrumbHome, breadcrumbContact } = COPY[locale];
 	const canonicalUrl = `${SITE_URL}${localizePath("/contact-us", locale)}`;
-	const faqs = FAQS[locale].slice(0, 4);
+	const faqs = pageFaqs(locale);
 	return [
 		{ "@context": "https://schema.org", "@type": "ContactPage", name: title, url: canonicalUrl, description },
 		{
@@ -168,7 +189,7 @@ export default function ContactUs() {
 	const locale = getLocaleFromPathname(useLocation().pathname);
 	const jsonLd = buildJsonLd(locale);
 	const t = COPY[locale];
-	const faqs = FAQS[locale].slice(0, 4);
+	const faqs = pageFaqs(locale);
 
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
@@ -286,6 +307,7 @@ export default function ContactUs() {
 								<p className="text-xs text-gray-500">{REAL_ADDRESS}</p>
 							</div>
 						</div>
+						<p className="px-5 pb-4 -mt-1 text-xs text-gray-600 leading-relaxed">{t.storeIntro}</p>
 						<a href={MAPS_LINK} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 mx-5 mb-5 border border-primary text-primary hover:bg-primary hover:text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
 							<Navigation size={14} />
 							{t.getDirections}

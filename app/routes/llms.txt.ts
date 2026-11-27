@@ -78,7 +78,8 @@ ${SITE_NAME} (${SITE_URL}) operates both a physical storefront in Doha and an on
 - Address: AK Group Building Office no 2, 1st Floor Building No. 41, 343 Al Sadd St, Doha, Qatar
 - Phone: +974-7015-7900
 - Email: sales@nutribox.qa
-- Hours: 10:00-20:00, Monday-Thursday and Saturday-Sunday (closed Friday)
+- Hours: Saturday-Thursday 11:00-22:00, Friday 15:30-21:30 (Qatar time)
+- Store pickup is available for online orders, as well as delivery to the customer's location
 
 ## Shop
 

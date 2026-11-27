@@ -57,6 +57,16 @@ const ORGANIZATION_JSON_LD = {
 	// listed address (Doha). Orders ship nationwide, so this states that plainly
 	// rather than letting it default to Doha-only.
 	areaServed: "QA",
+	// Top-level telephone is what Google reads for a LocalBusiness (contactPoint
+	// alone isn't enough); hasMap points at the store's Google Maps listing (same
+	// cid as the Contact page's embedded map).
+	telephone: "+974-7015-7900",
+	email: "sales@nutribox.qa",
+	hasMap: "https://www.google.com/maps?cid=14438553157542370874",
+	// From the Google Business Profile (same cid as hasMap). Note: an admin
+	// "Office Latitude" field once held 25.0603658 -- a typo ~25km south of the
+	// store; the correct value is 25.2803658.
+	geo: { "@type": "GeoCoordinates", latitude: 25.2803658, longitude: 51.5001443 },
 	contactPoint: {
 		"@type": "ContactPoint",
 		telephone: "+974-7015-7900",
@@ -64,12 +74,23 @@ const ORGANIZATION_JSON_LD = {
 		contactType: "customer service",
 		areaServed: "QA",
 	},
-	openingHoursSpecification: {
-		"@type": "OpeningHoursSpecification",
-		dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Saturday", "Sunday"],
-		opens: "10:00",
-		closes: "20:00",
-	},
+	// Must match the Google Business Profile hours exactly (verified 2026-11-27):
+	// Sat-Thu 11:00-22:00, Fri 15:30-21:30. Also shown in Footer.tsx,
+	// contact-us.tsx and llms.txt.ts -- change all together.
+	openingHoursSpecification: [
+		{
+			"@type": "OpeningHoursSpecification",
+			dayOfWeek: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+			opens: "11:00",
+			closes: "22:00",
+		},
+		{
+			"@type": "OpeningHoursSpecification",
+			dayOfWeek: "Friday",
+			opens: "15:30",
+			closes: "21:30",
+		},
+	],
 	// Matches Footer.tsx's socialLinks exactly — all four real profiles. The
 	// Google-suggested draft had genericized these to bare "https://facebook.com" /
 	// "https://tiktok.com" placeholders, so the real profile URLs are kept here.
